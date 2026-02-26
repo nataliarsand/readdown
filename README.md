@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="screenshots/Screenshot%202026-02-25%20at%2018.45.18%201.png" width="128" alt="Readdown icon">
+  <img src="Assets.xcassets/AppIcon.appiconset/icon_256x256@2x.png" width="128" alt="Readdown icon">
 </p>
 
 <h1 align="center">Readdown</h1>
@@ -7,7 +7,7 @@
 <p align="center">A clean, fast Markdown reader for macOS. Just open .md files and read — no editing, no clutter.</p>
 
 <p align="center">
-  <img src="screenshots/Screenshot%202026-02-25%20at%2018.46.45%201.png" width="720" alt="Readdown screenshot">
+  <img src="screenshots/Screenshot%202026-02-25%20at%2018.45.18%201.png" width="720" alt="Readdown screenshot">
 </p>
 
 ## Features
