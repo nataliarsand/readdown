@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+
+# Build artifacts
+build/
+DerivedData/
+release/
+*.app
+*.dmg
+*.zip
+*.pkg
+
+# Certificates and signing (sensitive)
+*.cer
+*.p12
+*.key
+*.mobileprovision
