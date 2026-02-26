@@ -127,19 +127,19 @@ fi
 # ── Step 6: Create DMG ──
 
 echo "==> Creating DMG..."
-DMG_STAGING="$PROJECT_DIR/release/dmg-staging"
-mkdir -p "$DMG_STAGING"
-cp -R "$APP_PATH" "$DMG_STAGING/"
-ln -s /Applications "$DMG_STAGING/Applications"
+rm -f "$DMG_PATH"
 
-hdiutil create \
-    -volname "$APP_NAME" \
-    -srcfolder "$DMG_STAGING" \
-    -ov \
-    -format UDZO \
-    "$DMG_PATH"
-
-rm -rf "$DMG_STAGING"
+create-dmg \
+    --volname "$APP_NAME" \
+    --window-pos 200 120 \
+    --window-size 660 400 \
+    --icon-size 160 \
+    --icon "$APP_NAME.app" 180 170 \
+    --app-drop-link 480 170 \
+    --hide-extension "$APP_NAME.app" \
+    --no-internet-enable \
+    "$DMG_PATH" \
+    "$APP_PATH"
 
 # ── Step 7: Sign the DMG ──
 
