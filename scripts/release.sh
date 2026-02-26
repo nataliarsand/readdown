@@ -5,39 +5,32 @@ set -euo pipefail
 # Builds, signs, notarizes, and packages Readdown as a DMG.
 #
 # Usage:
-#   ./scripts/release.sh --apple-id you@email.com --password xxxx-xxxx-xxxx-xxxx --team-id XXXXXXXXXX
-#   ./scripts/release.sh --skip-notarize   # for local testing
+#   ./scripts/release.sh                           # uses keychain profile "Readdown"
+#   ./scripts/release.sh --skip-notarize           # for local testing
+#
+# To set up keychain credentials (one-time):
+#   xcrun notarytool store-credentials "Readdown" --apple-id you@email.com --team-id XXXXXXXXXX
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SCHEME="ReadDown"
 BUNDLE_ID="com.readdown.app"
 APP_NAME="Readdown"
+KEYCHAIN_PROFILE="Readdown"
 ARCHIVE_PATH="$PROJECT_DIR/release/${SCHEME}.xcarchive"
 EXPORT_PATH="$PROJECT_DIR/release/export"
 DMG_PATH="$PROJECT_DIR/release/${APP_NAME}.dmg"
 
-APPLE_ID=""
-APP_PASSWORD=""
-TEAM_ID=""
 SKIP_NOTARIZE=false
 
 # ── Parse arguments ──
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --apple-id)    APPLE_ID="$2"; shift 2 ;;
-        --password)    APP_PASSWORD="$2"; shift 2 ;;
-        --team-id)     TEAM_ID="$2"; shift 2 ;;
         --skip-notarize) SKIP_NOTARIZE=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
-
-if [ "$SKIP_NOTARIZE" = false ] && { [ -z "$APPLE_ID" ] || [ -z "$APP_PASSWORD" ] || [ -z "$TEAM_ID" ]; }; then
-    echo "Error: --apple-id, --password, and --team-id are required (or use --skip-notarize)"
-    exit 1
-fi
 
 # ── Clean previous build ──
 
@@ -109,9 +102,7 @@ if [ "$SKIP_NOTARIZE" = false ]; then
     ditto -c -k --keepParent "$APP_PATH" "$NOTARIZE_ZIP"
 
     xcrun notarytool submit "$NOTARIZE_ZIP" \
-        --apple-id "$APPLE_ID" \
-        --password "$APP_PASSWORD" \
-        --team-id "$TEAM_ID" \
+        --keychain-profile "$KEYCHAIN_PROFILE" \
         --wait
 
     rm -f "$NOTARIZE_ZIP"
