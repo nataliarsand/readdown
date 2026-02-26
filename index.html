@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Readdown — A Markdown Reader for macOS</title>
+  <meta name="description" content="A clean, fast Markdown reader for macOS. Stop opening .md files in heavy editors.">
+  <link rel="icon" type="image/png" href="icon.png">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Readdown — A Markdown Reader for macOS">
+  <meta property="og:description" content="A clean, fast Markdown reader for macOS. Stop opening .md files in heavy editors.">
+  <meta property="og:image" content="screenshot-1.png">
+  <meta property="og:site_name" content="Readdown">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Readdown — A Markdown Reader for macOS">
+  <meta name="twitter:description" content="A clean, fast Markdown reader for macOS.">
+  <meta name="twitter:image" content="screenshot-1.png">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Readdown",
+    "operatingSystem": "macOS 13 Ventura or later",
+    "applicationCategory": "UtilitiesApplication",
+    "description": "A clean, fast Markdown reader for macOS. Just open .md files and read — no editing, no clutter.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #0a0a1a;
+      --border: #1e1e3a;
+      --text: #e8e8f0;
+      --text-secondary: #8888a8;
+      --accent: #6c63ff;
+      --accent-hover: #7f78ff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Hero ── */
+
+    .hero {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      min-height: 100vh;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 3rem;
+      align-items: center;
+    }
+
+    .hero-left {
+      padding-right: 2rem;
+    }
+
+    .icon {
+      width: 104px;
+      height: 104px;
+      border-radius: 22px;
+      margin-bottom: 1.75rem;
+    }
+
+    h1 {
+      font-family: "SF Pro Rounded", "SF Pro Display", ui-rounded, -apple-system, system-ui, sans-serif;
+      font-size: 4.2rem;
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      margin-bottom: 1.5rem;
+    }
+
+    .tagline {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      max-width: 440px;
+      margin-bottom: 2.5rem;
+      line-height: 1.7;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 1rem 2.25rem;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      width: fit-content;
+      box-shadow: 0 4px 24px rgba(108, 99, 255, 0.25);
+    }
+
+    .cta:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(108, 99, 255, 0.35);
+    }
+
+    .cta svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .requires {
+      margin-top: 0.85rem;
+      font-size: 0.78rem;
+      color: rgba(136, 136, 168, 0.5);
+      letter-spacing: 0.01em;
+    }
+
+    /* ── Right: tilted mosaic ── */
+
+    .hero-right {
+      position: relative;
+      height: 80vh;
+      min-height: 500px;
+      perspective: 1400px;
+    }
+
+    .mosaic {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%) rotateY(-16deg);
+      transform-style: preserve-3d;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 18px;
+      width: 130%;
+    }
+
+    .mosaic img {
+      width: 100%;
+      border-radius: 12px;
+      box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        0 16px 56px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.06);
+      display: block;
+      transition: box-shadow 0.3s, transform 0.3s;
+    }
+
+    .mosaic img:hover {
+      box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        0 20px 64px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(108, 99, 255, 0.15),
+        0 0 40px rgba(108, 99, 255, 0.06);
+      transform: scale(1.02);
+    }
+
+    .mosaic img:nth-child(1) {
+      grid-column: 1;
+      grid-row: 1 / 3;
+      align-self: center;
+    }
+
+    .mosaic img:nth-child(2) {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .mosaic img:nth-child(3) {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    /* ── Features ── */
+
+    .features {
+      border-top: 1px solid var(--border);
+      padding: 6rem 2rem;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .features h2 {
+      font-family: "SF Pro Rounded", "SF Pro Display", ui-rounded, -apple-system, system-ui, sans-serif;
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 4rem;
+    }
+
+    .feature-list {
+      list-style: none;
+    }
+
+    .feature-list li {
+      padding: 1.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .feature-list li:first-child {
+      border-top: 1px solid var(--border);
+    }
+
+    .feature-name {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .feature-name svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
+    .feature-detail {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ── CTA banner ── */
+
+    .cta-banner {
+      border-top: 1px solid var(--border);
+      padding: 5rem 2rem;
+      text-align: center;
+    }
+
+    .cta-banner .cta-headline {
+      font-family: "SF Pro Rounded", "SF Pro Display", ui-rounded, -apple-system, system-ui, sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .cta-banner .cta-sub {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+
+    .cta-banner .requires {
+      margin-top: 1rem;
+      color: rgba(136, 136, 168, 0.4);
+    }
+
+    /* ── Footer ── */
+
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid var(--border);
+      color: rgba(136, 136, 168, 0.5);
+      font-size: 0.8rem;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .coffee-link {
+      position: fixed;
+      bottom: 1.25rem;
+      right: 1.25rem;
+      z-index: 100;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.4rem;
+      border: 1px solid rgba(108, 99, 255, 0.35);
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+    }
+
+    .coffee-link:hover {
+      border-color: var(--accent);
+      background: rgba(108, 99, 255, 0.08);
+      color: var(--accent-hover);
+      text-decoration: none;
+    }
+
+    /* ── Mobile ── */
+
+    @media (max-width: 768px) {
+      .hero {
+        grid-template-columns: 1fr;
+        padding: 3rem 1.5rem;
+        min-height: auto;
+        gap: 2rem;
+      }
+      .hero-left {
+        padding-right: 0;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .icon { width: 80px; height: 80px; border-radius: 18px; }
+      h1 { font-size: 3rem; }
+      .tagline { max-width: 100%; }
+      .hero-right { height: auto; min-height: auto; perspective: 900px; }
+      .mosaic {
+        position: relative;
+        top: auto;
+        transform: rotateY(-10deg);
+        width: 110%;
+        margin-left: -5%;
+      }
+      .features h2 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <main>
+  <section class="hero">
+    <div class="hero-left">
+      <img src="icon.png" alt="Readdown" class="icon">
+      <h1>Readdown</h1>
+      <p class="tagline">Stop opening .md files in Xcode, VS Code, or whatever heavy editor your Mac defaults to. Readdown is a lightweight Markdown reader.</p>
+      <a href="https://github.com/nataliarsand/readdown/releases/latest/download/Readdown.dmg" class="cta" id="download-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for Mac
+      </a>
+      <p class="requires">Requires macOS 13 Ventura or later</p>
+    </div>
+    <div class="hero-right">
+      <div class="mosaic">
+        <img src="screenshot-1.png" alt="Readdown showing headings and lists">
+        <img src="screenshot-2.png" alt="Readdown showing task lists and code blocks">
+        <img src="screenshot-3.png" alt="Readdown showing tables and blockquotes">
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <h2>Built for reading,<br>nothing else.</h2>
+    <ul class="feature-list">
+      <li>
+        <p class="feature-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Instant open</p>
+        <p class="feature-detail">Double-click any .md file. No project loading, no workspace setup.</p>
+      </li>
+      <li>
+        <p class="feature-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>GitHub-style rendering</p>
+        <p class="feature-detail">Headings, lists, tables, code blocks, task lists — rendered the way you expect.</p>
+      </li>
+      <li>
+        <p class="feature-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Light and dark mode</p>
+        <p class="feature-detail">Follows your system appearance automatically.</p>
+      </li>
+      <li>
+        <p class="feature-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Read-only by design</p>
+        <p class="feature-detail">Your files stay untouched. No accidental edits, no auto-formatting surprises.</p>
+      </li>
+      <li>
+        <p class="feature-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Native macOS app</p>
+        <p class="feature-detail">Built with Swift and SwiftUI. Lightweight, fast, private — no telemetry.</p>
+      </li>
+      <li>
+        <p class="feature-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>Set as default reader</p>
+        <p class="feature-detail">Replace Xcode, TextEdit, or VS Code as your .md handler in one click.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section class="cta-banner">
+    <p class="cta-headline">Your Markdown deserves better.</p>
+    <p class="cta-sub">Stop reading .md files in your code editor.</p>
+    <a href="https://github.com/nataliarsand/readdown/releases/latest/download/Readdown.dmg" class="cta" id="download-btn-bottom">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download for Mac
+    </a>
+    <p class="requires">Free &middot; macOS 13 Ventura or later</p>
+  </section>
+
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Readdown</p>
+  </footer>
+
+  <a href="https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC" class="coffee-link">Buy me a coffee &#9749;</a>
+
+</body>
+</html>
