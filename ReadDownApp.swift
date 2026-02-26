@@ -4,26 +4,21 @@ import UniformTypeIdentifiers
 @main
 struct ReadDownApp: App {
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
-    @State private var showDefaultPrompt = false
+    @State private var showWelcome = false
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(document: file.document)
                 .onAppear {
                     if !hasPrompted {
-                        showDefaultPrompt = true
+                        showWelcome = true
                     }
                 }
-                .alert("Set as Default Markdown Reader?", isPresented: $showDefaultPrompt) {
-                    Button("Set as Default") {
-                        setAsDefaultMarkdownApp()
-                        hasPrompted = true
-                    }
-                    Button("Not Now", role: .cancel) {
-                        hasPrompted = true
-                    }
-                } message: {
-                    Text("Would you like to open all .md files with Readdown?")
+                .sheet(isPresented: $showWelcome, onDismiss: { hasPrompted = true }) {
+                    WelcomeView(
+                        onSetDefault: { setAsDefaultMarkdownApp() },
+                        onDismiss: { showWelcome = false }
+                    )
                 }
         }
         .commands {

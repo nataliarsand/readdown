@@ -13,6 +13,7 @@
 		A100000000000000000004 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000004 /* WebView.swift */; };
 		A100000000000000000005 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000005 /* MarkdownRenderer.swift */; };
 		A100000000000000000006 /* HTMLTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000006 /* HTMLTemplate.swift */; };
+		A100000000000000000007 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000010 /* WelcomeView.swift */; };
 		A100000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000009 /* Assets.xcassets */; };
 		A200000000000000000001 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000000000000000001 /* PreviewViewController.swift */; };
 		A200000000000000000002 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000005 /* MarkdownRenderer.swift */; };
@@ -54,6 +55,7 @@
 		B100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B100000000000000000008 /* ReadDown.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDown.entitlements; sourceTree = "<group>"; };
 		B100000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B100000000000000000010 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		B200000000000000000001 /* PreviewViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewController.swift; sourceTree = "<group>"; };
 		B200000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B200000000000000000003 /* ReadDownQuickLook.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDownQuickLook.entitlements; sourceTree = "<group>"; };
@@ -97,6 +99,7 @@
 				B100000000000000000004 /* WebView.swift */,
 				B100000000000000000005 /* MarkdownRenderer.swift */,
 				B100000000000000000006 /* HTMLTemplate.swift */,
+				B100000000000000000010 /* WelcomeView.swift */,
 				B100000000000000000007 /* Info.plist */,
 				B100000000000000000008 /* ReadDown.entitlements */,
 				B100000000000000000009 /* Assets.xcassets */,
@@ -228,6 +231,7 @@
 				A100000000000000000004 /* WebView.swift in Sources */,
 				A100000000000000000005 /* MarkdownRenderer.swift in Sources */,
 				A100000000000000000006 /* HTMLTemplate.swift in Sources */,
+				A100000000000000000007 /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
