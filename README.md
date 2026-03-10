@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="screenshots/Screenshot%202026-02-25%20at%2018.45.18%201.png" width="720" alt="Readdown screenshot">
+  <img src="screenshots/app-headings.png" width="720" alt="Readdown screenshot">
 </p>
 
 ## Features
