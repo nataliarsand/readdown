@@ -88,7 +88,7 @@
 			);
 			sourceTree = "<group>";
 		};
-		C100000000000000000002 /* MarkdownViewer */ = {
+		C100000000000000000002 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
 				B100000000000000000001 /* ReadDownApp.swift */,
@@ -101,7 +101,7 @@
 				B100000000000000000008 /* ReadDown.entitlements */,
 				B100000000000000000009 /* Assets.xcassets */,
 			);
-			name = MarkdownViewer;
+			path = Sources;
 			sourceTree = "<group>";
 		};
 		C100000000000000000003 /* Products */ = {
@@ -398,7 +398,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ReadDown.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Sources/ReadDown.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -409,7 +409,7 @@
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_FILE = Sources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Readdown;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -430,7 +430,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ReadDown.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Sources/ReadDown.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -441,7 +441,7 @@
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_FILE = Sources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Readdown;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

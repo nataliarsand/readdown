@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Assets.xcassets/AppIcon.appiconset/icon_256x256@2x.png" width="128" alt="Readdown icon">
+  <img src="Sources/Assets.xcassets/AppIcon.appiconset/icon_256x256@2x.png" width="128" alt="Readdown icon">
 </p>
 
 <h1 align="center">Readdown</h1>
