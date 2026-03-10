@@ -36,7 +36,7 @@ struct ReadDownApp: App {
                     .keyboardShortcut(.defaultAction)
                     Button("Skip", role: .cancel) {}
                 } message: {
-                    Text("Preview Markdown files directly in Finder. In the next screen, scroll to Quick Look and enable Readdown.")
+                    Text("To preview Markdown files with spacebar in Finder:\n\n1. Click \"Open Settings\" below\n2. Scroll to Extensions and click ℹ︎ next to \"Quick Look\"\n3. Enable \"ReadDownQuickLook\"")
                 }
         }
         .commands {
@@ -50,6 +50,7 @@ struct ReadDownApp: App {
 
     private func openExtensionsSettings() {
         let urls = [
+            "x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
             "x-apple.systempreferences:com.apple.ExtensionsPreferences?Quick%20Look",
             "x-apple.systempreferences:com.apple.Extensions-Settings.QuickLookExtensions",
             "x-apple.systempreferences:com.apple.ExtensionsPreferences"

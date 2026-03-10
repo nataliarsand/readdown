@@ -9,7 +9,6 @@ class PreviewViewController: NSViewController, QLPreviewingController {
     override func loadView() {
         let config = WKWebViewConfiguration()
         config.preferences.isElementFullscreenEnabled = false
-        // Disable JavaScript for security (matches main app)
         let pagePrefs = WKWebpagePreferences()
         pagePrefs.allowsContentJavaScript = false
         config.defaultWebpagePreferences = pagePrefs
@@ -23,7 +22,7 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         do {
             let markdown = try String(contentsOf: url, encoding: .utf8)
             let html = HTMLTemplate.wrap(body: MarkdownRenderer.render(markdown))
-            webView.loadHTMLString(html, baseURL: url.deletingLastPathComponent())
+            webView.loadHTMLString(html, baseURL: nil)
             handler(nil)
         } catch {
             handler(error)

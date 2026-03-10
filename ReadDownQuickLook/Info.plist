@@ -4,16 +4,19 @@
 <dict>
 	<key>NSExtension</key>
 	<dict>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<key>QLSupportedContentTypes</key>
+			<array>
+				<string>net.daringfireball.markdown</string>
+			</array>
+			<key>QLSupportsSearchableItems</key>
+			<true/>
+		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.quicklook.preview</string>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).PreviewViewController</string>
-		<key>QLSupportedContentTypes</key>
-		<array>
-			<string>net.daringfireball.markdown</string>
-		</array>
-		<key>QLSupportsSearchableItems</key>
-		<true/>
 	</dict>
 </dict>
 </plist>

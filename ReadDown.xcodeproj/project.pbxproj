@@ -152,6 +152,7 @@
 				E200000000000000000001 /* Sources */,
 				E200000000000000000002 /* Frameworks */,
 				E200000000000000000003 /* Resources */,
+				E200000000000000000005 /* Patch SDK Version */,
 			);
 			buildRules = (
 			);
@@ -216,6 +217,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		E200000000000000000005 /* Patch SDK Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(EXECUTABLE_PATH)",
+			);
+			name = "Patch SDK Version";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Xcode 26 beta stamps sdk 26.x into the binary, which crashes\n# ExtensionFoundation on macOS 15 (no Quick Look preview extension\n# point registered in ExtensionKit). Rewrite to sdk 15.0.\nBINARY=\"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}\"\nif vtool -show-build \"$BINARY\" 2>/dev/null | grep -q 'sdk 2[6-9]'; then\n  vtool -set-build-version macos \"${MACOSX_DEPLOYMENT_TARGET}\" 15.0 -replace -output \"${BINARY}.tmp\" \"$BINARY\"\n  mv \"${BINARY}.tmp\" \"$BINARY\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		E100000000000000000001 /* Sources */ = {
@@ -448,6 +467,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ReadDownQuickLook/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -474,6 +494,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ReadDownQuickLook/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
