@@ -4,21 +4,39 @@ import UniformTypeIdentifiers
 @main
 struct ReadDownApp: App {
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
-    @State private var showWelcome = false
+    @State private var showDefaultPrompt = false
+    @State private var showQuickLookPrompt = false
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(document: file.document)
                 .onAppear {
                     if !hasPrompted {
-                        showWelcome = true
+                        showDefaultPrompt = true
                     }
                 }
-                .sheet(isPresented: $showWelcome, onDismiss: { hasPrompted = true }) {
-                    WelcomeView(
-                        onSetDefault: { setAsDefaultMarkdownApp() },
-                        onDismiss: { showWelcome = false }
-                    )
+                .alert("Welcome to Readdown", isPresented: $showDefaultPrompt) {
+                    Button("Set as Default") {
+                        setAsDefaultMarkdownApp()
+                        hasPrompted = true
+                        showQuickLookPrompt = true
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    Button("Skip", role: .cancel) {
+                        hasPrompted = true
+                        showQuickLookPrompt = true
+                    }
+                } message: {
+                    Text("Set Readdown as your default Markdown (.md) reader?")
+                }
+                .alert("Quick Look Previews", isPresented: $showQuickLookPrompt) {
+                    Button("Open Settings") {
+                        openExtensionsSettings()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    Button("Skip", role: .cancel) {}
+                } message: {
+                    Text("Preview Markdown files directly in Finder. In the next screen, scroll to Quick Look and enable Readdown.")
                 }
         }
         .commands {
@@ -28,6 +46,21 @@ struct ReadDownApp: App {
                 }
             }
         }
+    }
+
+    private func openExtensionsSettings() {
+        let urls = [
+            "x-apple.systempreferences:com.apple.ExtensionsPreferences?Quick%20Look",
+            "x-apple.systempreferences:com.apple.Extensions-Settings.QuickLookExtensions",
+            "x-apple.systempreferences:com.apple.ExtensionsPreferences"
+        ]
+        for urlString in urls {
+            if let url = URL(string: urlString),
+               NSWorkspace.shared.open(url) {
+                return
+            }
+        }
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preferences")!)
     }
 
     private func setAsDefaultMarkdownApp() {
