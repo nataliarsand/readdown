@@ -44,9 +44,10 @@ enum MarkdownRenderer {
             }
 
             // Heading
-            if line.hasPrefix("#") {
-                let level = min(line.prefix(while: { $0 == "#" }).count, 6)
-                let text = String(line.dropFirst(level)).trimmingCharacters(in: .whitespaces)
+            if line.matches(pattern: "^\\s{0,3}#{1,6}(?:\\s+|$)") {
+                let trimmedLine = String(line.drop(while: { $0 == " " || $0 == "\t" }))
+                let level = min(trimmedLine.prefix(while: { $0 == "#" }).count, 6)
+                let text = String(trimmedLine.dropFirst(level)).trimmingCharacters(in: .whitespaces)
                 html.append("<h\(level)>\(inlineMarkdown(text))</h\(level)>")
                 i += 1
                 continue
@@ -171,13 +172,30 @@ enum MarkdownRenderer {
                 continue
             }
 
+            // HTML block — pass through raw
+            if isHTMLBlockStart(line) {
+                var blockLines: [String] = []
+                while i < lines.count {
+                    let l = lines[i]
+                    if l.trimmingCharacters(in: .whitespaces).isEmpty {
+                        i += 1
+                        break
+                    }
+                    blockLines.append(l)
+                    i += 1
+                }
+                html.append(blockLines.joined(separator: "\n"))
+                continue
+            }
+
             // Paragraph — collect contiguous non-blank, non-special lines
             var para: [String] = []
             while i < lines.count {
                 let l = lines[i]
                 let t = l.trimmingCharacters(in: .whitespaces)
                 if t.isEmpty || l.hasPrefix("#") || l.hasPrefix(">") || l.hasPrefix("```")
-                    || l.matches(pattern: "^\\s*[-*+] ") || l.matches(pattern: "^\\s*\\d+\\. ") {
+                    || l.matches(pattern: "^\\s*[-*+] ") || l.matches(pattern: "^\\s*\\d+\\. ")
+                    || isHTMLBlockStart(l) {
                     break
                 }
                 // Break if this line starts a table
@@ -206,21 +224,39 @@ enum MarkdownRenderer {
 
     // MARK: - Inline Markdown
 
+    private static func escapeHTMLPreservingTags(_ text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: "</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>", options: []) else {
+            return escapeHTML(text)
+        }
+        let ns = text as NSString
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length))
+        var result = ""
+        var lastEnd = 0
+        for match in matches {
+            let r = match.range
+            result += escapeHTML(ns.substring(with: NSRange(location: lastEnd, length: r.location - lastEnd)))
+            result += ns.substring(with: r)
+            lastEnd = r.location + r.length
+        }
+        result += escapeHTML(ns.substring(from: lastEnd))
+        return result
+    }
+
     private static func inlineMarkdown(_ text: String) -> String {
-        var s = escapeHTML(text)
+        var s = escapeHTMLPreservingTags(text)
 
         // Images: ![alt](url)
         s = s.replacing(pattern: "!\\[([^\\]]*)\\]\\(([^)]+)\\)") { match in
-            let url = match[2]
+            let url = sanitizedMarkdownURL(match[2])
             guard isSafeURL(url) else { return match[0] }
-            return "<img src=\"\(url)\" alt=\"\(match[1])\">"
+            return "<img src=\"\(escapeHTML(url))\" alt=\"\(match[1])\">"
         }
 
         // Links: [text](url)
         s = s.replacing(pattern: "\\[([^\\]]*)\\]\\(([^)]+)\\)") { match in
-            let url = match[2]
+            let url = sanitizedMarkdownURL(match[2])
             guard isSafeURL(url) else { return "\(match[1])" }
-            return "<a href=\"\(url)\">\(match[1])</a>"
+            return "<a href=\"\(escapeHTML(url))\">\(match[1])</a>"
         }
 
         // Inline code
@@ -283,20 +319,60 @@ enum MarkdownRenderer {
             .replacingOccurrences(of: "'", with: "&#39;")
     }
 
+    private static let htmlBlockTags: Set<String> = [
+        "address", "article", "aside", "blockquote", "body", "center",
+        "details", "dialog", "dd", "dir", "div", "dl", "dt", "fieldset",
+        "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4",
+        "h5", "h6", "header", "hgroup", "hr", "li", "main", "nav", "ol",
+        "p", "pre", "section", "summary", "table", "tbody", "td", "tfoot",
+        "th", "thead", "tr", "ul",
+    ]
+
+    private static func isHTMLBlockStart(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("<") else { return false }
+        let rest = trimmed.dropFirst()
+        let afterSlash = rest.hasPrefix("/") ? rest.dropFirst() : rest
+        let tagName = String(afterSlash.prefix(while: { $0.isLetter || $0.isNumber })).lowercased()
+        return htmlBlockTags.contains(tagName)
+    }
+
     private static func isSafeURL(_ url: String) -> Bool {
-        let trimmed = url.trimmingCharacters(in: .whitespaces).lowercased()
-        if trimmed.hasPrefix("#") || trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") || trimmed.hasPrefix("mailto:") {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased = trimmed.lowercased()
+        if trimmed.isEmpty || lowercased.hasPrefix("//") {
+            return false
+        }
+        if lowercased.hasPrefix("#") || lowercased.hasPrefix("http://") || lowercased.hasPrefix("https://") || lowercased.hasPrefix("mailto:") {
             return true
         }
-        // Reject anything with a colon before the first slash (scheme-like)
+
+        if let components = URLComponents(string: trimmed),
+           let scheme = components.scheme?.lowercased(),
+           !scheme.isEmpty {
+            if ["http", "https", "mailto"].contains(scheme) {
+                return true
+            }
+            return false
+        }
+
+        // Reject Windows drive paths and other scheme-like prefixes.
         if let colonIndex = trimmed.firstIndex(of: ":") {
-            let beforeColon = trimmed[trimmed.startIndex..<colonIndex]
-            if beforeColon.allSatisfy({ $0.isLetter }) {
+            let beforeColon = trimmed[..<colonIndex]
+            if beforeColon.count == 1 || beforeColon.allSatisfy({ $0.isLetter }) {
                 return false
             }
         }
-        // Allow relative paths
+
         return true
+    }
+
+    private static func sanitizedMarkdownURL(_ url: String) -> String {
+        url
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
     }
 }
 
