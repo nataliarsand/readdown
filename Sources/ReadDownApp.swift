@@ -9,7 +9,10 @@ struct ReadDownApp: App {
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
-            ContentView(document: file.document)
+            ContentView(
+                document: file.document,
+                baseURL: file.fileURL?.deletingLastPathComponent()
+            )
                 .onAppear {
                     if !hasPrompted {
                         showDefaultPrompt = true
