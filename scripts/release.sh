@@ -88,13 +88,43 @@ if [ ! -d "$APP_PATH" ]; then
     exit 1
 fi
 
-# ── Step 3: Verify code signature ──
+# ── Step 3: Patch SDK version ──
+# Xcode 26 beta stamps sdk 26.x into binaries, which causes macOS 15 to
+# refuse registering app extensions. Rewrite to sdk 15.0 after export,
+# then re-sign so the patched binaries have valid signatures.
+
+echo "==> Patching SDK version..."
+patch_sdk() {
+    local binary="$1"
+    if vtool -show "$binary" 2>/dev/null | grep -q 'sdk 2[6-9]'; then
+        local minos
+        minos=$(vtool -show "$binary" 2>/dev/null | grep "minos " | head -1 | awk '{print $2}')
+        vtool -set-build-version macos "${minos:-13.0}" 15.0 -replace -output "${binary}.tmp" "$binary"
+        mv "${binary}.tmp" "$binary"
+        echo "    Patched: $(basename "$(dirname "$(dirname "$binary")")")/$(basename "$binary")"
+    else
+        echo "    OK (no patch needed): $(basename "$binary")"
+    fi
+}
+
+# Patch QL extension first (inner), then main app (outer)
+patch_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/ReadDownQuickLook"
+patch_sdk "$APP_PATH/Contents/MacOS/ReadDown"
+
+# Re-sign after patching (extension first, then app)
+echo "==> Re-signing after SDK patch..."
+codesign --force --sign "Developer ID Application" --options runtime \
+    "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex"
+codesign --force --sign "Developer ID Application" --options runtime \
+    "$APP_PATH"
+
+# ── Step 4: Verify code signature ──
 
 echo "==> Verifying code signature..."
 codesign --verify --deep --strict "$APP_PATH"
 echo "    Signature OK."
 
-# ── Step 4: Notarize ──
+# ── Step 5: Notarize ──
 
 if [ "$SKIP_NOTARIZE" = false ]; then
     echo "==> Notarizing..."
@@ -107,7 +137,7 @@ if [ "$SKIP_NOTARIZE" = false ]; then
 
     rm -f "$NOTARIZE_ZIP"
 
-    # ── Step 5: Staple ──
+    # ── Step 6: Staple ──
 
     echo "==> Stapling notarization ticket..."
     xcrun stapler staple "$APP_PATH"
@@ -115,7 +145,12 @@ else
     echo "==> Skipping notarization (--skip-notarize)"
 fi
 
-# ── Step 6: Create DMG ──
+# ── Step 7: Validate release ──
+
+echo "==> Validating release..."
+"$SCRIPT_DIR/validate-release.sh" "$APP_PATH"
+
+# ── Step 8: Create DMG ──
 
 echo "==> Creating DMG..."
 rm -f "$DMG_PATH"
@@ -132,10 +167,16 @@ create-dmg \
     "$DMG_PATH" \
     "$APP_PATH"
 
-# ── Step 7: Sign the DMG ──
+# ── Step 9: Sign the DMG ──
 
 echo "==> Signing DMG..."
 codesign --sign "Developer ID Application" "$DMG_PATH"
+
+# ── Step 10: Clean intermediate artifacts ──
+# Remove export folder and archive so only the DMG remains.
+# Prevents stale .app bundles from appearing in Spotlight.
+
+rm -rf "$EXPORT_PATH" "$ARCHIVE_PATH"
 
 # ── Done ──
 

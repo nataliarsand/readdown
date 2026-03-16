@@ -1,57 +1,135 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
-@main
-struct ReadDownApp: App {
-    @AppStorage("hasPromptedDefault") private var hasPrompted = false
-    @State private var showDefaultPrompt = false
-    @State private var showQuickLookPrompt = false
+class AppDocumentController: NSDocumentController {
+    var suppressOpenPanel = true
 
-    var body: some Scene {
-        DocumentGroup(viewing: MarkdownDocument.self) { file in
-            ContentView(
-                document: file.document,
-                baseURL: file.fileURL?.deletingLastPathComponent()
-            )
-                .onAppear {
-                    if !hasPrompted {
-                        showDefaultPrompt = true
-                    }
-                }
-                .alert("Welcome to Readdown", isPresented: $showDefaultPrompt) {
-                    Button("Set as Default") {
-                        setAsDefaultMarkdownApp()
-                        hasPrompted = true
-                        showQuickLookPrompt = true
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    Button("Skip", role: .cancel) {
-                        hasPrompted = true
-                        showQuickLookPrompt = true
-                    }
-                } message: {
-                    Text("Set Readdown as your default Markdown (.md) reader?")
-                }
-                .alert("Quick Look Previews", isPresented: $showQuickLookPrompt) {
-                    Button("Open Settings") {
-                        openExtensionsSettings()
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    Button("Skip", role: .cancel) {}
-                } message: {
-                    Text("To preview Markdown files with spacebar in Finder:\n\n1. Click \"Open Settings\" below\n2. Scroll to Extensions and click ℹ︎ next to \"Quick Look\"\n3. Enable \"ReadDownQuickLook\"")
-                }
+    override func openDocument(_ sender: Any?) {
+        if suppressOpenPanel {
+            suppressOpenPanel = false
+            (NSApp.delegate as? AppDelegate)?.showWelcomeWindow()
+            return
         }
-        .commands {
-            CommandGroup(replacing: .appInfo) {
-                Button("About Readdown") {
-                    showAboutPanel()
-                }
-            }
+        super.openDocument(sender)
+    }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    var welcomeWindow: NSWindow?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        _ = AppDocumentController()
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        UNUserNotificationCenter.current().delegate = self
+        scheduleQuickLookNotificationIfNeeded()
+    }
+
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            showWelcomeWindow()
+        }
+        return true
+    }
+
+    func showWelcomeWindow() {
+        if let existing = welcomeWindow, existing.isVisible {
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 340),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
+        window.center()
+        window.contentView = NSHostingView(rootView: WelcomeView(dismissWindow: { [weak self] in
+            self?.dismissWelcomeWindow()
+        }))
+        window.makeKeyAndOrderFront(nil)
+        welcomeWindow = window
+    }
+
+    func dismissWelcomeWindow() {
+        welcomeWindow?.close()
+        welcomeWindow = nil
+    }
+
+    // MARK: - Quick Look Notification
+
+    private func scheduleQuickLookNotificationIfNeeded() {
+        let hasPromptedQL = UserDefaults.standard.bool(forKey: "hasPromptedQuickLook")
+        guard !hasPromptedQL else { return }
+        UserDefaults.standard.set(true, forKey: "hasPromptedQuickLook")
+
+        let center = UNUserNotificationCenter.current()
+
+        let openAction = UNNotificationAction(
+            identifier: "OPEN_SETTINGS",
+            title: "Open Settings",
+            options: .foreground
+        )
+        let category = UNNotificationCategory(
+            identifier: "QUICKLOOK_SETUP",
+            actions: [openAction],
+            intentIdentifiers: []
+        )
+        center.setNotificationCategories([category])
+
+        center.requestAuthorization(options: [.alert]) { granted, _ in
+            guard granted else { return }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Enable Quick Look Previews"
+            content.body = "Preview Markdown files with spacebar in Finder. Open Settings to enable ReadDownQuickLook."
+            content.categoryIdentifier = "QUICKLOOK_SETUP"
+
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: "quicklook-setup",
+                content: content,
+                trigger: trigger
+            )
+            center.add(request)
         }
     }
 
-    private func openExtensionsSettings() {
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.actionIdentifier == "OPEN_SETTINGS"
+            || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            DispatchQueue.main.async {
+                self.openExtensionsSettings()
+            }
+        }
+        completionHandler()
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner])
+    }
+
+    func openExtensionsSettings() {
         let urls = [
             "x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
             "x-apple.systempreferences:com.apple.ExtensionsPreferences?Quick%20Look",
@@ -65,6 +143,47 @@ struct ReadDownApp: App {
             }
         }
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preferences")!)
+    }
+}
+
+@main
+struct ReadDownApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @AppStorage("hasPromptedDefault") private var hasPrompted = false
+    @State private var showDefaultPrompt = false
+
+    var body: some Scene {
+        DocumentGroup(viewing: MarkdownDocument.self) { file in
+            ContentView(
+                document: file.document,
+                baseURL: file.fileURL?.deletingLastPathComponent()
+            )
+                .onAppear {
+                    appDelegate.dismissWelcomeWindow()
+                    if !hasPrompted {
+                        showDefaultPrompt = true
+                    }
+                }
+                .alert("Set as Default Markdown Reader?", isPresented: $showDefaultPrompt) {
+                    Button("Set as Default") {
+                        setAsDefaultMarkdownApp()
+                        hasPrompted = true
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    Button("Skip", role: .cancel) {
+                        hasPrompted = true
+                    }
+                } message: {
+                    Text("Set Readdown as your default app for .md files?")
+                }
+        }
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Readdown") {
+                    showAboutPanel()
+                }
+            }
+        }
     }
 
     private func setAsDefaultMarkdownApp() {
