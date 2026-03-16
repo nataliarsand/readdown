@@ -313,8 +313,9 @@ enum MarkdownRenderer {
             "<del>\(match[1])</del>"
         }
 
-        // Line breaks
+        // Line breaks (two trailing spaces or single newline within a paragraph)
         s = s.replacingOccurrences(of: "  \n", with: "<br>\n")
+        s = s.replacingOccurrences(of: "\n", with: "<br>\n")
 
         return s
     }

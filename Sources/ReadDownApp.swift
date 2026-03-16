@@ -5,12 +5,18 @@ import UserNotifications
 
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var welcomeWindow: NSWindow?
+    var updaterController: SPUStandardUpdaterController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = self
         showWelcomeWindow()
         dismissDocumentGroupOpenPanel()
         scheduleQuickLookNotification()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+            self?.updaterController = controller
+            controller.startUpdater()
+        }
     }
 
     /// DocumentGroup shows an open panel on launch when no document is restored.
@@ -18,9 +24,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     /// Uses orderOut instead of cancel to avoid corrupting NSDocumentController state.
     private func dismissDocumentGroupOpenPanel() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard self?.welcomeWindow != nil else { return }
-            for window in NSApp.windows where window is NSOpenPanel {
-                window.orderOut(nil)
+            guard let welcome = self?.welcomeWindow else { return }
+            welcome.makeKeyAndOrderFront(nil)
+            for window in NSApp.windows {
+                if window !== welcome && window is NSOpenPanel {
+                    window.close()
+                }
             }
         }
     }
@@ -175,13 +184,6 @@ struct ReadDownApp: App {
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
     @State private var showDefaultPrompt = false
 
-    private let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
-    @ObservedObject private var checkForUpdatesViewModel: CheckForUpdatesViewModel
-
-    init() {
-        self.checkForUpdatesViewModel = CheckForUpdatesViewModel(updater: updaterController.updater)
-    }
-
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(
@@ -214,7 +216,9 @@ struct ReadDownApp: App {
                 }
             }
             CommandGroup(after: .appInfo) {
-                CheckForUpdatesView(viewModel: checkForUpdatesViewModel)
+                if let updater = appDelegate.updaterController?.updater {
+                    CheckForUpdatesView(viewModel: CheckForUpdatesViewModel(updater: updater))
+                }
             }
         }
     }
