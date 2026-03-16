@@ -2,29 +2,28 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UserNotifications
 
-class AppDocumentController: NSDocumentController {
-    var suppressOpenPanel = true
-
-    override func openDocument(_ sender: Any?) {
-        if suppressOpenPanel {
-            suppressOpenPanel = false
-            (NSApp.delegate as? AppDelegate)?.showWelcomeWindow()
-            return
-        }
-        super.openDocument(sender)
-    }
-}
-
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var welcomeWindow: NSWindow?
+    private var openPanelObserver: Any?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
-        _ = AppDocumentController()
+        // Watch for any NSOpenPanel that DocumentGroup might present on launch
+        // and cancel it so the welcome window takes priority.
+        openPanelObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didUpdateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard self?.welcomeWindow != nil,
+                  let panel = note.object as? NSOpenPanel else { return }
+            panel.cancel(nil)
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = self
-        scheduleQuickLookNotificationIfNeeded()
+        showWelcomeWindow()
+        scheduleQuickLookNotification()
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
@@ -45,7 +44,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 340),
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 360),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -62,16 +61,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func dismissWelcomeWindow() {
+        if let observer = openPanelObserver {
+            NotificationCenter.default.removeObserver(observer)
+            openPanelObserver = nil
+        }
         welcomeWindow?.close()
         welcomeWindow = nil
     }
 
     // MARK: - Quick Look Notification
 
-    private func scheduleQuickLookNotificationIfNeeded() {
-        let hasPromptedQL = UserDefaults.standard.bool(forKey: "hasPromptedQuickLook")
-        guard !hasPromptedQL else { return }
-        UserDefaults.standard.set(true, forKey: "hasPromptedQuickLook")
+    private func scheduleQuickLookNotification() {
+        let key = "hasPromptedQuickLook"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
 
         let center = UNUserNotificationCenter.current()
 
@@ -87,15 +90,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         )
         center.setNotificationCategories([category])
 
-        center.requestAuthorization(options: [.alert]) { granted, _ in
+        // Use .provisional so no permission dialog is shown to the user
+        center.requestAuthorization(options: [.alert, .provisional]) { granted, _ in
             guard granted else { return }
 
             let content = UNMutableNotificationContent()
-            content.title = "Enable Quick Look Previews"
-            content.body = "Preview Markdown files with spacebar in Finder. Open Settings to enable ReadDownQuickLook."
+            content.title = "Quick Look Previews Enabled"
+            content.body = "Hit Space on any .md file in Finder to preview it. You can manage this in Settings > Extensions > Quick Look."
             content.categoryIdentifier = "QUICKLOOK_SETUP"
 
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
             let request = UNNotificationRequest(
                 identifier: "quicklook-setup",
                 content: content,
@@ -114,9 +118,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     ) {
         if response.actionIdentifier == "OPEN_SETTINGS"
             || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
-            DispatchQueue.main.async {
-                self.openExtensionsSettings()
-            }
+            DispatchQueue.main.async { self.openExtensionsSettings() }
         }
         completionHandler()
     }
@@ -207,7 +209,7 @@ struct ReadDownApp: App {
         ]
 
         credits.append(NSAttributedString(
-            string: "A clean, fast Markdown reader for macOS.\nJust open .md files and read — no editing, no clutter.\n\n",
+            string: "A clean, fast Markdown reader for macOS.\nJust open or hit space on any .md file to read it.\n\n",
             attributes: centeredAttrs
         ))
 
