@@ -207,10 +207,13 @@ enum HTMLTemplate {
             border-width: 0 2px 2px 0;
             transform: rotate(45deg);
         }
+        \(SyntaxHighlight.css)
         </style>
         </head>
         <body>
         \(body)
+        <script>\(SyntaxHighlight.js)</script>
+        <script>hljs.highlightAll();</script>
         </body>
         </html>
         """

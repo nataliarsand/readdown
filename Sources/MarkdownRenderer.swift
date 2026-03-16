@@ -125,7 +125,17 @@ enum MarkdownRenderer {
                     while i < lines.count {
                         let next = lines[i]
                         let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
-                        if nextTrimmed.isEmpty || next.matches(pattern: "^\\s*[-*+] ") || next.matches(pattern: "^\\s*\\d+\\. ")
+                        if nextTrimmed.isEmpty {
+                            // Blank line: continue list if next non-blank line is a list item
+                            var peek = i + 1
+                            while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
+                            if peek < lines.count && lines[peek].matches(pattern: "^\\s*[-*+] ") {
+                                i = peek
+                                break
+                            }
+                            break
+                        }
+                        if next.matches(pattern: "^\\s*[-*+] ") || next.matches(pattern: "^\\s*\\d+\\. ")
                             || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix(">") {
                             break
                         }
@@ -158,7 +168,17 @@ enum MarkdownRenderer {
                     while i < lines.count {
                         let next = lines[i]
                         let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
-                        if nextTrimmed.isEmpty || next.matches(pattern: "^\\s*[-*+] ") || next.matches(pattern: "^\\s*\\d+\\. ")
+                        if nextTrimmed.isEmpty {
+                            // Blank line: continue list if next non-blank line is a list item
+                            var peek = i + 1
+                            while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
+                            if peek < lines.count && lines[peek].matches(pattern: "^\\s*\\d+\\. ") {
+                                i = peek
+                                break
+                            }
+                            break
+                        }
+                        if next.matches(pattern: "^\\s*[-*+] ") || next.matches(pattern: "^\\s*\\d+\\. ")
                             || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix(">") {
                             break
                         }
