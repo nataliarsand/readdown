@@ -24,6 +24,10 @@
             </array>
         </dict>
     </array>
+    <key>SUFeedURL</key>
+    <string>https://heya.studio/readdown/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>aWnTX6ReQSmgWGsrmnb5T5u36CGnIlUETkqpFtET0EU=</string>
     <key>UTImportedTypeDeclarations</key>
     <array>
         <dict>
