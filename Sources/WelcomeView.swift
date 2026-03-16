@@ -34,11 +34,9 @@ struct WelcomeView: View {
                 Text("Quick Look not working?")
                     .foregroundStyle(.secondary)
                     .font(.caption)
-                Button("Open Settings") {
-                    (NSApp.delegate as? AppDelegate)?.openExtensionsSettings()
-                }
-                .buttonStyle(.link)
-                .font(.caption)
+                Link("Setup guide",
+                     destination: URL(string: "https://heya.studio/readdown/#setup")!)
+                    .font(.caption)
             }
 
             Divider()
@@ -90,7 +88,7 @@ struct WelcomeView: View {
     }
 
     private func openMarkdownFile() {
-        (NSApp.delegate as? AppDelegate)?.dismissWelcomeWindow()
+        dismissWindow()
 
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(importedAs: "net.daringfireball.markdown", conformingTo: .plainText)]

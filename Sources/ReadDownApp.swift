@@ -4,26 +4,24 @@ import UserNotifications
 
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var welcomeWindow: NSWindow?
-    private var openPanelObserver: Any?
-
-    func applicationWillFinishLaunching(_ notification: Notification) {
-        // Watch for any NSOpenPanel that DocumentGroup might present on launch
-        // and cancel it so the welcome window takes priority.
-        openPanelObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didUpdateNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            guard self?.welcomeWindow != nil,
-                  let panel = note.object as? NSOpenPanel else { return }
-            panel.cancel(nil)
-        }
-    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = self
         showWelcomeWindow()
+        dismissDocumentGroupOpenPanel()
         scheduleQuickLookNotification()
+    }
+
+    /// DocumentGroup shows an open panel on launch when no document is restored.
+    /// Dismiss it after a short delay so the welcome window takes priority.
+    /// Uses orderOut instead of cancel to avoid corrupting NSDocumentController state.
+    private func dismissDocumentGroupOpenPanel() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard self?.welcomeWindow != nil else { return }
+            for window in NSApp.windows where window is NSOpenPanel {
+                window.orderOut(nil)
+            }
+        }
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
@@ -61,10 +59,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func dismissWelcomeWindow() {
-        if let observer = openPanelObserver {
-            NotificationCenter.default.removeObserver(observer)
-            openPanelObserver = nil
-        }
         welcomeWindow?.close()
         welcomeWindow = nil
     }
