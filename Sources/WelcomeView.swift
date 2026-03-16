@@ -88,13 +88,12 @@ struct WelcomeView: View {
     }
 
     private func openMarkdownFile() {
-        dismissWindow()
-
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(importedAs: "net.daringfireball.markdown", conformingTo: .plainText)]
         panel.allowsMultipleSelection = false
         if panel.runModal() == .OK, let url = panel.url {
-            NSWorkspace.shared.open(url)
+            dismissWindow()
+            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
     }
 
