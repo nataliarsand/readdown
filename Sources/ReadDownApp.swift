@@ -1,3 +1,4 @@
+import Sparkle
 import SwiftUI
 import UniformTypeIdentifiers
 import UserNotifications
@@ -142,11 +143,44 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 }
 
+final class CheckForUpdatesViewModel: ObservableObject {
+    @Published var canCheckForUpdates = false
+    private let updater: SPUUpdater
+
+    init(updater: SPUUpdater) {
+        self.updater = updater
+        updater.publisher(for: \.canCheckForUpdates)
+            .assign(to: &$canCheckForUpdates)
+    }
+
+    func checkForUpdates() {
+        updater.checkForUpdates()
+    }
+}
+
+struct CheckForUpdatesView: View {
+    @ObservedObject var viewModel: CheckForUpdatesViewModel
+
+    var body: some View {
+        Button("Check for Updates...") {
+            viewModel.checkForUpdates()
+        }
+        .disabled(!viewModel.canCheckForUpdates)
+    }
+}
+
 @main
 struct ReadDownApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
     @State private var showDefaultPrompt = false
+
+    private let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    @ObservedObject private var checkForUpdatesViewModel: CheckForUpdatesViewModel
+
+    init() {
+        self.checkForUpdatesViewModel = CheckForUpdatesViewModel(updater: updaterController.updater)
+    }
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
@@ -178,6 +212,9 @@ struct ReadDownApp: App {
                 Button("About Readdown") {
                     showAboutPanel()
                 }
+            }
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesView(viewModel: checkForUpdatesViewModel)
             }
         }
     }

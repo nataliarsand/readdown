@@ -172,7 +172,50 @@ create-dmg \
 echo "==> Signing DMG..."
 codesign --sign "Developer ID Application" "$DMG_PATH"
 
-# ── Step 10: Clean intermediate artifacts ──
+# ── Step 10: Generate Sparkle appcast ──
+
+echo "==> Generating Sparkle appcast entry..."
+
+# Find Sparkle tools from SPM
+SPARKLE_BIN="$(find ~/Library/Developer/Xcode/DerivedData/ReadDown-*/SourcePackages/artifacts/sparkle/Sparkle/bin -maxdepth 0 2>/dev/null | head -1)"
+if [ -z "$SPARKLE_BIN" ] || [ ! -f "$SPARKLE_BIN/sign_update" ]; then
+    echo "    WARNING: Sparkle tools not found. Skipping appcast generation."
+    echo "    Run 'xcodebuild -resolvePackageDependencies' first."
+else
+    VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP_PATH/Contents/Info.plist")
+    BUILD=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "$APP_PATH/Contents/Info.plist")
+    DMG_SIZE=$(stat -f%z "$DMG_PATH")
+    SIGN_OUTPUT=$("$SPARKLE_BIN/sign_update" "$DMG_PATH" 2>&1)
+    SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+    DMG_URL="https://github.com/nataliarsand/readdown/releases/download/v${VERSION}/Readdown.dmg"
+
+    APPCAST_PATH="$PROJECT_DIR/release/appcast.xml"
+    cat > "$APPCAST_PATH" <<APPCAST
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Readdown Updates</title>
+        <link>https://heya.studio/readdown/appcast.xml</link>
+        <language>en</language>
+        <item>
+            <title>Readdown ${VERSION}</title>
+            <sparkle:version>${BUILD}</sparkle:version>
+            <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <enclosure url="${DMG_URL}"
+                       length="${DMG_SIZE}"
+                       type="application/octet-stream"
+                       sparkle:edSignature="${SIGNATURE}" />
+        </item>
+    </channel>
+</rss>
+APPCAST
+
+    echo "    Appcast: $APPCAST_PATH"
+    echo "    Version: $VERSION (build $BUILD)"
+fi
+
+# ── Step 11: Clean intermediate artifacts ──
 # Remove export folder and archive so only the DMG remains.
 # Prevents stale .app bundles from appearing in Spotlight.
 
@@ -185,4 +228,7 @@ echo "==> Release complete!"
 echo "    DMG: $DMG_PATH"
 echo ""
 echo "To upload to GitHub Releases:"
-echo "    gh release create v1.0 --title \"Readdown 1.0\" \"$DMG_PATH\""
+echo "    gh release create v${VERSION:-X.Y} --title \"Readdown ${VERSION:-X.Y}\" \"$DMG_PATH\""
+echo ""
+echo "Then deploy appcast.xml to your website:"
+echo "    cp $PROJECT_DIR/release/appcast.xml ~/Dev/readdown-website/appcast.xml"
