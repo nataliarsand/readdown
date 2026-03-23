@@ -25,7 +25,6 @@ struct MarkdownDocument: FileDocument {
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = Data(text.utf8)
-        return .init(regularFileWithContents: data)
+        throw CocoaError(.fileWriteNoPermission)
     }
 }

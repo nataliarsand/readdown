@@ -111,11 +111,11 @@ APP_PLIST="$APP_PATH/Contents/Info.plist"
 check "App Info.plist exists" test -f "$APP_PLIST"
 
 BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PLIST" 2>/dev/null || echo "")
-if [ "$BUNDLE_ID" = "com.readdown.app" ]; then
-    echo "  PASS: Bundle ID is com.readdown.app"
+if [ "$BUNDLE_ID" = "com.heya.readdown" ]; then
+    echo "  PASS: Bundle ID is com.heya.readdown"
     PASS=$((PASS + 1))
 else
-    echo "  FAIL: Bundle ID is '$BUNDLE_ID' (expected com.readdown.app)"
+    echo "  FAIL: Bundle ID is '$BUNDLE_ID' (expected com.heya.readdown)"
     FAIL=$((FAIL + 1))
 fi
 
