@@ -328,11 +328,13 @@ enum MarkdownRenderer {
             }
 
             let contHTML = continuations.isEmpty ? "" : "<br>" + continuations.map { inlineMarkdown($0) }.joined(separator: "<br>")
-            if text.hasPrefix("[ ] ") {
-                result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inlineMarkdown(String(text.dropFirst(4))))\(contHTML)</li>"
+            if text == "[ ]" || text.hasPrefix("[ ] ") {
+                let content = text.count > 4 ? String(text.dropFirst(4)) : ""
+                result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inlineMarkdown(content))\(contHTML)</li>"
                 hasTaskItem = true
-            } else if text.hasPrefix("[x] ") || text.hasPrefix("[X] ") {
-                result += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(inlineMarkdown(String(text.dropFirst(4))))\(contHTML)</li>"
+            } else if text == "[x]" || text == "[X]" || text.hasPrefix("[x] ") || text.hasPrefix("[X] ") {
+                let content = text.count > 4 ? String(text.dropFirst(4)) : ""
+                result += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(inlineMarkdown(content))\(contHTML)</li>"
                 hasTaskItem = true
             } else {
                 result += "<li>\(inlineMarkdown(text))\(contHTML)</li>"

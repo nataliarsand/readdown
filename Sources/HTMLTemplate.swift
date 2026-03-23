@@ -170,6 +170,7 @@ enum HTMLTemplate {
         ul.task-list {
             list-style: none;
             padding-left: 0;
+            margin-bottom: 16px;
         }
 
         li.task-item {
@@ -178,6 +179,7 @@ enum HTMLTemplate {
             margin-top: 0.15em;
             margin-bottom: 0.15em;
             line-height: 1.5;
+            overflow: hidden;
         }
 
         li.task-item input[type="checkbox"] {

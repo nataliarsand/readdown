@@ -1,17 +1,14 @@
 import Sparkle
 import SwiftUI
-import UserNotifications
 
-class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate, ObservableObject {
+class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var welcomeWindow: NSWindow?
     var updaterController: SPUStandardUpdaterController?
     @Published var checkForUpdatesViewModel: CheckForUpdatesViewModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        UNUserNotificationCenter.current().delegate = self
         showWelcomeWindow()
         dismissDocumentGroupOpenPanel()
-        scheduleQuickLookNotification()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self else { return }
             let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
@@ -76,83 +73,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         welcomeWindow = nil
     }
 
-    // MARK: - Quick Look Notification
-
-    private func scheduleQuickLookNotification() {
-        let key = "hasPromptedQuickLook"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
-        UserDefaults.standard.set(true, forKey: key)
-
-        let center = UNUserNotificationCenter.current()
-
-        let openAction = UNNotificationAction(
-            identifier: "OPEN_SETTINGS",
-            title: "Open Settings",
-            options: .foreground
-        )
-        let category = UNNotificationCategory(
-            identifier: "QUICKLOOK_SETUP",
-            actions: [openAction],
-            intentIdentifiers: []
-        )
-        center.setNotificationCategories([category])
-
-        // Use .provisional so no permission dialog is shown to the user
-        center.requestAuthorization(options: [.alert, .provisional]) { granted, _ in
-            guard granted else { return }
-
-            let content = UNMutableNotificationContent()
-            content.title = "Quick Look Previews Enabled"
-            content.body = "Hit Space on any .md file in Finder to preview it. You can manage this in Settings > Extensions > Quick Look."
-            content.categoryIdentifier = "QUICKLOOK_SETUP"
-
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
-            let request = UNNotificationRequest(
-                identifier: "quicklook-setup",
-                content: content,
-                trigger: trigger
-            )
-            center.add(request)
-        }
-    }
-
-    // MARK: - UNUserNotificationCenterDelegate
-
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
-    ) {
-        if response.actionIdentifier == "OPEN_SETTINGS"
-            || response.actionIdentifier == UNNotificationDefaultActionIdentifier {
-            DispatchQueue.main.async { self.openExtensionsSettings() }
-        }
-        completionHandler()
-    }
-
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner])
-    }
-
-    func openExtensionsSettings() {
-        let urls = [
-            "x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
-            "x-apple.systempreferences:com.apple.ExtensionsPreferences?Quick%20Look",
-            "x-apple.systempreferences:com.apple.Extensions-Settings.QuickLookExtensions",
-            "x-apple.systempreferences:com.apple.ExtensionsPreferences"
-        ]
-        for urlString in urls {
-            if let url = URL(string: urlString),
-               NSWorkspace.shared.open(url) {
-                return
-            }
-        }
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preferences")!)
-    }
 }
 
 final class CheckForUpdatesViewModel: ObservableObject {
@@ -203,6 +123,11 @@ struct ReadDownApp: App {
             CommandGroup(after: .appInfo) {
                 if let viewModel = appDelegate.checkForUpdatesViewModel {
                     CheckForUpdatesView(viewModel: viewModel)
+                }
+            }
+            CommandGroup(replacing: .help) {
+                Button("Readdown Help") {
+                    NSWorkspace.shared.open(URL(string: "https://heya.studio/readdown/#setup")!)
                 }
             }
         }

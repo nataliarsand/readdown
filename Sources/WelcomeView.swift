@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct WelcomeView: View {
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
     @State private var showDefaultPrompt = false
+    @State private var qlEnabled = false
     let dismissWindow: () -> Void
 
     var body: some View {
@@ -30,13 +31,28 @@ struct WelcomeView: View {
 
             Spacer().frame(height: 0)
 
-            HStack(spacing: 4) {
-                Text("Quick Look not working?")
-                    .foregroundStyle(.secondary)
+            // Quick Look setup callout
+            if !qlEnabled {
+                VStack(spacing: 6) {
+                    Text("Enable Quick Look to preview .md files with Space in Finder.")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                    Button("Open Extensions Settings") {
+                        openExtensionsSettings()
+                    }
                     .font(.caption)
-                Link("Setup guide",
-                     destination: URL(string: "https://heya.studio/readdown/#setup")!)
-                    .font(.caption)
+                    .buttonStyle(.link)
+                }
+            } else {
+                HStack(spacing: 4) {
+                    Text("Quick Look not working?")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Link("Setup guide",
+                         destination: URL(string: "https://heya.studio/readdown/#setup")!)
+                        .font(.caption)
+                }
             }
 
             Divider()
@@ -67,6 +83,7 @@ struct WelcomeView: View {
         .padding(.bottom, 18)
         .frame(width: 320, height: 360)
         .onAppear {
+            checkQLExtensionStatus()
             if !hasPrompted {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     showDefaultPrompt = true
@@ -101,5 +118,43 @@ struct WelcomeView: View {
         let appURL = Bundle.main.bundleURL
         guard let mdType = UTType(filenameExtension: "md") else { return }
         try? NSWorkspace.shared.setDefaultApplication(at: appURL, toOpen: mdType)
+    }
+
+    private func checkQLExtensionStatus() {
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        let qlID = bundleID + ".ReadDownQuickLook"
+        let output = Process.run("/usr/bin/pluginkit", arguments: ["-m", "-i", qlID])
+        qlEnabled = output?.contains(qlID) == true
+    }
+
+    private func openExtensionsSettings() {
+        let urls = [
+            "x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
+            "x-apple.systempreferences:com.apple.ExtensionsPreferences?Quick%20Look",
+            "x-apple.systempreferences:com.apple.Extensions-Settings.QuickLookExtensions",
+            "x-apple.systempreferences:com.apple.ExtensionsPreferences"
+        ]
+        for urlString in urls {
+            if let url = URL(string: urlString),
+               NSWorkspace.shared.open(url) {
+                return
+            }
+        }
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preferences")!)
+    }
+}
+
+private extension Process {
+    static func run(_ path: String, arguments: [String]) -> String? {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8)
     }
 }
