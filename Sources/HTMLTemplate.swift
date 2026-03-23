@@ -13,7 +13,7 @@ enum HTMLTemplate {
         :root {
             --text: #24292f;
             --bg: #ffffff;
-            --code-bg: #f6f8fa;
+            --code-bg: #e4e8ee;
             --border: #d0d7de;
             --link: #0969da;
             --blockquote-text: #57606a;

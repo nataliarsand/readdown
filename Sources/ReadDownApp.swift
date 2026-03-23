@@ -1,6 +1,5 @@
 import Sparkle
 import SwiftUI
-import UniformTypeIdentifiers
 import UserNotifications
 
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate, ObservableObject {
