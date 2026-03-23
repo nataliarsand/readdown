@@ -10,7 +10,7 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         let config = WKWebViewConfiguration()
         config.preferences.isElementFullscreenEnabled = false
         let pagePrefs = WKWebpagePreferences()
-        pagePrefs.allowsContentJavaScript = false
+        pagePrefs.allowsContentJavaScript = true
         config.defaultWebpagePreferences = pagePrefs
 
         webView = WKWebView(frame: .zero, configuration: config)
