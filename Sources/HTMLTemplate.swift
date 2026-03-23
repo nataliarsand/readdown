@@ -18,6 +18,8 @@ enum HTMLTemplate {
             --link: #0969da;
             --blockquote-text: #57606a;
             --blockquote-border: #d0d7de;
+            --table-stripe: #eef1f5;
+            --table-header: #e1e6eb;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -25,10 +27,12 @@ enum HTMLTemplate {
                 --text: #e6edf3;
                 --bg: #0d1117;
                 --code-bg: #161b22;
-                --border: #30363d;
+                --border: #3d444d;
                 --link: #58a6ff;
                 --blockquote-text: #8b949e;
                 --blockquote-border: #30363d;
+                --table-stripe: #161b22;
+                --table-header: #252c35;
             }
         }
 
@@ -156,11 +160,11 @@ enum HTMLTemplate {
 
         th {
             font-weight: 600;
-            background: var(--code-bg);
+            background: var(--table-header);
         }
 
         tr:nth-child(even) {
-            background: var(--code-bg);
+            background: var(--table-stripe);
         }
 
         ul.task-list {

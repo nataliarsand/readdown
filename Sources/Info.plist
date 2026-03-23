@@ -24,6 +24,8 @@
             </array>
         </dict>
     </array>
+    <key>NSQuitAlwaysKeepsWindows</key>
+    <false/>
     <key>SUFeedURL</key>
     <string>https://heya.studio/readdown/appcast.xml</string>
     <key>SUPublicEDKey</key>

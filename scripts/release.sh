@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SCHEME="ReadDown"
-BUNDLE_ID="com.readdown.app"
+BUNDLE_ID="com.heya.readdown"
 APP_NAME="Readdown"
 KEYCHAIN_PROFILE="Readdown"
 ARCHIVE_PATH="$PROJECT_DIR/release/${SCHEME}.xcarchive"
@@ -112,10 +112,13 @@ patch_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/Rea
 patch_sdk "$APP_PATH/Contents/MacOS/ReadDown"
 
 # Re-sign after patching (extension first, then app)
+# IMPORTANT: must pass --entitlements to preserve them after re-signing
 echo "==> Re-signing after SDK patch..."
 codesign --force --sign "Developer ID Application" --options runtime \
+    --entitlements "$PROJECT_DIR/ReadDownQuickLook/ReadDownQuickLook.entitlements" \
     "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex"
 codesign --force --sign "Developer ID Application" --options runtime \
+    --entitlements "$PROJECT_DIR/Sources/ReadDown.entitlements" \
     "$APP_PATH"
 
 # ── Step 4: Verify code signature ──

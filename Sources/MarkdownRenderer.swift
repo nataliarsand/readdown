@@ -115,46 +115,7 @@ enum MarkdownRenderer {
 
             // Unordered list (including task lists)
             if line.matches(pattern: "^\\s*[-*+] ") {
-                var hasTaskItem = false
-                var items: [String] = []
-                while i < lines.count && lines[i].matches(pattern: "^\\s*[-*+] ") {
-                    let text = lines[i].replacingOccurrences(of: "^\\s*[-*+] ", with: "", options: .regularExpression)
-                    i += 1
-                    // Collect continuation lines (indented or plain text that isn't a new block)
-                    var continuations: [String] = []
-                    while i < lines.count {
-                        let next = lines[i]
-                        let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
-                        if nextTrimmed.isEmpty {
-                            // Blank line: continue list if next non-blank line is a list item
-                            var peek = i + 1
-                            while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
-                            if peek < lines.count && lines[peek].matches(pattern: "^\\s*[-*+] ") {
-                                i = peek
-                                break
-                            }
-                            break
-                        }
-                        if next.matches(pattern: "^\\s*[-*+] ") || next.matches(pattern: "^\\s*\\d+\\. ")
-                            || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix(">") {
-                            break
-                        }
-                        continuations.append(nextTrimmed)
-                        i += 1
-                    }
-                    let contHTML = continuations.isEmpty ? "" : "<br>" + continuations.map { inlineMarkdown($0) }.joined(separator: "<br>")
-                    if text.hasPrefix("[ ] ") {
-                        items.append("<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inlineMarkdown(String(text.dropFirst(4))))\(contHTML)</li>")
-                        hasTaskItem = true
-                    } else if text.hasPrefix("[x] ") || text.hasPrefix("[X] ") {
-                        items.append("<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(inlineMarkdown(String(text.dropFirst(4))))\(contHTML)</li>")
-                        hasTaskItem = true
-                    } else {
-                        items.append("<li>\(inlineMarkdown(text))\(contHTML)</li>")
-                    }
-                }
-                let cls = hasTaskItem ? " class=\"task-list\"" : ""
-                html.append("<ul\(cls)>\(items.joined())</ul>")
+                html.append(parseUnorderedList(&i, lines: lines))
                 continue
             }
 
@@ -318,6 +279,68 @@ enum MarkdownRenderer {
         s = s.replacingOccurrences(of: "\n", with: "<br>\n")
 
         return s
+    }
+
+    // MARK: - Unordered List Helpers
+
+    private static func listItemIndent(_ line: String) -> Int {
+        line.prefix(while: { $0 == " " || $0 == "\t" }).reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }
+    }
+
+    private static func parseUnorderedList(_ i: inout Int, lines: [String]) -> String {
+        let baseIndent = listItemIndent(lines[i])
+        var hasTaskItem = false
+        var result = ""
+
+        while i < lines.count && lines[i].matches(pattern: "^\\s*[-*+] ") {
+            let currentIndent = listItemIndent(lines[i])
+            if currentIndent < baseIndent { break }
+
+            if currentIndent > baseIndent {
+                // Nested list — recurse
+                result += parseUnorderedList(&i, lines: lines)
+                continue
+            }
+
+            let text = lines[i].replacingOccurrences(of: "^\\s*[-*+] ", with: "", options: .regularExpression)
+            i += 1
+
+            // Collect continuation lines
+            var continuations: [String] = []
+            while i < lines.count {
+                let next = lines[i]
+                let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
+                if nextTrimmed.isEmpty {
+                    var peek = i + 1
+                    while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
+                    if peek < lines.count && lines[peek].matches(pattern: "^\\s*[-*+] ") {
+                        i = peek
+                        break
+                    }
+                    break
+                }
+                if next.matches(pattern: "^\\s*[-*+] ") || next.matches(pattern: "^\\s*\\d+\\. ")
+                    || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix(">") {
+                    break
+                }
+                continuations.append(nextTrimmed)
+                i += 1
+            }
+
+            let contHTML = continuations.isEmpty ? "" : "<br>" + continuations.map { inlineMarkdown($0) }.joined(separator: "<br>")
+            if text.hasPrefix("[ ] ") {
+                result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inlineMarkdown(String(text.dropFirst(4))))\(contHTML)</li>"
+                hasTaskItem = true
+            } else if text.hasPrefix("[x] ") || text.hasPrefix("[X] ") {
+                result += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(inlineMarkdown(String(text.dropFirst(4))))\(contHTML)</li>"
+                hasTaskItem = true
+            } else {
+                result += "<li>\(inlineMarkdown(text))\(contHTML)</li>"
+            }
+        }
+
+        let cls = hasTaskItem ? " class=\"task-list\"" : ""
+        return "<ul\(cls)>\(result)</ul>"
     }
 
     // MARK: - Table Helpers

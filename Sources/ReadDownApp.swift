@@ -3,9 +3,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UserNotifications
 
-class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate, ObservableObject {
     var welcomeWindow: NSWindow?
     var updaterController: SPUStandardUpdaterController?
+    @Published var checkForUpdatesViewModel: CheckForUpdatesViewModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = self
@@ -13,15 +14,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         dismissDocumentGroupOpenPanel()
         scheduleQuickLookNotification()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self else { return }
             let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
-            self?.updaterController = controller
+            self.updaterController = controller
+            self.checkForUpdatesViewModel = CheckForUpdatesViewModel(updater: controller.updater)
             controller.startUpdater()
         }
     }
 
     /// DocumentGroup shows an open panel on launch when no document is restored.
     /// Dismiss it after a short delay so the welcome window takes priority.
-    /// Uses orderOut instead of cancel to avoid corrupting NSDocumentController state.
     private func dismissDocumentGroupOpenPanel() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let welcome = self?.welcomeWindow else { return }
@@ -69,7 +71,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func dismissWelcomeWindow() {
-        welcomeWindow?.close()
+        guard let window = welcomeWindow else { return }
+        window.contentView = nil
+        window.orderOut(nil)
         welcomeWindow = nil
     }
 
@@ -181,9 +185,6 @@ struct CheckForUpdatesView: View {
 @main
 struct ReadDownApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @AppStorage("hasPromptedDefault") private var hasPrompted = false
-    @State private var showDefaultPrompt = false
-
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(
@@ -192,21 +193,6 @@ struct ReadDownApp: App {
             )
                 .onAppear {
                     appDelegate.dismissWelcomeWindow()
-                    if !hasPrompted {
-                        showDefaultPrompt = true
-                    }
-                }
-                .alert("Set as Default Markdown Reader?", isPresented: $showDefaultPrompt) {
-                    Button("Set as Default") {
-                        setAsDefaultMarkdownApp()
-                        hasPrompted = true
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    Button("Skip", role: .cancel) {
-                        hasPrompted = true
-                    }
-                } message: {
-                    Text("Set Readdown as your default app for .md files?")
                 }
         }
         .commands {
@@ -216,18 +202,11 @@ struct ReadDownApp: App {
                 }
             }
             CommandGroup(after: .appInfo) {
-                if let updater = appDelegate.updaterController?.updater {
-                    CheckForUpdatesView(viewModel: CheckForUpdatesViewModel(updater: updater))
+                if let viewModel = appDelegate.checkForUpdatesViewModel {
+                    CheckForUpdatesView(viewModel: viewModel)
                 }
             }
         }
-    }
-
-    private func setAsDefaultMarkdownApp() {
-        let appURL = Bundle.main.bundleURL
-        guard let mdType = UTType(filenameExtension: "md") else { return }
-        try? NSWorkspace.shared.setDefaultApplication(at: appURL,
-                                                       toOpen: mdType)
     }
 
     private func showAboutPanel() {
