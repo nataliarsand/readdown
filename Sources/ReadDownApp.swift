@@ -9,6 +9,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func applicationDidFinishLaunching(_ notification: Notification) {
         showWelcomeWindow()
         dismissDocumentGroupOpenPanel()
+        resetQuickLook()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self else { return }
             let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
@@ -64,6 +65,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }))
         window.makeKeyAndOrderFront(nil)
         welcomeWindow = window
+    }
+
+    /// Reset Quick Look so the system re-scans extensions.
+    /// Ensures Readdown's QL extension is picked up if a competing one was removed.
+    private func resetQuickLook() {
+        DispatchQueue.global(qos: .utility).async {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/qlmanage")
+            process.arguments = ["-r"]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            try? process.run()
+        }
     }
 
     func dismissWelcomeWindow() {
@@ -127,7 +141,7 @@ struct ReadDownApp: App {
             }
             CommandGroup(replacing: .help) {
                 Button("Readdown Help") {
-                    NSWorkspace.shared.open(URL(string: "https://heya.studio/readdown/#setup")!)
+                    NSWorkspace.shared.open(URL(string: "https://heya.studio/readdown/#faq")!)
                 }
             }
         }

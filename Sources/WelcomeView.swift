@@ -117,7 +117,7 @@ struct WelcomeView: View {
     private func setAsDefaultMarkdownApp() {
         let appURL = Bundle.main.bundleURL
         guard let mdType = UTType(filenameExtension: "md") else { return }
-        try? NSWorkspace.shared.setDefaultApplication(at: appURL, toOpen: mdType)
+        NSWorkspace.shared.setDefaultApplication(at: appURL, toOpen: mdType)
     }
 
     private func checkQLExtensionStatus() {
