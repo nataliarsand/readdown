@@ -10,12 +10,13 @@ enum MarkdownRenderer {
         while i < lines.count {
             let line = lines[i]
 
-            // Fenced code block
-            if line.hasPrefix("```") {
-                let lang = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            // Fenced code block (allow up to 3 leading spaces)
+            let trimmedForFence = line.replacingOccurrences(of: "^\\s{0,3}", with: "", options: .regularExpression)
+            if trimmedForFence.hasPrefix("```") {
+                let lang = String(trimmedForFence.dropFirst(3)).trimmingCharacters(in: .whitespaces)
                 var code: [String] = []
                 i += 1
-                while i < lines.count && !lines[i].hasPrefix("```") {
+                while i < lines.count && !lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("```") {
                     code.append(escapeHTML(lines[i]))
                     i += 1
                 }
@@ -174,7 +175,8 @@ enum MarkdownRenderer {
             while i < lines.count {
                 let l = lines[i]
                 let t = l.trimmingCharacters(in: .whitespaces)
-                if t.isEmpty || l.hasPrefix("#") || l.hasPrefix(">") || l.hasPrefix("```")
+                if t.isEmpty || l.hasPrefix("#") || l.hasPrefix(">")
+                    || t.hasPrefix("```")
                     || l.matches(pattern: "^\\s*[-*+] ") || l.matches(pattern: "^\\s*\\d+\\. ")
                     || isHTMLBlockStart(l) {
                     break
