@@ -20,3 +20,6 @@ release/
 *.key
 *.mobileprovision
 
+
+# Test fixtures
+testfiles/
