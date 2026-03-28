@@ -3,19 +3,16 @@ import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var welcomeWindow: NSWindow?
-    var updaterController: SPUStandardUpdaterController?
-    @Published var checkForUpdatesViewModel: CheckForUpdatesViewModel?
+    let updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+    lazy var checkForUpdatesViewModel = CheckForUpdatesViewModel(updater: updaterController.updater)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         showWelcomeWindow()
         dismissDocumentGroupOpenPanel()
         resetQuickLook()
+        _ = checkForUpdatesViewModel // force lazy init
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard let self else { return }
-            let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
-            self.updaterController = controller
-            self.checkForUpdatesViewModel = CheckForUpdatesViewModel(updater: controller.updater)
-            controller.startUpdater()
+            self?.updaterController.startUpdater()
         }
     }
 
@@ -135,9 +132,7 @@ struct ReadDownApp: App {
                 }
             }
             CommandGroup(after: .appInfo) {
-                if let viewModel = appDelegate.checkForUpdatesViewModel {
-                    CheckForUpdatesView(viewModel: viewModel)
-                }
+                CheckForUpdatesView(viewModel: appDelegate.checkForUpdatesViewModel)
             }
             CommandGroup(replacing: .help) {
                 Button("Readdown Help") {
