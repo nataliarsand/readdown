@@ -20,6 +20,7 @@ KEYCHAIN_PROFILE="Readdown"
 ARCHIVE_PATH="$PROJECT_DIR/release/${SCHEME}.xcarchive"
 EXPORT_PATH="$PROJECT_DIR/release/export"
 DMG_PATH="$PROJECT_DIR/release/${APP_NAME}.dmg"
+ZIP_PATH="$PROJECT_DIR/release/${APP_NAME}.zip"
 
 SKIP_NOTARIZE=false
 
@@ -175,7 +176,13 @@ create-dmg \
 echo "==> Signing DMG..."
 codesign --sign "Developer ID Application" "$DMG_PATH"
 
-# ── Step 10: Generate Sparkle appcast ──
+# ── Step 10: Create Sparkle zip ──
+# Sparkle auto-updates require a zip (not DMG). DMG is for manual downloads.
+
+echo "==> Creating Sparkle zip..."
+ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+
+# ── Step 11: Generate Sparkle appcast ──
 
 echo "==> Generating Sparkle appcast entry..."
 
@@ -187,10 +194,10 @@ if [ -z "$SPARKLE_BIN" ] || [ ! -f "$SPARKLE_BIN/sign_update" ]; then
 else
     VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP_PATH/Contents/Info.plist")
     BUILD=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "$APP_PATH/Contents/Info.plist")
-    DMG_SIZE=$(stat -f%z "$DMG_PATH")
-    SIGN_OUTPUT=$("$SPARKLE_BIN/sign_update" "$DMG_PATH" 2>&1)
+    SIGN_OUTPUT=$("$SPARKLE_BIN/sign_update" "$ZIP_PATH" 2>&1)
     SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
-    DMG_URL="https://github.com/nataliarsand/readdown/releases/download/v${VERSION}/Readdown.dmg"
+    ZIP_SIZE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
+    ZIP_URL="https://github.com/nataliarsand/readdown/releases/download/v${VERSION}/Readdown.zip"
 
     APPCAST_PATH="$PROJECT_DIR/release/appcast.xml"
     cat > "$APPCAST_PATH" <<APPCAST
@@ -205,8 +212,8 @@ else
             <sparkle:version>${BUILD}</sparkle:version>
             <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <enclosure url="${DMG_URL}"
-                       length="${DMG_SIZE}"
+            <enclosure url="${ZIP_URL}"
+                       length="${ZIP_SIZE}"
                        type="application/octet-stream"
                        sparkle:edSignature="${SIGNATURE}" />
         </item>
@@ -218,8 +225,8 @@ APPCAST
     echo "    Version: $VERSION (build $BUILD)"
 fi
 
-# ── Step 11: Clean intermediate artifacts ──
-# Remove export folder and archive so only the DMG remains.
+# ── Step 12: Clean intermediate artifacts ──
+# Remove export folder and archive so only DMG and zip remain.
 # Prevents stale .app bundles from appearing in Spotlight.
 
 rm -rf "$EXPORT_PATH" "$ARCHIVE_PATH"
@@ -229,9 +236,11 @@ rm -rf "$EXPORT_PATH" "$ARCHIVE_PATH"
 echo ""
 echo "==> Release complete!"
 echo "    DMG: $DMG_PATH"
+echo "    ZIP: $ZIP_PATH"
 echo ""
 echo "To upload to GitHub Releases:"
-echo "    gh release create v${VERSION:-X.Y} --title \"Readdown ${VERSION:-X.Y}\" \"$DMG_PATH\""
+echo "    gh release create v${VERSION:-X.Y} --title \"Readdown ${VERSION:-X.Y}\" \"$DMG_PATH\" \"$ZIP_PATH\""
 echo ""
-echo "Then deploy appcast.xml to your website:"
-echo "    cp $PROJECT_DIR/release/appcast.xml ~/Dev/readdown-website/appcast.xml"
+echo "Then deploy appcast.xml to your website (BOTH repos):"
+echo "    cp $PROJECT_DIR/release/appcast.xml ~/Dev/heya-studio/readdown/appcast.xml"
+echo "    cp $PROJECT_DIR/release/appcast.xml ~/Dev/readdown-website/readdown/appcast.xml"
