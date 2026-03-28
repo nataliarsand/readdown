@@ -23,3 +23,6 @@ release/
 
 # Test fixtures
 testfiles/
+
+# Planning docs
+docs/

@@ -138,6 +138,9 @@ struct ReadDownApp: App {
                 Button("Readdown Help") {
                     NSWorkspace.shared.open(URL(string: "https://heya.studio/readdown/#faq")!)
                 }
+                Button("Send Feedback...") {
+                    NSWorkspace.shared.open(URL(string: "https://github.com/nataliarsand/readdown/issues")!)
+                }
             }
         }
     }
