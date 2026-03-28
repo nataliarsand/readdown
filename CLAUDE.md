@@ -25,9 +25,9 @@ A clean, fast Markdown reader for macOS. Document-based SwiftUI app with Quick L
 - Repo: `~/Dev/readdown-website` (GitHub: nataliarsand/readdown-website)
 - Live: https://heya.studio/readdown/
 - Hosted via Cloudflare Pages on the `heya-studio` project (`~/Dev/heya-studio`)
-- `heya-studio/build.sh` clones readdown-website at build time into `/readdown`
-- GitHub webhook on readdown-website auto-triggers heya-studio redeploy
-- To manually redeploy: push to readdown-website or push empty commit to heya-studio
+- **heya-studio serves the site directly** — readdown content lives in `heya-studio/readdown/`
+- readdown-website is the source of truth but does NOT auto-deploy — changes must be copied to heya-studio and pushed there
+- Appcast must be updated in BOTH repos: `readdown-website/readdown/appcast.xml` AND `heya-studio/readdown/appcast.xml`
 
 ## Performance & Reliability Principles
 Readdown's core promise is "clean and fast." Every change must preserve this.
@@ -53,6 +53,15 @@ Readdown's core promise is "clean and fast." Every change must preserve this.
 - Every block parser in `MarkdownRenderer.render()` must advance the line index `i`. A block that fails to advance `i` creates an infinite loop.
 - Fenced code blocks must handle missing closing fences (consume to EOF).
 - The `replacing` helper must build results in a single forward pass — never mutate a string using ranges from the original (they become invalid after replacement).
+
+## Release Mindset
+Readdown has real users with auto-updates. Every release goes straight to their machines.
+
+- **"Works on my machine" is not enough.** Always think from the perspective of a user downloading for the first time or receiving an auto-update. The dev machine has stale state, debug builds, old bundle IDs, and cached preferences that hide real issues.
+- **Ship fixes and features separately.** If a user reports a problem after an update, you need to know if it's the fix or the new feature. Never mix them.
+- **Test the release artifact, not the debug build.** Run `release.sh --skip-notarize`, mount the DMG, and test from there. The debug build in DerivedData is not what users get.
+- **Verify the update pipeline end-to-end.** After pushing an appcast, `curl` the live URL to confirm it updated. Cloudflare caching and stale repos have caused silent failures before.
+- **Bump version before building.** Sparkle compares build numbers. If you rebuild without bumping, existing users won't see the update.
 
 ## License
 - Source-available (not open source) — view/study/contribute allowed, redistribution prohibited
