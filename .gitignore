@@ -20,3 +20,6 @@ release/
 *.key
 *.mobileprovision
 CLAUDE.md
+
+# Test fixtures
+testfiles/
