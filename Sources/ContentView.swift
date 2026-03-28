@@ -1,11 +1,15 @@
 import SwiftUI
 
 struct ContentView: View {
-    let document: MarkdownDocument
+    let html: String
     let baseURL: URL?
 
+    init(document: MarkdownDocument, baseURL: URL?) {
+        self.html = HTMLTemplate.wrap(body: MarkdownRenderer.render(document.text))
+        self.baseURL = baseURL
+    }
+
     var body: some View {
-        let html = HTMLTemplate.wrap(body: MarkdownRenderer.render(document.text))
         WebView(html: html, baseURL: baseURL)
             .frame(minWidth: 500, minHeight: 400)
     }

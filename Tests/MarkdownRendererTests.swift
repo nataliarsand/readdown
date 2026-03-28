@@ -53,7 +53,7 @@ final class MarkdownRendererTests: XCTestCase {
     func testFencedCodeBlockNoLanguage() {
         let md = "```\nplain code\n```"
         let result = MarkdownRenderer.render(md)
-        XCTAssertTrue(result.contains("<pre><code>"))
+        XCTAssertTrue(result.contains("<pre><code class=\"nohighlight\">"))
         XCTAssertTrue(result.contains("plain code"))
     }
 

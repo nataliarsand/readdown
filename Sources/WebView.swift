@@ -16,21 +16,16 @@ struct WebView: NSViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.loadHTMLString(html, baseURL: baseURL)
-        context.coordinator.lastHTML = html
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        context.coordinator.baseURL = baseURL
-        if context.coordinator.lastHTML != html {
-            webView.loadHTMLString(html, baseURL: baseURL)
-            context.coordinator.lastHTML = html
-        }
+        // Read-only document — HTML is computed once in ContentView.init
+        // and never changes. No need to reload.
     }
 
     class Coordinator: NSObject, WKNavigationDelegate {
         var baseURL: URL?
-        var lastHTML: String?
 
         init(baseURL: URL?) {
             self.baseURL = baseURL
