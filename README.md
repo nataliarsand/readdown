@@ -22,7 +22,8 @@
 - **Read-only** — No edits, no auto-formatting. Your files stay untouched.
 - **Quick Look** — Spacebar on any .md in Finder. Rendered, not raw.
 - **Lightweight** — Native Swift. Opens in under a second, stays out of your way.
-- **GitHub-style** — Tables, code blocks, task lists — rendered the way you expect.
+- **Syntax highlighting** — 19 languages auto-detected, or specify the language on your code fence.
+- **Mermaid diagrams** — Flowcharts, sequence diagrams, pie charts, and more.
 - **Dark mode** — Follows your system appearance automatically.
 - **Default reader** — One click to replace Xcode or TextEdit as your .md handler.
 
@@ -30,8 +31,8 @@
 
 On first launch, Readdown walks you through this — but here are the manual steps:
 
-1. Open **System Settings → General → Login Items & Extensions**
-2. Click **ℹ︎** next to **Quick Look**
+1. Open **System Settings > General > Login Items & Extensions**
+2. Click **i** next to **Quick Look**
 3. Toggle **Readdown** on
 
 ## Download
@@ -45,6 +46,10 @@ Requires macOS 13 Ventura or later.
 1. Clone the repo
 2. Open `ReadDown.xcodeproj` in Xcode
 3. Build and run (requires macOS 13+)
+
+## Feedback
+
+Found a bug or have a feature request? [Open an issue](https://github.com/nataliarsand/readdown/issues).
 
 ## License
 

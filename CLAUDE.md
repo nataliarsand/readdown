@@ -22,12 +22,12 @@ A clean, fast Markdown reader for macOS. Document-based SwiftUI app with Quick L
 - GitHub release: `gh release create vX.Y --title "Readdown X.Y" release/Readdown.dmg`
 
 ## Website
-- Repo: `~/Dev/readdown-website` (GitHub: nataliarsand/readdown-website)
+- Repo: `~/Dev/readdown-website` (GitHub: nataliarsand/readdown-website) — single source of truth
 - Live: https://heya.studio/readdown/
 - Hosted via Cloudflare Pages on the `heya-studio` project (`~/Dev/heya-studio`)
-- **heya-studio serves the site directly** — readdown content lives in `heya-studio/readdown/`
-- readdown-website is the source of truth but does NOT auto-deploy — changes must be copied to heya-studio and pushed there
-- Appcast must be updated in BOTH repos: `readdown-website/readdown/appcast.xml` AND `heya-studio/readdown/appcast.xml`
+- heya-studio's `build.sh` clones readdown-website at deploy time into `/readdown`
+- **Only edit readdown-website.** Push there and Cloudflare auto-deploys.
+- Appcast lives at `readdown-website/readdown/appcast.xml` — one place to update
 
 ## Performance & Reliability Principles
 Readdown's core promise is "clean and fast." Every change must preserve this.
