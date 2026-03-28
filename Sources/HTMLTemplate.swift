@@ -213,6 +213,11 @@ enum HTMLTemplate {
             border-width: 0 2px 2px 0;
             transform: rotate(45deg);
         }
+        pre.mermaid {
+            background: transparent;
+            padding: 0;
+            text-align: center;
+        }
         \(SyntaxHighlight.css)
         </style>
         </head>
@@ -220,8 +225,25 @@ enum HTMLTemplate {
         \(body)
         <script>\(SyntaxHighlight.js)</script>
         <script>
-        hljs.configure({ cssSelector: 'pre code[class^="language-"]' });
+        hljs.configure({ languages: [
+            'bash', 'c', 'cpp', 'css', 'diff', 'go', 'java', 'javascript',
+            'json', 'kotlin', 'python', 'ruby', 'rust', 'shell', 'sql',
+            'swift', 'typescript', 'xml', 'yaml'
+        ]});
         hljs.highlightAll();
+        </script>
+        <script type="module">
+        if (document.querySelector('.mermaid')) {
+            try {
+                const {default: mermaid} = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+                    securityLevel: 'strict'
+                });
+                await mermaid.run();
+            } catch(e) {}
+        }
         </script>
         </body>
         </html>

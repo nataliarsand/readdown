@@ -53,7 +53,8 @@ final class MarkdownRendererTests: XCTestCase {
     func testFencedCodeBlockNoLanguage() {
         let md = "```\nplain code\n```"
         let result = MarkdownRenderer.render(md)
-        XCTAssertTrue(result.contains("<pre><code class=\"nohighlight\">"))
+        XCTAssertTrue(result.contains("<pre><code>"))
+        XCTAssertFalse(result.contains("nohighlight"))
         XCTAssertTrue(result.contains("plain code"))
     }
 
@@ -209,6 +210,28 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("&lt;script&gt;"))
     }
 
+    // MARK: - Mermaid
+
+    func testMermaidBlockUsesMermaidClass() {
+        let md = "```mermaid\ngraph TD\n    A-->B\n```"
+        let result = MarkdownRenderer.render(md)
+        XCTAssertTrue(result.contains("<pre class=\"mermaid\">"))
+        XCTAssertFalse(result.contains("<code"))
+    }
+
+    func testMermaidBlockNotEscaped() {
+        let md = "```mermaid\ngraph TD\n    A-->B\n```"
+        let result = MarkdownRenderer.render(md)
+        XCTAssertTrue(result.contains("A-->B"))
+        XCTAssertFalse(result.contains("&gt;"))
+    }
+
+    func testMermaidCaseInsensitive() {
+        let md = "```Mermaid\ngraph TD\n    A-->B\n```"
+        let result = MarkdownRenderer.render(md)
+        XCTAssertTrue(result.contains("<pre class=\"mermaid\">"))
+    }
+
     // MARK: - Tilde Fences
 
     func testTildeFenceWithLanguage() {
@@ -221,7 +244,8 @@ final class MarkdownRendererTests: XCTestCase {
     func testTildeFenceNoLanguage() {
         let md = "~~~\nplain\n~~~"
         let result = MarkdownRenderer.render(md)
-        XCTAssertTrue(result.contains("<pre><code class=\"nohighlight\">"))
+        XCTAssertTrue(result.contains("<pre><code>"))
+        XCTAssertFalse(result.contains("nohighlight"))
     }
 
     func testUnclosedCodeBlock() {

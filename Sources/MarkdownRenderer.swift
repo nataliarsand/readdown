@@ -36,6 +36,7 @@ enum MarkdownRenderer {
                 let fenceChar: Character = stripped.first == "~" ? "~" : "`"
                 let fenceLen = stripped.prefix(while: { $0 == fenceChar }).count
                 let lang = String(stripped.dropFirst(fenceLen)).trimmingCharacters(in: .whitespaces)
+                let isMermaid = lang.lowercased() == "mermaid"
                 var code: [String] = []
                 i += 1
                 while i < lines.count {
@@ -46,11 +47,15 @@ enum MarkdownRenderer {
                         i += 1
                         break
                     }
-                    code.append(escapeHTML(lines[i]))
+                    code.append(isMermaid ? lines[i] : escapeHTML(lines[i]))
                     i += 1
                 }
-                let langAttr = lang.isEmpty ? " class=\"nohighlight\"" : " class=\"language-\(escapeHTML(lang))\""
-                html.append("<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>")
+                if isMermaid {
+                    html.append("<pre class=\"mermaid\">\(code.joined(separator: "\n"))</pre>")
+                } else {
+                    let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
+                    html.append("<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>")
+                }
                 continue
             }
 

@@ -116,8 +116,15 @@ struct WelcomeView: View {
 
     private func setAsDefaultMarkdownApp() {
         let appURL = Bundle.main.bundleURL
-        guard let mdType = UTType(filenameExtension: "md") else { return }
-        NSWorkspace.shared.setDefaultApplication(at: appURL, toOpen: mdType)
+        let extensions = ["md", "markdown", "mdown", "mkd"]
+        for ext in extensions {
+            if let utType = UTType(filenameExtension: ext) {
+                NSWorkspace.shared.setDefaultApplication(at: appURL, toOpen: utType)
+            }
+        }
+        if let markdownUTI = UTType("net.daringfireball.markdown") {
+            NSWorkspace.shared.setDefaultApplication(at: appURL, toOpen: markdownUTI)
+        }
     }
 
     private func checkQLExtensionStatus() {

@@ -37,8 +37,8 @@ Readdown's core promise is "clean and fast." Every change must preserve this.
 - Compute expensive values in `init` or as stored properties. `body` should only compose views.
 
 ### No unbounded JS execution in WebKit
-- **Never enable highlight.js auto-detection.** Always use `cssSelector` to restrict hljs to code blocks with explicit language classes. Auto-detection runs every bundled grammar and can cause catastrophic backtracking (the root cause of the 19.7GB RAM incident).
-- Code blocks without a language specifier must get `class="nohighlight"`.
+- **Never run highlight.js against all bundled grammars.** Use the `languages` config to restrict auto-detection to a curated subset of ~19 common languages. Full auto-detection against all ~35 grammars caused catastrophic backtracking (19.7GB RAM incident).
+- Code blocks with an explicit language tag use that grammar directly. Bare code blocks run safe auto-detection against the curated subset.
 - When adding new JS libraries (e.g., Mermaid), evaluate their CPU/memory behavior on large inputs before shipping.
 
 ### Pre-compile regex patterns
