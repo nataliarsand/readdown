@@ -1,5 +1,25 @@
 import Foundation
 
+// MARK: - Pre-compiled Regex Patterns
+
+private let fencePattern = try! NSRegularExpression(pattern: "^\\s{0,3}(`{3,}|~{3,})")
+private let headingPattern = try! NSRegularExpression(pattern: "^\\s{0,3}#{1,6}(?:\\s+|$)")
+private let ulPattern = try! NSRegularExpression(pattern: "^\\s*[-*+] ")
+private let olPattern = try! NSRegularExpression(pattern: "^\\s*\\d+\\. ")
+private let tableSepPattern = try! NSRegularExpression(pattern: "^\\s*\\|?[\\s:]*-+[\\s:]*\\|")
+
+private let imagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^)]+)\\)")
+private let linkPattern = try! NSRegularExpression(pattern: "\\[([^\\]]*)\\]\\(([^)]+)\\)")
+private let codePattern = try! NSRegularExpression(pattern: "`([^`]+)`")
+private let boldItalicStarPattern = try! NSRegularExpression(pattern: "\\*\\*\\*(.+?)\\*\\*\\*")
+private let boldItalicUnderPattern = try! NSRegularExpression(pattern: "___(.+?)___")
+private let boldStarPattern = try! NSRegularExpression(pattern: "\\*\\*(.+?)\\*\\*")
+private let boldUnderPattern = try! NSRegularExpression(pattern: "__(.+?)__")
+private let italicStarPattern = try! NSRegularExpression(pattern: "\\*(.+?)\\*")
+private let italicUnderPattern = try! NSRegularExpression(pattern: "_(.+?)_")
+private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~")
+private let htmlTagPattern = try! NSRegularExpression(pattern: "</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
+
 enum MarkdownRenderer {
 
     static func render(_ markdown: String) -> String {
@@ -11,17 +31,25 @@ enum MarkdownRenderer {
             let line = lines[i]
 
             // Fenced code block (allow up to 3 leading spaces)
-            let trimmedForFence = line.replacingOccurrences(of: "^\\s{0,3}", with: "", options: .regularExpression)
-            if trimmedForFence.hasPrefix("```") {
-                let lang = String(trimmedForFence.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            if line.matchesPattern(fencePattern) {
+                let stripped = line.drop(while: { $0 == " " || $0 == "\t" })
+                let fenceChar: Character = stripped.first == "~" ? "~" : "`"
+                let fenceLen = stripped.prefix(while: { $0 == fenceChar }).count
+                let lang = String(stripped.dropFirst(fenceLen)).trimmingCharacters(in: .whitespaces)
                 var code: [String] = []
                 i += 1
-                while i < lines.count && !lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                while i < lines.count {
+                    let closeTrimmed = lines[i].drop(while: { $0 == " " || $0 == "\t" })
+                    let closeLen = closeTrimmed.prefix(while: { $0 == fenceChar }).count
+                    if closeLen >= fenceLen
+                        && closeTrimmed.dropFirst(closeLen).allSatisfy({ $0.isWhitespace }) {
+                        i += 1
+                        break
+                    }
                     code.append(escapeHTML(lines[i]))
                     i += 1
                 }
-                i += 1 // skip closing ```
-                let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
+                let langAttr = lang.isEmpty ? " class=\"nohighlight\"" : " class=\"language-\(escapeHTML(lang))\""
                 html.append("<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>")
                 continue
             }
@@ -34,18 +62,14 @@ enum MarkdownRenderer {
 
             // Horizontal rule — only lines with 3+ of the same marker and nothing else
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.count >= 3 {
-                let stripped = trimmed.filter { !$0.isWhitespace }
-                let unique = Set(stripped)
-                if unique.count == 1 && stripped.count >= 3, let ch = unique.first, "-*_".contains(ch) {
-                    html.append("<hr>")
-                    i += 1
-                    continue
-                }
+            if isHorizontalRule(trimmed) {
+                html.append("<hr>")
+                i += 1
+                continue
             }
 
             // Heading
-            if line.matches(pattern: "^\\s{0,3}#{1,6}(?:\\s+|$)") {
+            if line.matchesPattern(headingPattern) {
                 let trimmedLine = String(line.drop(while: { $0 == " " || $0 == "\t" }))
                 let level = min(trimmedLine.prefix(while: { $0 == "#" }).count, 6)
                 let text = String(trimmedLine.dropFirst(level)).trimmingCharacters(in: .whitespaces)
@@ -56,10 +80,8 @@ enum MarkdownRenderer {
 
             // Table
             if line.contains("|") && i + 1 < lines.count
-                && lines[i + 1].matches(pattern: "^\\s*\\|?[\\s:]*-+[\\s:]*\\|") {
-                // Parse header row
+                && lines[i + 1].matchesPattern(tableSepPattern) {
                 let headerCells = parseTableRow(line)
-                // Parse separator row for alignment
                 let separatorCells = parseTableRow(lines[i + 1])
                 var alignments: [String] = []
                 for cell in separatorCells {
@@ -74,7 +96,7 @@ enum MarkdownRenderer {
                         alignments.append("left")
                     }
                 }
-                i += 2 // skip header + separator
+                i += 2
 
                 var tableHTML = "<table><thead><tr>"
                 for (ci, cell) in headerCells.enumerated() {
@@ -115,33 +137,32 @@ enum MarkdownRenderer {
             }
 
             // Unordered list (including task lists)
-            if line.matches(pattern: "^\\s*[-*+] ") {
+            if line.matchesPattern(ulPattern) {
                 html.append(parseUnorderedList(&i, lines: lines))
                 continue
             }
 
             // Ordered list
-            if line.matches(pattern: "^\\s*\\d+\\. ") {
+            if line.matchesPattern(olPattern) {
                 var items: [String] = []
-                while i < lines.count && lines[i].matches(pattern: "^\\s*\\d+\\. ") {
-                    let text = lines[i].replacingOccurrences(of: "^\\s*\\d+\\. ", with: "", options: .regularExpression)
+                while i < lines.count && lines[i].matchesPattern(olPattern) {
+                    let text = lines[i].removingMatch(of: olPattern)
                     i += 1
                     var continuations: [String] = []
                     while i < lines.count {
                         let next = lines[i]
                         let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
                         if nextTrimmed.isEmpty {
-                            // Blank line: continue list if next non-blank line is a list item
                             var peek = i + 1
                             while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
-                            if peek < lines.count && lines[peek].matches(pattern: "^\\s*\\d+\\. ") {
+                            if peek < lines.count && lines[peek].matchesPattern(olPattern) {
                                 i = peek
                                 break
                             }
                             break
                         }
-                        if next.matches(pattern: "^\\s*[-*+] ") || next.matches(pattern: "^\\s*\\d+\\. ")
-                            || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix(">") {
+                        if next.matchesPattern(ulPattern) || next.matchesPattern(olPattern)
+                            || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix("~~~") || next.hasPrefix(">") {
                             break
                         }
                         continuations.append(nextTrimmed)
@@ -176,23 +197,17 @@ enum MarkdownRenderer {
                 let l = lines[i]
                 let t = l.trimmingCharacters(in: .whitespaces)
                 if t.isEmpty || l.hasPrefix("#") || l.hasPrefix(">")
-                    || t.hasPrefix("```")
-                    || l.matches(pattern: "^\\s*[-*+] ") || l.matches(pattern: "^\\s*\\d+\\. ")
+                    || t.hasPrefix("```") || t.hasPrefix("~~~")
+                    || l.matchesPattern(ulPattern) || l.matchesPattern(olPattern)
                     || isHTMLBlockStart(l) {
                     break
                 }
-                // Break if this line starts a table
                 if l.contains("|") && i + 1 < lines.count
-                    && lines[i + 1].matches(pattern: "^\\s*\\|?[\\s:]*-+[\\s:]*\\|") {
+                    && lines[i + 1].matchesPattern(tableSepPattern) {
                     break
                 }
-                // Check HR
-                if t.count >= 3 {
-                    let stripped = t.filter { !$0.isWhitespace }
-                    let unique = Set(stripped)
-                    if unique.count == 1 && stripped.count >= 3, let ch = unique.first, "-*_".contains(ch) {
-                        break
-                    }
+                if isHorizontalRule(t) {
+                    break
                 }
                 para.append(l)
                 i += 1
@@ -208,11 +223,9 @@ enum MarkdownRenderer {
     // MARK: - Inline Markdown
 
     private static func escapeHTMLPreservingTags(_ text: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: "</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>", options: []) else {
-            return escapeHTML(text)
-        }
         let ns = text as NSString
-        let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length))
+        let matches = htmlTagPattern.matches(in: text, range: NSRange(location: 0, length: ns.length))
+        if matches.isEmpty { return escapeHTML(text) }
         var result = ""
         var lastEnd = 0
         for match in matches {
@@ -229,50 +242,50 @@ enum MarkdownRenderer {
         var s = escapeHTMLPreservingTags(text)
 
         // Images: ![alt](url)
-        s = s.replacing(pattern: "!\\[([^\\]]*)\\]\\(([^)]+)\\)") { match in
+        s = s.replacing(imagePattern) { match in
             let url = sanitizedMarkdownURL(match[2])
             guard isSafeURL(url) else { return match[0] }
             return "<img src=\"\(escapeHTML(url))\" alt=\"\(match[1])\">"
         }
 
         // Links: [text](url)
-        s = s.replacing(pattern: "\\[([^\\]]*)\\]\\(([^)]+)\\)") { match in
+        s = s.replacing(linkPattern) { match in
             let url = sanitizedMarkdownURL(match[2])
             guard isSafeURL(url) else { return "\(match[1])" }
             return "<a href=\"\(escapeHTML(url))\">\(match[1])</a>"
         }
 
         // Inline code
-        s = s.replacing(pattern: "`([^`]+)`") { match in
+        s = s.replacing(codePattern) { match in
             "<code>\(match[1])</code>"
         }
 
         // Bold + italic
-        s = s.replacing(pattern: "\\*\\*\\*(.+?)\\*\\*\\*") { match in
+        s = s.replacing(boldItalicStarPattern) { match in
             "<strong><em>\(match[1])</em></strong>"
         }
-        s = s.replacing(pattern: "___(.+?)___") { match in
+        s = s.replacing(boldItalicUnderPattern) { match in
             "<strong><em>\(match[1])</em></strong>"
         }
 
         // Bold
-        s = s.replacing(pattern: "\\*\\*(.+?)\\*\\*") { match in
+        s = s.replacing(boldStarPattern) { match in
             "<strong>\(match[1])</strong>"
         }
-        s = s.replacing(pattern: "__(.+?)__") { match in
+        s = s.replacing(boldUnderPattern) { match in
             "<strong>\(match[1])</strong>"
         }
 
         // Italic
-        s = s.replacing(pattern: "\\*(.+?)\\*") { match in
+        s = s.replacing(italicStarPattern) { match in
             "<em>\(match[1])</em>"
         }
-        s = s.replacing(pattern: "_(.+?)_") { match in
+        s = s.replacing(italicUnderPattern) { match in
             "<em>\(match[1])</em>"
         }
 
         // Strikethrough
-        s = s.replacing(pattern: "~~(.+?)~~") { match in
+        s = s.replacing(strikePattern) { match in
             "<del>\(match[1])</del>"
         }
 
@@ -294,17 +307,16 @@ enum MarkdownRenderer {
         var hasTaskItem = false
         var result = ""
 
-        while i < lines.count && lines[i].matches(pattern: "^\\s*[-*+] ") {
+        while i < lines.count && lines[i].matchesPattern(ulPattern) {
             let currentIndent = listItemIndent(lines[i])
             if currentIndent < baseIndent { break }
 
             if currentIndent > baseIndent {
-                // Nested list — recurse
                 result += parseUnorderedList(&i, lines: lines)
                 continue
             }
 
-            let text = lines[i].replacingOccurrences(of: "^\\s*[-*+] ", with: "", options: .regularExpression)
+            let text = lines[i].removingMatch(of: ulPattern)
             i += 1
 
             // Collect continuation lines
@@ -315,14 +327,14 @@ enum MarkdownRenderer {
                 if nextTrimmed.isEmpty {
                     var peek = i + 1
                     while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
-                    if peek < lines.count && lines[peek].matches(pattern: "^\\s*[-*+] ") {
+                    if peek < lines.count && lines[peek].matchesPattern(ulPattern) {
                         i = peek
                         break
                     }
                     break
                 }
-                if next.matches(pattern: "^\\s*[-*+] ") || next.matches(pattern: "^\\s*\\d+\\. ")
-                    || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix(">") {
+                if next.matchesPattern(ulPattern) || next.matchesPattern(olPattern)
+                    || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix("~~~") || next.hasPrefix(">") {
                     break
                 }
                 continuations.append(nextTrimmed)
@@ -345,6 +357,16 @@ enum MarkdownRenderer {
 
         let cls = hasTaskItem ? " class=\"task-list\"" : ""
         return "<ul\(cls)>\(result)</ul>"
+    }
+
+    // MARK: - Block Helpers
+
+    private static func isHorizontalRule(_ trimmed: String) -> Bool {
+        guard trimmed.count >= 3 else { return false }
+        let stripped = trimmed.filter { !$0.isWhitespace }
+        let unique = Set(stripped)
+        return unique.count == 1 && stripped.count >= 3
+            && unique.first.map { "-*_".contains($0) } == true
     }
 
     // MARK: - Table Helpers
@@ -404,7 +426,6 @@ enum MarkdownRenderer {
             return false
         }
 
-        // Reject Windows drive paths and other scheme-like prefixes.
         if let colonIndex = trimmed.firstIndex(of: ":") {
             let beforeColon = trimmed[..<colonIndex]
             if beforeColon.count == 1 || beforeColon.allSatisfy({ $0.isLetter }) {
@@ -427,30 +448,47 @@ enum MarkdownRenderer {
 // MARK: - String Regex Helpers
 
 private extension String {
-    func matches(pattern: String) -> Bool {
-        range(of: pattern, options: .regularExpression) != nil
+    func matchesPattern(_ regex: NSRegularExpression) -> Bool {
+        let range = NSRange(startIndex..., in: self)
+        return regex.firstMatch(in: self, range: range) != nil
     }
 
-    func replacing(pattern: String, using transform: ([String]) -> String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            return self
-        }
+    func removingMatch(of regex: NSRegularExpression) -> String {
+        let range = NSRange(startIndex..., in: self)
+        return regex.stringByReplacingMatches(in: self, range: range, withTemplate: "")
+    }
+
+    func replacing(_ regex: NSRegularExpression, using transform: ([String]) -> String) -> String {
         let nsRange = NSRange(startIndex..., in: self)
-        var result = self
-        // Process matches in reverse so ranges stay valid
-        let matches = regex.matches(in: self, options: [], range: nsRange).reversed()
+        let matches = regex.matches(in: self, range: nsRange)
+        if matches.isEmpty { return self }
+
+        // Build result forward, copying unmatched segments and transformed matches
+        let ns = self as NSString
+        var result = ""
+        var lastEnd = 0
         for match in matches {
+            let matchRange = match.range
+            // Copy text before this match
+            if matchRange.location > lastEnd {
+                result += ns.substring(with: NSRange(location: lastEnd, length: matchRange.location - lastEnd))
+            }
+            // Extract groups from original string
             var groups: [String] = []
             for g in 0..<match.numberOfRanges {
-                if let r = Range(match.range(at: g), in: self) {
-                    groups.append(String(self[r]))
+                let gr = match.range(at: g)
+                if gr.location != NSNotFound {
+                    groups.append(ns.substring(with: gr))
                 } else {
                     groups.append("")
                 }
             }
-            if let fullRange = Range(match.range(at: 0), in: result) {
-                result.replaceSubrange(fullRange, with: transform(groups))
-            }
+            result += transform(groups)
+            lastEnd = matchRange.location + matchRange.length
+        }
+        // Copy remaining text
+        if lastEnd < ns.length {
+            result += ns.substring(from: lastEnd)
         }
         return result
     }

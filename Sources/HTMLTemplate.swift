@@ -219,7 +219,10 @@ enum HTMLTemplate {
         <body>
         \(body)
         <script>\(SyntaxHighlight.js)</script>
-        <script>hljs.highlightAll();</script>
+        <script>
+        hljs.configure({ cssSelector: 'pre code[class^="language-"]' });
+        hljs.highlightAll();
+        </script>
         </body>
         </html>
         """
