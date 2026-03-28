@@ -62,6 +62,7 @@ Readdown has real users with auto-updates. Every release goes straight to their 
 - **Test the release artifact, not the debug build.** Run `release.sh --skip-notarize`, mount the DMG, and test from there. The debug build in DerivedData is not what users get.
 - **Verify the update pipeline end-to-end.** After pushing an appcast, `curl` the live URL to confirm it updated. Cloudflare caching and stale repos have caused silent failures before.
 - **Bump version before building.** Sparkle compares build numbers. If you rebuild without bumping, existing users won't see the update.
+- **Sparkle needs a zip, not a DMG.** The appcast enclosure must point to a `.zip` of the `.app` bundle. DMGs can't be auto-installed. The DMG is for manual downloads only. The release script should produce both.
 
 ## License
 - Source-available (not open source) — view/study/contribute allowed, redistribution prohibited
