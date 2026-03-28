@@ -209,6 +209,76 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("&lt;script&gt;"))
     }
 
+    // MARK: - Tilde Fences
+
+    func testTildeFenceWithLanguage() {
+        let md = "~~~ruby\nputs 'hi'\n~~~"
+        let result = MarkdownRenderer.render(md)
+        XCTAssertTrue(result.contains("<pre><code class=\"language-ruby\">"))
+        XCTAssertTrue(result.contains("puts &#39;hi&#39;"))
+    }
+
+    func testTildeFenceNoLanguage() {
+        let md = "~~~\nplain\n~~~"
+        let result = MarkdownRenderer.render(md)
+        XCTAssertTrue(result.contains("<pre><code class=\"nohighlight\">"))
+    }
+
+    func testUnclosedCodeBlock() {
+        let md = "```\nno closing fence\nstill going"
+        let result = MarkdownRenderer.render(md)
+        XCTAssertTrue(result.contains("<pre><code"))
+        XCTAssertTrue(result.contains("no closing fence"))
+        XCTAssertTrue(result.contains("still going"))
+    }
+
+    // MARK: - Inline Replacement Edge Cases
+
+    func testMultipleInlinePatternsOnOneLine() {
+        let result = MarkdownRenderer.render("**bold** and *italic* and `code` and [link](https://x.com)")
+        XCTAssertTrue(result.contains("<strong>bold</strong>"))
+        XCTAssertTrue(result.contains("<em>italic</em>"))
+        XCTAssertTrue(result.contains("<code>code</code>"))
+        XCTAssertTrue(result.contains("<a href=\"https://x.com\">link</a>"))
+    }
+
+    func testMultipleLinksOnOneLine() {
+        let result = MarkdownRenderer.render("[a](https://a.com) and [b](https://b.com)")
+        XCTAssertTrue(result.contains("href=\"https://a.com\""))
+        XCTAssertTrue(result.contains("href=\"https://b.com\""))
+    }
+
+    func testMultipleBoldOnOneLine() {
+        let result = MarkdownRenderer.render("**one** then **two** then **three**")
+        let count = result.components(separatedBy: "<strong>").count - 1
+        XCTAssertEqual(count, 3)
+    }
+
+    func testEmojiInParagraph() {
+        let result = MarkdownRenderer.render("Hello 🎉 world 🚀")
+        XCTAssertTrue(result.contains("🎉"))
+        XCTAssertTrue(result.contains("🚀"))
+    }
+
+    func testUnicodeInBold() {
+        let result = MarkdownRenderer.render("**café** and *naïve*")
+        XCTAssertTrue(result.contains("<strong>café</strong>"))
+        XCTAssertTrue(result.contains("<em>naïve</em>"))
+    }
+
+    func testSnakeCaseNotItalicized() {
+        // snake_case words should not be treated as italic
+        // Note: our simple regex does match _between underscores_,
+        // but single words like my_var won't match (.+? needs content between separate _'s)
+        let result = MarkdownRenderer.render("use my_var here")
+        XCTAssertTrue(result.contains("my_var"))
+    }
+
+    func testLinkWithSpecialCharsInURL() {
+        let result = MarkdownRenderer.render("[search](https://google.com/search?q=hello&lang=en)")
+        XCTAssertTrue(result.contains("href=\"https://google.com/search?q=hello&amp;lang=en\""))
+    }
+
     // MARK: - Empty / Edge Cases
 
     func testEmptyInput() {
