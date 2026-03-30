@@ -22,9 +22,15 @@ private let htmlTagPattern = try! NSRegularExpression(pattern: "</?[a-zA-Z][a-zA
 
 enum MarkdownRenderer {
 
-    static func render(_ markdown: String) -> String {
+    struct Result {
+        let html: String
+        let hasMermaid: Bool
+    }
+
+    static func render(_ markdown: String) -> Result {
         let lines = markdown.components(separatedBy: "\n")
         var html: [String] = []
+        var hasMermaid = false
         var i = 0
 
         while i < lines.count {
@@ -51,6 +57,7 @@ enum MarkdownRenderer {
                     i += 1
                 }
                 if isMermaid {
+                    hasMermaid = true
                     html.append("<pre class=\"mermaid\">\(code.joined(separator: "\n"))</pre>")
                 } else {
                     let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
@@ -136,8 +143,9 @@ enum MarkdownRenderer {
                     quoteLines.append(content)
                     i += 1
                 }
-                let inner = render(quoteLines.joined(separator: "\n"))
-                html.append("<blockquote>\(inner)</blockquote>")
+                let innerResult = render(quoteLines.joined(separator: "\n"))
+                if innerResult.hasMermaid { hasMermaid = true }
+                html.append("<blockquote>\(innerResult.html)</blockquote>")
                 continue
             }
 
@@ -222,7 +230,7 @@ enum MarkdownRenderer {
             }
         }
 
-        return html.joined(separator: "\n")
+        return Result(html: html.joined(separator: "\n"), hasMermaid: hasMermaid)
     }
 
     // MARK: - Inline Markdown

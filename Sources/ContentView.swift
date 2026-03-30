@@ -5,7 +5,8 @@ struct ContentView: View {
     let baseURL: URL?
 
     init(document: MarkdownDocument, baseURL: URL?) {
-        self.html = HTMLTemplate.wrap(body: MarkdownRenderer.render(document.text))
+        let result = MarkdownRenderer.render(document.text)
+        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid)
         self.baseURL = baseURL
     }
 

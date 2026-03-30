@@ -2,7 +2,13 @@ import Foundation
 
 enum HTMLTemplate {
 
-    static func wrap(body: String) -> String {
+    private static let mermaidJS: String? = {
+        guard let url = Bundle.main.url(forResource: "mermaid.min", withExtension: "js"),
+              let js = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        return js
+    }()
+
+    static func wrap(body: String, hasMermaid: Bool = false) -> String {
         """
         <!DOCTYPE html>
         <html>
@@ -218,6 +224,10 @@ enum HTMLTemplate {
             padding: 0;
             text-align: center;
         }
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
         \(SyntaxHighlight.css)
         </style>
         </head>
@@ -232,19 +242,16 @@ enum HTMLTemplate {
         ]});
         hljs.highlightAll();
         </script>
-        <script type="module">
-        if (document.querySelector('.mermaid')) {
-            try {
-                const {default: mermaid} = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
-                mermaid.initialize({
-                    startOnLoad: false,
-                    theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
-                    securityLevel: 'strict'
-                });
-                await mermaid.run();
-            } catch(e) {}
-        }
+        \(hasMermaid && mermaidJS != nil ? """
+        <script>\(mermaidJS!)</script>
+        <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+            securityLevel: 'strict'
+        });
         </script>
+        """ : "")
         </body>
         </html>
         """
