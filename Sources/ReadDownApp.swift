@@ -134,6 +134,12 @@ struct ReadDownApp: App {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(viewModel: appDelegate.checkForUpdatesViewModel)
             }
+            CommandGroup(replacing: .printItem) {
+                Button("Print...") {
+                    NotificationCenter.default.post(name: .printDocument, object: nil)
+                }
+                .keyboardShortcut("p", modifiers: .command)
+            }
             CommandGroup(replacing: .help) {
                 Button("Readdown Help") {
                     NSWorkspace.shared.open(URL(string: "https://heya.studio/readdown/#faq")!)
