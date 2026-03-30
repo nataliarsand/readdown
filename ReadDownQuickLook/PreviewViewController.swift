@@ -21,7 +21,8 @@ class PreviewViewController: NSViewController, QLPreviewingController {
     func preparePreviewOfFile(at url: URL, completionHandler handler: @escaping (Error?) -> Void) {
         do {
             let markdown = try TextFileDecoder.decode(Data(contentsOf: url))
-            let html = HTMLTemplate.wrap(body: MarkdownRenderer.render(markdown))
+            let result = MarkdownRenderer.render(markdown)
+            let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid)
             webView.loadHTMLString(html, baseURL: url.deletingLastPathComponent())
             handler(nil)
         } catch {
