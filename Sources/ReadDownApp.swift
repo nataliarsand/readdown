@@ -135,6 +135,13 @@ struct ReadDownApp: App {
                 CheckForUpdatesView(viewModel: appDelegate.checkForUpdatesViewModel)
             }
             CommandGroup(replacing: .printItem) {
+                Button("Export as PDF...") {
+                    NotificationCenter.default.post(name: .exportPDF, object: nil)
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+
+                Divider()
+
                 Button("Print...") {
                     NotificationCenter.default.post(name: .printDocument, object: nil)
                 }

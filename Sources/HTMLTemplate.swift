@@ -229,6 +229,36 @@ enum HTMLTemplate {
             height: auto;
         }
         \(SyntaxHighlight.css)
+        @media print {
+            body {
+                color: #000;
+                background: #fff;
+                max-width: none;
+                padding: 0;
+                margin: 0;
+                font-size: 11pt;
+                line-height: 1.5;
+            }
+            h1 { font-size: 18pt; border-bottom-color: #ccc; }
+            h2 { font-size: 15pt; border-bottom-color: #ccc; }
+            h3 { font-size: 13pt; }
+            a { color: #000; text-decoration: underline; }
+            pre, pre code, .hljs {
+                background: #f5f5f5 !important;
+                border: 1px solid #ddd;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-size: 9pt;
+            }
+            code { background: #f0f0f0; }
+            .hljs span { color: #000 !important; }
+            blockquote { color: #333; border-left-color: #ccc; }
+            th { background: #eee !important; }
+            tr:nth-child(even) { background: #f9f9f9 !important; }
+            img { max-width: 100% !important; }
+            pre, blockquote, table, img { page-break-inside: avoid; }
+            h1, h2, h3, h4 { page-break-after: avoid; }
+        }
         </style>
         </head>
         <body>
