@@ -91,8 +91,9 @@ fi
 
 # ── Step 3: Patch SDK version ──
 # Xcode 26 beta stamps sdk 26.x into binaries, which causes macOS 15 to
-# refuse registering app extensions. Rewrite to sdk 15.0 after export,
-# then re-sign so the patched binaries have valid signatures.
+# refuse registering app extensions and prevents Sparkle's XPC installer
+# services from launching. Rewrite to sdk 15.0 after export, then re-sign
+# so the patched binaries have valid signatures.
 
 echo "==> Patching SDK version..."
 patch_sdk() {
@@ -112,9 +113,28 @@ patch_sdk() {
 patch_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/ReadDownQuickLook"
 patch_sdk "$APP_PATH/Contents/MacOS/ReadDown"
 
-# Re-sign after patching (extension first, then app)
+# Patch Sparkle framework binaries (installer, updater, downloader, autoupdate)
+SPARKLE_FW="$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B"
+patch_sdk "$SPARKLE_FW/Sparkle"
+patch_sdk "$SPARKLE_FW/Autoupdate"
+patch_sdk "$SPARKLE_FW/Updater.app/Contents/MacOS/Updater"
+patch_sdk "$SPARKLE_FW/XPCServices/Installer.xpc/Contents/MacOS/Installer"
+patch_sdk "$SPARKLE_FW/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
+
+# Re-sign after patching (innermost first, then outer)
 # IMPORTANT: must pass --entitlements to preserve them after re-signing
 echo "==> Re-signing after SDK patch..."
+# Sign standalone executables first, then their containing bundles, then framework
+codesign --force --sign "Developer ID Application" --options runtime \
+    "$SPARKLE_FW/Autoupdate"
+codesign --force --sign "Developer ID Application" --options runtime \
+    "$SPARKLE_FW/XPCServices/Installer.xpc"
+codesign --force --sign "Developer ID Application" --options runtime \
+    "$SPARKLE_FW/XPCServices/Downloader.xpc"
+codesign --force --sign "Developer ID Application" --options runtime \
+    "$SPARKLE_FW/Updater.app"
+codesign --force --sign "Developer ID Application" --options runtime \
+    "$APP_PATH/Contents/Frameworks/Sparkle.framework"
 codesign --force --sign "Developer ID Application" --options runtime \
     --entitlements "$PROJECT_DIR/ReadDownQuickLook/ReadDownQuickLook.entitlements" \
     "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex"
@@ -241,5 +261,6 @@ echo ""
 echo "To upload to GitHub Releases:"
 echo "    gh release create v${VERSION:-X.Y} --title \"Readdown ${VERSION:-X.Y}\" \"$DMG_PATH\" \"$ZIP_PATH\""
 echo ""
-echo "Then deploy appcast.xml to your website:"
-echo "    cp $PROJECT_DIR/release/appcast.xml ~/Dev/heya-studio/readdown/appcast.xml"
+echo "Then deploy appcast.xml to the website:"
+echo "    cp $PROJECT_DIR/release/appcast.xml ~/Dev/readdown-website/appcast.xml"
+echo "    cd ~/Dev/readdown-website && git add appcast.xml && git commit -m 'Update appcast for v${VERSION:-X.Y}' && git push"

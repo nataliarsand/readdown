@@ -54,6 +54,8 @@ check_sdk() {
 
 check_sdk "$APP_PATH/Contents/MacOS/ReadDown" "Main app"
 check_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/ReadDownQuickLook" "Quick Look extension"
+check_sdk "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer" "Sparkle Installer"
+check_sdk "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate" "Sparkle Autoupdate"
 
 # ── Quick Look Extension Bundle ──
 echo ""
@@ -116,6 +118,26 @@ if [ "$BUNDLE_ID" = "com.heya.readdown" ]; then
     PASS=$((PASS + 1))
 else
     echo "  FAIL: Bundle ID is '$BUNDLE_ID' (expected com.heya.readdown)"
+    FAIL=$((FAIL + 1))
+fi
+
+# ── Sparkle Auto-Update ──
+echo ""
+echo "--- Sparkle Auto-Update ---"
+
+check "Sparkle framework exists" test -d "$APP_PATH/Contents/Frameworks/Sparkle.framework"
+check "Installer.xpc exists" test -d "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc"
+check "SUFeedURL in Info.plist" /usr/libexec/PlistBuddy -c "Print :SUFeedURL" "$APP_PLIST"
+check "SUPublicEDKey in Info.plist" /usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$APP_PLIST"
+check "SUEnableInstallerLauncherService in Info.plist" /usr/libexec/PlistBuddy -c "Print :SUEnableInstallerLauncherService" "$APP_PLIST"
+
+# Verify entitlements include Sparkle mach-lookup exceptions (required for sandboxed apps)
+APP_ENTITLEMENTS=$(codesign -d --entitlements - "$APP_PATH" 2>&1)
+if echo "$APP_ENTITLEMENTS" | grep -q "readdown-spks" && echo "$APP_ENTITLEMENTS" | grep -q "readdown-spki"; then
+    echo "  PASS: Entitlements include Sparkle mach-lookup exceptions"
+    PASS=$((PASS + 1))
+else
+    echo "  FAIL: Entitlements missing Sparkle mach-lookup exceptions (spks/spki)"
     FAIL=$((FAIL + 1))
 fi
 
