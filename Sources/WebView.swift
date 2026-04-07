@@ -192,8 +192,6 @@ struct WebView: NSViewRepresentable {
             switch scheme {
             case "http", "https", "mailto":
                 return true
-            case "file":
-                return baseURL?.isFileURL == true
             default:
                 return false
             }
