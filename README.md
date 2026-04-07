@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/nataliarsand/readdown/releases/latest/download/Readdown.dmg">Download for Mac</a> · <a href="https://heya.studio/readdown/">Website</a>
+  <a href="https://github.com/nataliarsand/readdown/releases/latest/download/Readdown.dmg">Download for Mac</a> · <a href="https://readdown.app">Website</a>
 </p>
 
 <p align="center">
