@@ -24,5 +24,9 @@ CLAUDE.md
 # Test fixtures
 testfiles/
 
+# QA & release docs
+MANUAL_QA.md
+HOW_TO_RELEASE.md
+
 # Planning docs
 docs/

@@ -8,18 +8,20 @@ enum HTMLTemplate {
         return js
     }()
 
-    static func wrap(body: String, hasMermaid: Bool = false) -> String {
-        """
+    static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false) -> String {
+        let fontSize = compact ? "14px" : "16px"
+        return """
         <!DOCTYPE html>
         <html>
         <head>
         <meta charset="utf-8">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src file: data: https: http:; font-src 'none'; connect-src 'none'; form-action 'none';">
         <meta name="color-scheme" content="light dark">
         <style>
         :root {
             --text: #24292f;
             --bg: #ffffff;
-            --code-bg: #e4e8ee;
+            --code-bg: #f6f8fa;
             --border: #d0d7de;
             --link: #0969da;
             --blockquote-text: #57606a;
@@ -49,7 +51,7 @@ enum HTMLTemplate {
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
                          Helvetica, Arial, sans-serif, "Apple Color Emoji";
-            font-size: 16px;
+            font-size: \(fontSize);
             line-height: 1.6;
             color: var(--text);
             background: var(--bg);

@@ -19,6 +19,7 @@ private let italicStarPattern = try! NSRegularExpression(pattern: "\\*(.+?)\\*")
 private let italicUnderPattern = try! NSRegularExpression(pattern: "_(.+?)_")
 private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~")
 private let htmlTagPattern = try! NSRegularExpression(pattern: "</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
+private let dangerousAttrPattern = try! NSRegularExpression(pattern: "\\s+(?:on\\w+|srcdoc|formaction)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)", options: .caseInsensitive)
 
 enum MarkdownRenderer {
 
@@ -200,7 +201,7 @@ enum MarkdownRenderer {
                     blockLines.append(l)
                     i += 1
                 }
-                html.append(blockLines.joined(separator: "\n"))
+                html.append(blockLines.map { stripDangerousAttributes($0) }.joined(separator: "\n"))
                 continue
             }
 
@@ -244,7 +245,7 @@ enum MarkdownRenderer {
         for match in matches {
             let r = match.range
             result += escapeHTML(ns.substring(with: NSRange(location: lastEnd, length: r.location - lastEnd)))
-            result += ns.substring(with: r)
+            result += stripDangerousAttributes(ns.substring(with: r))
             lastEnd = r.location + r.length
         }
         result += escapeHTML(ns.substring(from: lastEnd))
@@ -400,6 +401,11 @@ enum MarkdownRenderer {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&#39;")
+    }
+
+    private static func stripDangerousAttributes(_ tag: String) -> String {
+        let range = NSRange(location: 0, length: (tag as NSString).length)
+        return dangerousAttrPattern.stringByReplacingMatches(in: tag, range: range, withTemplate: "")
     }
 
     private static let htmlBlockTags: Set<String> = [
