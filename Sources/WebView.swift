@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 import WebKit
@@ -5,24 +6,47 @@ import WebKit
 extension Notification.Name {
     static let printDocument = Notification.Name("printDocument")
     static let exportPDF = Notification.Name("exportPDF")
+    static let zoomIn = Notification.Name("zoomIn")
+    static let zoomOut = Notification.Name("zoomOut")
+    static let zoomReset = Notification.Name("zoomReset")
+    static let findInDocument = Notification.Name("findInDocument")
+    static let findNext = Notification.Name("findNext")
+    static let findPrevious = Notification.Name("findPrevious")
+}
+
+/// `WKWebView` subclass that adds Cmd-scroll zoom on top of the trackpad pinch already enabled
+/// by `allowsMagnification = true`. Other scroll events pass through unchanged.
+final class ZoomableWebView: WKWebView {
+    override func scrollWheel(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) {
+            let delta = event.scrollingDeltaY * 0.01
+            let new = max(0.5, min(3.0, magnification + delta))
+            setMagnification(new, centeredAt: .zero)
+            return
+        }
+        super.scrollWheel(with: event)
+    }
 }
 
 struct WebView: NSViewRepresentable {
     let html: String
     let baseURL: URL?
+    @ObservedObject var findState: FindState
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(baseURL: baseURL)
+        Coordinator(baseURL: baseURL, findState: findState)
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = ZoomableWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        webView.allowsMagnification = true
         webView.loadHTMLString(html, baseURL: baseURL)
         context.coordinator.webView = webView
+        context.coordinator.observeFindState()
         return webView
     }
 
@@ -34,32 +58,87 @@ struct WebView: NSViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         var baseURL: URL?
         weak var webView: WKWebView?
-        private var printObserver: Any?
-        private var exportPDFObserver: Any?
+        let findState: FindState
+        private var observers: [Any] = []
+        private var findStateObserver: AnyCancellable?
         private var activePrintOp: NSPrintOperation?
 
-        init(baseURL: URL?) {
+        init(baseURL: URL?, findState: FindState) {
             self.baseURL = baseURL
+            self.findState = findState
             super.init()
-            printObserver = NotificationCenter.default.addObserver(
-                forName: .printDocument, object: nil, queue: .main
-            ) { [weak self] _ in
-                self?.handlePrint()
-            }
-            exportPDFObserver = NotificationCenter.default.addObserver(
-                forName: .exportPDF, object: nil, queue: .main
-            ) { [weak self] _ in
-                self?.handleExportPDF()
-            }
+            observe(.printDocument) { $0.handlePrint() }
+            observe(.exportPDF) { $0.handleExportPDF() }
+            observe(.zoomIn) { $0.adjustZoom(by: 0.1) }
+            observe(.zoomOut) { $0.adjustZoom(by: -0.1) }
+            observe(.zoomReset) { $0.resetZoom() }
+            observe(.findNext) { $0.findCurrent(backwards: false) }
+            observe(.findPrevious) { $0.findCurrent(backwards: true) }
         }
 
         deinit {
-            if let obs = printObserver {
-                NotificationCenter.default.removeObserver(obs)
+            observers.forEach { NotificationCenter.default.removeObserver($0) }
+        }
+
+        func observeFindState() {
+            findStateObserver = findState.$searchText
+                .dropFirst()
+                .removeDuplicates()
+                .sink { [weak self] text in
+                    self?.performFind(text)
+                }
+        }
+
+        private func findCurrent(backwards: Bool) {
+            guard let webView, webView.window == NSApp.keyWindow else { return }
+            evaluateFind(backwards ? "window.__rdFind.prev()" : "window.__rdFind.next()")
+        }
+
+        private func performFind(_ text: String) {
+            guard let webView else { return }
+            if text.isEmpty {
+                webView.evaluateJavaScript("window.__rdFind.clear()", completionHandler: nil)
+                findState.totalMatches = 0
+                findState.currentMatch = 0
+                return
             }
-            if let obs = exportPDFObserver {
-                NotificationCenter.default.removeObserver(obs)
+            let escaped = text
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: "\\n")
+            evaluateFind("window.__rdFind.search('\(escaped)')")
+        }
+
+        private func evaluateFind(_ js: String) {
+            guard let webView else { return }
+            webView.evaluateJavaScript(js) { [weak self] result, _ in
+                guard let self, let dict = result as? [String: Any],
+                      let total = dict["total"] as? Int,
+                      let current = dict["current"] as? Int else { return }
+                self.findState.totalMatches = total
+                self.findState.currentMatch = current
             }
+        }
+
+        private func observe(_ name: Notification.Name, _ action: @escaping (Coordinator) -> Void) {
+            let token = NotificationCenter.default.addObserver(
+                forName: name, object: nil, queue: .main
+            ) { [weak self] _ in
+                guard let self else { return }
+                action(self)
+            }
+            observers.append(token)
+        }
+
+        private func adjustZoom(by delta: CGFloat) {
+            guard let webView, webView.window == NSApp.keyWindow else { return }
+            let new = max(0.5, min(3.0, webView.magnification + delta))
+            webView.setMagnification(new, centeredAt: .zero)
+        }
+
+        private func resetZoom() {
+            guard let webView, webView.window == NSApp.keyWindow else { return }
+            webView.setMagnification(1.0, centeredAt: .zero)
         }
 
         private func handlePrint() {

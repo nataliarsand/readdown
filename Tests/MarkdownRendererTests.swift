@@ -139,6 +139,25 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("checkbox\" checked disabled"))
     }
 
+    func testListItemContinuationFlows() {
+        let md = "- first item that wraps\n  onto a second source line\n- second item"
+        let result = MarkdownRenderer.render(md).html
+        XCTAssertTrue(result.contains("<li>first item that wraps onto a second source line</li>"))
+        XCTAssertFalse(result.contains("<br>"))
+    }
+
+    // MARK: - Line breaks
+
+    func testSoftNewlineBecomesSpace() {
+        let result = MarkdownRenderer.render("line one\nline two").html
+        XCTAssertEqual(result, "<p>line one line two</p>")
+    }
+
+    func testHardBreakWithTwoTrailingSpaces() {
+        let result = MarkdownRenderer.render("line one  \nline two").html
+        XCTAssertEqual(result, "<p>line one<br>line two</p>")
+    }
+
     // MARK: - Blockquote
 
     func testBlockquote() {
@@ -186,6 +205,68 @@ final class MarkdownRendererTests: XCTestCase {
         let md = "<div>raw html</div>"
         let result = MarkdownRenderer.render(md).html
         XCTAssertTrue(result.contains("<div>raw html</div>"))
+    }
+
+    func testScriptTagInInlineCodeDoesNotBreakPreview() {
+        // Issue #3: Literal `<script>` inside a code span used to be preserved as a real tag,
+        // causing the browser to swallow everything after it as script source.
+        let result = MarkdownRenderer.render("Add a `<script>` tag").html
+        XCTAssertTrue(result.contains("<code>&lt;script&gt;</code>"))
+        XCTAssertFalse(result.contains("<code><script>"))
+    }
+
+    func testBareScriptTagIsEscaped() {
+        let result = MarkdownRenderer.render("<script>alert(1)</script>").html
+        XCTAssertTrue(result.contains("&lt;script&gt;"))
+        XCTAssertFalse(result.contains("<script>"))
+    }
+
+    func testHTMLEntitiesPassThrough() {
+        // Issue #4: Valid HTML entities (named, decimal, hex) render as their character.
+        let result = MarkdownRenderer.render("Copyright &copy; 2025 &ndash; &#169; &#xA9;").html
+        XCTAssertTrue(result.contains("&copy;"))
+        XCTAssertTrue(result.contains("&ndash;"))
+        XCTAssertTrue(result.contains("&#169;"))
+        XCTAssertTrue(result.contains("&#xA9;"))
+        XCTAssertFalse(result.contains("&amp;copy;"))
+    }
+
+    func testStrayAmpersandStillEscaped() {
+        // Not a valid entity — must still be escaped to avoid malformed HTML.
+        let result = MarkdownRenderer.render("Tom & Jerry").html
+        XCTAssertTrue(result.contains("Tom &amp; Jerry"))
+    }
+
+    func testHTMLCommentPreserved() {
+        let result = MarkdownRenderer.render("Before <!-- hidden --> after").html
+        XCTAssertTrue(result.contains("<!-- hidden -->"))
+        XCTAssertFalse(result.contains("&lt;!--"))
+    }
+
+    // MARK: - Links
+
+    func testLinkURLWithParens() {
+        // e.g. Wikipedia links like /wiki/Foo_(bar). Underscore is entity-encoded in the href
+        // so the later italic regex pass (`_..._`) can't corrupt the attribute.
+        let result = MarkdownRenderer.render("[Wiki](https://en.wikipedia.org/wiki/Foo_(bar))").html
+        XCTAssertTrue(result.contains("<a href=\"https://en.wikipedia.org/wiki/Foo&#95;(bar)\">Wiki</a>"))
+        XCTAssertFalse(result.contains("<em>"))
+    }
+
+    func testAutolinkURL() {
+        let result = MarkdownRenderer.render("Visit <https://example.com> today").html
+        XCTAssertTrue(result.contains("<a href=\"https://example.com\">https://example.com</a>"))
+    }
+
+    func testAutolinkEmail() {
+        let result = MarkdownRenderer.render("Email <hi@example.com> please").html
+        XCTAssertTrue(result.contains("<a href=\"mailto:hi@example.com\">hi@example.com</a>"))
+    }
+
+    func testAutolinkRejectsUnsafeScheme() {
+        // javascript: or other non-http schemes must not become clickable links.
+        let result = MarkdownRenderer.render("<javascript:alert(1)>").html
+        XCTAssertFalse(result.contains("<a href=\"javascript:"))
     }
 
     // MARK: - HTML Escaping

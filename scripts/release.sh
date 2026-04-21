@@ -219,6 +219,73 @@ else
     ZIP_SIZE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
     ZIP_URL="https://github.com/nataliarsand/readdown/releases/download/v${VERSION}/Readdown.zip"
 
+    # Extract the highlights for the Sparkle update dialog from CHANGELOG.md.
+    # Grabs everything under `## VERSION` up to (but not including) `### Details` or the next `## `.
+    # Converts `### Subhead` → <h3>, `- item` → <li> (lines escaped for HTML), groups consecutive
+    # bullets into <ul>, and strips HTML-looking backtick code so Sparkle's HTML renderer can't
+    # interpret them as real tags.
+    CHANGELOG_PATH="$PROJECT_DIR/CHANGELOG.md"
+    HIGHLIGHTS=""
+    if [ -f "$CHANGELOG_PATH" ]; then
+        HIGHLIGHTS=$(awk -v ver="$VERSION" '
+            function esc(s) {
+                gsub(/&/, "\\&amp;", s)
+                gsub(/</, "\\&lt;", s)
+                gsub(/>/, "\\&gt;", s)
+                return s
+            }
+            function md_inline(s,    out, i, ch, in_code) {
+                s = esc(s)
+                out = ""; in_code = 0
+                for (i = 1; i <= length(s); i++) {
+                    ch = substr(s, i, 1)
+                    if (ch == "`") {
+                        out = out (in_code ? "</code>" : "<code>")
+                        in_code = !in_code
+                    } else { out = out ch }
+                }
+                if (in_code) { out = out "</code>" }
+                return out
+            }
+            /^## / {
+                if (found) { exit }
+                if ($2 == ver) { found = 1 }
+                next
+            }
+            found {
+                if (/^## /) { exit }
+                if (/^### Details/) { exit }
+                if (/^### /) {
+                    if (in_list) { print "</ul>"; in_list = 0 }
+                    sub(/^### /, "")
+                    print "<h4>" esc($0) "</h4>"
+                    next
+                }
+                if (/^- /) {
+                    if (!in_list) { print "<ul>"; in_list = 1 }
+                    sub(/^- /, "")
+                    printf "<li>%s</li>\n", md_inline($0)
+                    next
+                }
+                if (NF == 0) {
+                    if (in_list) { print "</ul>"; in_list = 0 }
+                    next
+                }
+                if (in_list) { print "</ul>"; in_list = 0 }
+                print "<p>" md_inline($0) "</p>"
+            }
+            END { if (in_list) print "</ul>" }
+        ' "$CHANGELOG_PATH")
+    fi
+
+    if [ -z "$HIGHLIGHTS" ]; then
+        echo "    WARNING: No CHANGELOG.md entry found for version $VERSION — appcast will have no release notes."
+        DESCRIPTION_TAG=""
+    else
+        FULL_NOTES_LINK="<p style=\"margin-top:12px;font-size:12px;\"><a href=\"https://readdown.app/#changelog\">See full release notes</a></p>"
+        DESCRIPTION_TAG="            <description><![CDATA[${HIGHLIGHTS}${FULL_NOTES_LINK}]]></description>"
+    fi
+
     APPCAST_PATH="$PROJECT_DIR/release/appcast.xml"
     cat > "$APPCAST_PATH" <<APPCAST
 <?xml version="1.0" encoding="utf-8"?>
@@ -232,6 +299,7 @@ else
             <sparkle:version>${BUILD}</sparkle:version>
             <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+${DESCRIPTION_TAG}
             <enclosure url="${ZIP_URL}"
                        length="${ZIP_SIZE}"
                        type="application/octet-stream"
