@@ -86,6 +86,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
 }
 
+/// Offsets each new document window so multiple open files don't stack on top of each other.
+final class WindowCascader {
+    static let shared = WindowCascader()
+    private var nextPoint: NSPoint = .zero
+    private var seen = Set<Int>()
+
+    func cascade(_ window: NSWindow) {
+        guard !seen.contains(window.windowNumber) else { return }
+        seen.insert(window.windowNumber)
+        nextPoint = window.cascadeTopLeft(from: nextPoint)
+    }
+}
+
+struct WindowAccessor: NSViewRepresentable {
+    let callback: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let window = view.window {
+                callback(window)
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
 final class CheckForUpdatesViewModel: ObservableObject {
     @Published var canCheckForUpdates = false
     private let updater: SPUUpdater
@@ -125,6 +154,7 @@ struct ReadDownApp: App {
                     appDelegate.dismissWelcomeWindow()
                 }
         }
+        .defaultSize(width: 880, height: 720)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About Readdown") {
@@ -147,9 +177,47 @@ struct ReadDownApp: App {
                 }
                 .keyboardShortcut("p", modifiers: .command)
             }
+            CommandGroup(after: .toolbar) {
+                Button("Zoom In") {
+                    NotificationCenter.default.post(name: .zoomIn, object: nil)
+                }
+                .keyboardShortcut("+", modifiers: .command)
+
+                Button("Zoom Out") {
+                    NotificationCenter.default.post(name: .zoomOut, object: nil)
+                }
+                .keyboardShortcut("-", modifiers: .command)
+
+                Button("Actual Size") {
+                    NotificationCenter.default.post(name: .zoomReset, object: nil)
+                }
+                .keyboardShortcut("0", modifiers: .command)
+            }
+            CommandGroup(replacing: .textEditing) {
+                Button("Find...") {
+                    NotificationCenter.default.post(name: .findInDocument, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+
+                Button("Find Next") {
+                    NotificationCenter.default.post(name: .findNext, object: nil)
+                }
+                .keyboardShortcut("g", modifiers: .command)
+
+                Button("Find Previous") {
+                    NotificationCenter.default.post(name: .findPrevious, object: nil)
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+            }
             CommandGroup(replacing: .help) {
                 Button("Readdown Help") {
-                    NSWorkspace.shared.open(URL(string: "https://heya.studio/readdown/#faq")!)
+                    NSWorkspace.shared.open(URL(string: "https://readdown.app/#faq")!)
+                }
+                Button("Keyboard Shortcuts…") {
+                    ShortcutsHelp.show()
+                }
+                Button("Set as Default Markdown Reader…") {
+                    DefaultAppHelp.show()
                 }
                 Button("Send Feedback...") {
                     NSWorkspace.shared.open(URL(string: "https://github.com/nataliarsand/readdown/issues")!)

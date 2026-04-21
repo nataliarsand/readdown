@@ -30,7 +30,7 @@ enum HTMLTemplate {
             --table-header: #e1e6eb;
         }
 
-        @media (prefers-color-scheme: dark) {
+        @media screen and (prefers-color-scheme: dark) {
             :root {
                 --text: #e6edf3;
                 --bg: #0d1117;
@@ -55,10 +55,11 @@ enum HTMLTemplate {
             line-height: 1.6;
             color: var(--text);
             background: var(--bg);
-            max-width: 820px;
-            margin: 0 auto;
-            padding: 32px 28px;
+            margin: 0;
+            padding: 32px clamp(28px, 5vw, 96px);
             word-wrap: break-word;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
         h1, h2, h3, h4, h5, h6 {
@@ -105,6 +106,7 @@ enum HTMLTemplate {
             background: var(--code-bg);
             border-radius: 6px;
             margin-bottom: 16px;
+            max-width: 100%;
         }
 
         pre code {
@@ -132,12 +134,11 @@ enum HTMLTemplate {
         }
 
         hr {
-            height: 0.25em;
+            height: 0;
             padding: 0;
             margin: 24px 0;
-            background-color: var(--border);
             border: 0;
-            border-radius: 2px;
+            border-top: 0.25em solid var(--border);
         }
 
         img {
@@ -203,6 +204,8 @@ enum HTMLTemplate {
             background: var(--bg);
             cursor: default;
             margin: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
         li.task-item input[type="checkbox"]:checked {
@@ -230,34 +233,37 @@ enum HTMLTemplate {
             max-width: 100%;
             height: auto;
         }
+        mark.rd-find {
+            background: #fff59d;
+            color: inherit;
+            padding: 0;
+            border-radius: 2px;
+        }
+        mark.rd-find-current {
+            background: #ffa726;
+            color: inherit;
+            box-shadow: 0 0 0 2px #f57c00;
+        }
+        @media (prefers-color-scheme: dark) {
+            mark.rd-find { background: #5d4037; color: #fff; }
+            mark.rd-find-current { background: #ef6c00; color: #fff; }
+        }
         \(SyntaxHighlight.css)
         @media print {
             body {
-                color: #000;
-                background: #fff;
-                max-width: none;
                 padding: 0;
                 margin: 0;
                 font-size: 11pt;
                 line-height: 1.5;
             }
-            h1 { font-size: 18pt; border-bottom-color: #ccc; }
-            h2 { font-size: 15pt; border-bottom-color: #ccc; }
+            h1 { font-size: 18pt; }
+            h2 { font-size: 15pt; }
             h3 { font-size: 13pt; }
-            a { color: #000; text-decoration: underline; }
             pre, pre code, .hljs {
-                background: #f5f5f5 !important;
-                border: 1px solid #ddd;
                 white-space: pre-wrap;
                 word-wrap: break-word;
                 font-size: 9pt;
             }
-            code { background: #f0f0f0; }
-            .hljs span { color: #000 !important; }
-            blockquote { color: #333; border-left-color: #ccc; }
-            th { background: #eee !important; }
-            tr:nth-child(even) { background: #f9f9f9 !important; }
-            img { max-width: 100% !important; }
             pre, blockquote, table, img { page-break-inside: avoid; }
             h1, h2, h3, h4 { page-break-after: avoid; }
         }
@@ -273,6 +279,79 @@ enum HTMLTemplate {
             'swift', 'typescript', 'xml', 'yaml'
         ]});
         hljs.highlightAll();
+        </script>
+        <script>
+        (function() {
+            const MATCH = 'rd-find';
+            const CURRENT = 'rd-find-current';
+            let index = -1;
+            function clear() {
+                document.querySelectorAll('mark.' + MATCH).forEach(el => {
+                    const t = document.createTextNode(el.textContent);
+                    el.parentNode.replaceChild(t, el);
+                });
+                document.body.normalize();
+                index = -1;
+            }
+            function escapeRe(s) { return s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'); }
+            function highlight() {
+                document.querySelectorAll('mark.' + CURRENT).forEach(el => el.classList.remove(CURRENT));
+                const all = document.querySelectorAll('mark.' + MATCH);
+                if (index < 0 || index >= all.length) return;
+                all[index].classList.add(CURRENT);
+                all[index].scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+            window.__rdFind = {
+                search(q) {
+                    clear();
+                    if (!q) return { total: 0, current: 0 };
+                    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+                        acceptNode: (n) => n.parentElement && n.parentElement.closest('script,style') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+                    });
+                    const nodes = [];
+                    let n;
+                    while ((n = walker.nextNode())) nodes.push(n);
+                    const re = new RegExp(escapeRe(q), 'gi');
+                    let count = 0;
+                    nodes.forEach(node => {
+                        const text = node.nodeValue;
+                        if (!re.test(text)) return;
+                        re.lastIndex = 0;
+                        const frag = document.createDocumentFragment();
+                        let last = 0, m;
+                        while ((m = re.exec(text)) !== null) {
+                            if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+                            const mark = document.createElement('mark');
+                            mark.className = MATCH;
+                            mark.textContent = m[0];
+                            frag.appendChild(mark);
+                            last = m.index + m[0].length;
+                            count++;
+                        }
+                        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+                        node.parentNode.replaceChild(frag, node);
+                    });
+                    index = count > 0 ? 0 : -1;
+                    highlight();
+                    return { total: count, current: count > 0 ? 1 : 0 };
+                },
+                next() {
+                    const all = document.querySelectorAll('mark.' + MATCH);
+                    if (all.length === 0) return { total: 0, current: 0 };
+                    index = (index + 1) % all.length;
+                    highlight();
+                    return { total: all.length, current: index + 1 };
+                },
+                prev() {
+                    const all = document.querySelectorAll('mark.' + MATCH);
+                    if (all.length === 0) return { total: 0, current: 0 };
+                    index = (index - 1 + all.length) % all.length;
+                    highlight();
+                    return { total: all.length, current: index + 1 };
+                },
+                clear: clear
+            };
+        })();
         </script>
         \(hasMermaid && mermaidJS != nil ? """
         <script>\(mermaidJS!)</script>

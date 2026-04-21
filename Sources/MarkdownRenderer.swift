@@ -8,8 +8,10 @@ private let ulPattern = try! NSRegularExpression(pattern: "^\\s*[-*+] ")
 private let olPattern = try! NSRegularExpression(pattern: "^\\s*\\d+\\. ")
 private let tableSepPattern = try! NSRegularExpression(pattern: "^\\s*\\|?[\\s:]*-+[\\s:]*\\|")
 
-private let imagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^)]+)\\)")
-private let linkPattern = try! NSRegularExpression(pattern: "\\[([^\\]]*)\\]\\(([^)]+)\\)")
+private let imagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^()]+(?:\\([^()]*\\)[^()]*)*)\\)")
+private let linkPattern = try! NSRegularExpression(pattern: "\\[([^\\]]*)\\]\\(([^()]+(?:\\([^()]*\\)[^()]*)*)\\)")
+private let autolinkURLPattern = try! NSRegularExpression(pattern: "<(https?://[^\\s<>]+)>")
+private let autolinkEmailPattern = try! NSRegularExpression(pattern: "<([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})>")
 private let codePattern = try! NSRegularExpression(pattern: "`([^`]+)`")
 private let boldItalicStarPattern = try! NSRegularExpression(pattern: "\\*\\*\\*(.+?)\\*\\*\\*", options: .dotMatchesLineSeparators)
 private let boldItalicUnderPattern = try! NSRegularExpression(pattern: "___(.+?)___", options: .dotMatchesLineSeparators)
@@ -18,8 +20,17 @@ private let boldUnderPattern = try! NSRegularExpression(pattern: "__(.+?)__", op
 private let italicStarPattern = try! NSRegularExpression(pattern: "\\*(.+?)\\*", options: .dotMatchesLineSeparators)
 private let italicUnderPattern = try! NSRegularExpression(pattern: "_(.+?)_", options: .dotMatchesLineSeparators)
 private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~", options: .dotMatchesLineSeparators)
-private let htmlTagPattern = try! NSRegularExpression(pattern: "</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
+private let htmlTagPattern = try! NSRegularExpression(pattern: "<!--[\\s\\S]*?-->|</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
 private let dangerousAttrPattern = try! NSRegularExpression(pattern: "\\s+(?:on\\w+|srcdoc|formaction)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)", options: .caseInsensitive)
+private let htmlEntityPattern = try! NSRegularExpression(pattern: "&(?:[a-zA-Z][a-zA-Z0-9]{0,31}|#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6});")
+
+/// Tags whose content the browser treats as opaque until their closing tag. If we passed these
+/// through unescaped, a user's literal `<script>` (even inside an inline code span) would open a
+/// real script element and swallow the rest of the document. Always escape them.
+private let alwaysEscapedTags: Set<String> = [
+    "script", "style", "iframe", "object", "embed",
+    "textarea", "noscript", "noembed", "frame", "frameset"
+]
 
 enum MarkdownRenderer {
 
@@ -162,27 +173,7 @@ enum MarkdownRenderer {
                 while i < lines.count && lines[i].matchesPattern(olPattern) {
                     let text = lines[i].removingMatch(of: olPattern)
                     i += 1
-                    var continuations: [String] = []
-                    while i < lines.count {
-                        let next = lines[i]
-                        let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
-                        if nextTrimmed.isEmpty {
-                            var peek = i + 1
-                            while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
-                            if peek < lines.count && lines[peek].matchesPattern(olPattern) {
-                                i = peek
-                                break
-                            }
-                            break
-                        }
-                        if next.matchesPattern(ulPattern) || next.matchesPattern(olPattern)
-                            || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix("~~~") || next.hasPrefix(">") {
-                            break
-                        }
-                        continuations.append(nextTrimmed)
-                        i += 1
-                    }
-                    let contHTML = continuations.isEmpty ? "" : "<br>" + continuations.map { inlineMarkdown($0) }.joined(separator: "<br>")
+                    let contHTML = collectListItemContinuation(&i, lines: lines, ownPattern: olPattern)
                     items.append("<li>\(inlineMarkdown(text))\(contHTML)</li>")
                 }
                 html.append("<ol>\(items.joined())</ol>")
@@ -239,13 +230,44 @@ enum MarkdownRenderer {
     private static func escapeHTMLPreservingTags(_ text: String) -> String {
         let ns = text as NSString
         let matches = htmlTagPattern.matches(in: text, range: NSRange(location: 0, length: ns.length))
-        if matches.isEmpty { return escapeHTML(text) }
+        if matches.isEmpty { return escapeHTMLKeepingEntities(text) }
+        var result = ""
+        var lastEnd = 0
+        for match in matches {
+            let r = match.range
+            result += escapeHTMLKeepingEntities(ns.substring(with: NSRange(location: lastEnd, length: r.location - lastEnd)))
+            let tag = ns.substring(with: r)
+            if isAlwaysEscapedTag(tag) {
+                result += escapeHTML(tag)
+            } else {
+                result += stripDangerousAttributes(tag)
+            }
+            lastEnd = r.location + r.length
+        }
+        result += escapeHTMLKeepingEntities(ns.substring(from: lastEnd))
+        return result
+    }
+
+    private static func isAlwaysEscapedTag(_ tag: String) -> Bool {
+        var s = tag
+        if s.hasPrefix("<") { s = String(s.dropFirst()) }
+        if s.hasPrefix("/") { s = String(s.dropFirst()) }
+        let name = s.prefix(while: { $0.isLetter || $0.isNumber }).lowercased()
+        return alwaysEscapedTags.contains(name)
+    }
+
+    /// Like `escapeHTML`, but passes valid HTML entity references (`&copy;`, `&#169;`, `&#xA9;`)
+    /// through unchanged so they render as the intended character. Per CommonMark 6.2.
+    private static func escapeHTMLKeepingEntities(_ string: String) -> String {
+        let ns = string as NSString
+        let matches = htmlEntityPattern.matches(in: string, range: NSRange(location: 0, length: ns.length))
+        if matches.isEmpty { return escapeHTML(string) }
         var result = ""
         var lastEnd = 0
         for match in matches {
             let r = match.range
             result += escapeHTML(ns.substring(with: NSRange(location: lastEnd, length: r.location - lastEnd)))
-            result += stripDangerousAttributes(ns.substring(with: r))
+            result += ns.substring(with: r)
             lastEnd = r.location + r.length
         }
         result += escapeHTML(ns.substring(from: lastEnd))
@@ -253,20 +275,31 @@ enum MarkdownRenderer {
     }
 
     private static func inlineMarkdown(_ text: String) -> String {
-        var s = escapeHTMLPreservingTags(text)
+        // Autolinks: <https://…> and <user@example.com>. Rewrite to <a> tags before escaping
+        // so the rest of the pipeline treats them like any other HTML link.
+        var s = text.replacing(autolinkURLPattern) { match in
+            let url = match[1]
+            guard isSafeURL(url) else { return match[0] }
+            return "<a href=\"\(escapeURLForAttribute(url))\">\(escapeURLForAttribute(url))</a>"
+        }
+        s = s.replacing(autolinkEmailPattern) { match in
+            let email = match[1]
+            return "<a href=\"mailto:\(escapeURLForAttribute(email))\">\(escapeURLForAttribute(email))</a>"
+        }
+        s = escapeHTMLPreservingTags(s)
 
         // Images: ![alt](url)
         s = s.replacing(imagePattern) { match in
             let url = sanitizedMarkdownURL(match[2])
             guard isSafeURL(url) else { return match[0] }
-            return "<img src=\"\(escapeHTML(url))\" alt=\"\(match[1])\">"
+            return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(match[1])\">"
         }
 
         // Links: [text](url)
         s = s.replacing(linkPattern) { match in
             let url = sanitizedMarkdownURL(match[2])
             guard isSafeURL(url) else { return "\(match[1])" }
-            return "<a href=\"\(escapeHTML(url))\">\(match[1])</a>"
+            return "<a href=\"\(escapeURLForAttribute(url))\">\(match[1])</a>"
         }
 
         // Inline code
@@ -303,17 +336,43 @@ enum MarkdownRenderer {
             "<del>\(match[1])</del>"
         }
 
-        // Line breaks (two trailing spaces or single newline within a paragraph)
-        s = s.replacingOccurrences(of: "  \n", with: "<br>\n")
-        s = s.replacingOccurrences(of: "\n", with: "<br>\n")
+        // CommonMark: two trailing spaces + newline = hard break. Bare newline = soft break (space) so text reflows.
+        s = s.replacingOccurrences(of: "  \n", with: "<br>")
+        s = s.replacingOccurrences(of: "\n", with: " ")
 
         return s
     }
 
-    // MARK: - Unordered List Helpers
+    // MARK: - List Helpers
 
     private static func listItemIndent(_ line: String) -> Int {
         line.prefix(while: { $0 == " " || $0 == "\t" }).reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }
+    }
+
+    /// Collects continuation lines for the current list item, advancing `i` past them.
+    /// `ownPattern` is the list's own item pattern — a blank line followed by another item of
+    /// `ownPattern` continues the list (consumes the blank); anything else terminates it.
+    private static func collectListItemContinuation(_ i: inout Int, lines: [String], ownPattern: NSRegularExpression) -> String {
+        var continuations: [String] = []
+        while i < lines.count {
+            let next = lines[i]
+            let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
+            if nextTrimmed.isEmpty {
+                var peek = i + 1
+                while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
+                if peek < lines.count && lines[peek].matchesPattern(ownPattern) {
+                    i = peek
+                }
+                break
+            }
+            if next.matchesPattern(ulPattern) || next.matchesPattern(olPattern)
+                || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix("~~~") || next.hasPrefix(">") {
+                break
+            }
+            continuations.append(nextTrimmed)
+            i += 1
+        }
+        return continuations.isEmpty ? "" : " " + continuations.map { inlineMarkdown($0) }.joined(separator: " ")
     }
 
     private static func parseUnorderedList(_ i: inout Int, lines: [String]) -> String {
@@ -333,29 +392,7 @@ enum MarkdownRenderer {
             let text = lines[i].removingMatch(of: ulPattern)
             i += 1
 
-            // Collect continuation lines
-            var continuations: [String] = []
-            while i < lines.count {
-                let next = lines[i]
-                let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
-                if nextTrimmed.isEmpty {
-                    var peek = i + 1
-                    while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
-                    if peek < lines.count && lines[peek].matchesPattern(ulPattern) {
-                        i = peek
-                        break
-                    }
-                    break
-                }
-                if next.matchesPattern(ulPattern) || next.matchesPattern(olPattern)
-                    || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix("~~~") || next.hasPrefix(">") {
-                    break
-                }
-                continuations.append(nextTrimmed)
-                i += 1
-            }
-
-            let contHTML = continuations.isEmpty ? "" : "<br>" + continuations.map { inlineMarkdown($0) }.joined(separator: "<br>")
+            let contHTML = collectListItemContinuation(&i, lines: lines, ownPattern: ulPattern)
             if text == "[ ]" || text.hasPrefix("[ ] ") {
                 let content = text.count > 4 ? String(text.dropFirst(4)) : ""
                 result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inlineMarkdown(content))\(contHTML)</li>"
@@ -401,6 +438,17 @@ enum MarkdownRenderer {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&#39;")
+    }
+
+    /// Escapes a URL for use in an `href`/`src` attribute and neutralizes chars that would
+    /// otherwise match later inline regex passes (italic/bold/strike/code) and corrupt the
+    /// attribute. Browsers decode the entities back to the original characters on navigation.
+    private static func escapeURLForAttribute(_ url: String) -> String {
+        escapeHTML(url)
+            .replacingOccurrences(of: "_", with: "&#95;")
+            .replacingOccurrences(of: "*", with: "&#42;")
+            .replacingOccurrences(of: "~", with: "&#126;")
+            .replacingOccurrences(of: "`", with: "&#96;")
     }
 
     private static func stripDangerousAttributes(_ tag: String) -> String {
