@@ -14,27 +14,44 @@ extension Notification.Name {
     static let findPrevious = Notification.Name("findPrevious")
 }
 
-/// `WKWebView` subclass that adds Cmd-scroll zoom on top of the trackpad pinch already enabled
-/// by `allowsMagnification = true`. Other scroll events pass through unchanged.
+/// `WKWebView` subclass that owns zoom for both Cmd-scroll and trackpad pinch.
+/// Uses `pageZoom` instead of `setMagnification` because WebKit's magnification
+/// API silently clamps to 1.0 as the lower bound — so pinch-to-zoom-out below
+/// 100% doesn't work. `pageZoom` accepts the full 0.5–3.0 range and reflows
+/// text on zoom changes (better UX for a reader than bitmap scaling).
 final class ZoomableWebView: WKWebView {
+    static let minZoom: CGFloat = 0.5
+    static let maxZoom: CGFloat = 3.0
+
     override func scrollWheel(with event: NSEvent) {
         if event.modifierFlags.contains(.command) {
-            let delta = event.scrollingDeltaY * 0.01
-            let new = max(0.5, min(3.0, magnification + delta))
-            setMagnification(new, centeredAt: .zero)
+            applyZoomDelta(event.scrollingDeltaY * 0.01)
             return
         }
         super.scrollWheel(with: event)
     }
+
+    override func magnify(with event: NSEvent) {
+        applyZoomDelta(event.magnification)
+    }
+
+    func applyZoomDelta(_ delta: CGFloat) {
+        let new = max(Self.minZoom, min(Self.maxZoom, pageZoom + delta))
+        pageZoom = new
+    }
+
+    func resetZoom() {
+        pageZoom = 1.0
+    }
 }
 
 struct WebView: NSViewRepresentable {
-    let html: String
     let baseURL: URL?
     @ObservedObject var findState: FindState
+    @ObservedObject var watcher: DocumentWatcher
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(baseURL: baseURL, findState: findState)
+        Coordinator(baseURL: baseURL, findState: findState, watcher: watcher)
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -43,29 +60,36 @@ struct WebView: NSViewRepresentable {
 
         let webView = ZoomableWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        webView.allowsMagnification = true
-        webView.loadHTMLString(html, baseURL: baseURL)
+        // ZoomableWebView handles pinch directly so the range matches Cmd-scroll (0.5–3.0).
+        webView.allowsMagnification = false
+        webView.loadHTMLString(watcher.html, baseURL: baseURL)
         context.coordinator.webView = webView
         context.coordinator.observeFindState()
+        context.coordinator.observeWatcher()
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        // Read-only document — HTML is computed once in ContentView.init
-        // and never changes. No need to reload.
+        // Content reloads are pushed by the Coordinator's Combine subscription on
+        // `watcher.$html` — see `observeWatcher()`. Keeping `updateNSView` a no-op
+        // avoids re-loading the 200KB embedded highlight.js on every SwiftUI rerender.
     }
 
     class Coordinator: NSObject, WKNavigationDelegate {
         var baseURL: URL?
         weak var webView: WKWebView?
         let findState: FindState
+        let watcher: DocumentWatcher
         private var observers: [Any] = []
         private var findStateObserver: AnyCancellable?
+        private var watcherObserver: AnyCancellable?
         private var activePrintOp: NSPrintOperation?
+        private var pendingScrollY: Double?
 
-        init(baseURL: URL?, findState: FindState) {
+        init(baseURL: URL?, findState: FindState, watcher: DocumentWatcher) {
             self.baseURL = baseURL
             self.findState = findState
+            self.watcher = watcher
             super.init()
             observe(.printDocument) { $0.handlePrint() }
             observe(.exportPDF) { $0.handleExportPDF() }
@@ -87,6 +111,37 @@ struct WebView: NSViewRepresentable {
                 .sink { [weak self] text in
                     self?.performFind(text)
                 }
+        }
+
+        /// Reload the WebView when the file changes on disk.
+        /// `dropFirst()` skips the initial value — `makeNSView` already loaded it.
+        func observeWatcher() {
+            watcherObserver = watcher.$html
+                .dropFirst()
+                .removeDuplicates()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] html in
+                    self?.reload(html)
+                }
+        }
+
+        private func reload(_ html: String) {
+            guard let webView else { return }
+            // Capture current scroll so the reader doesn't lose their place when an
+            // external editor saves. Sequencing matters: read scrollY *before*
+            // loadHTMLString, since evaluateJavaScript is async and the reload would
+            // otherwise reset position before we read it. Restored in didFinish.
+            webView.evaluateJavaScript("window.scrollY") { [weak self] result, _ in
+                guard let self, let webView = self.webView else { return }
+                self.pendingScrollY = result as? Double
+                webView.loadHTMLString(html, baseURL: self.baseURL)
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard let y = pendingScrollY else { return }
+            pendingScrollY = nil
+            webView.evaluateJavaScript("window.scrollTo(0, \(y))", completionHandler: nil)
         }
 
         private func findCurrent(backwards: Bool) {
@@ -131,14 +186,13 @@ struct WebView: NSViewRepresentable {
         }
 
         private func adjustZoom(by delta: CGFloat) {
-            guard let webView, webView.window == NSApp.keyWindow else { return }
-            let new = max(0.5, min(3.0, webView.magnification + delta))
-            webView.setMagnification(new, centeredAt: .zero)
+            guard let webView = webView as? ZoomableWebView, webView.window == NSApp.keyWindow else { return }
+            webView.applyZoomDelta(delta)
         }
 
         private func resetZoom() {
-            guard let webView, webView.window == NSApp.keyWindow else { return }
-            webView.setMagnification(1.0, centeredAt: .zero)
+            guard let webView = webView as? ZoomableWebView, webView.window == NSApp.keyWindow else { return }
+            webView.resetZoom()
         }
 
         private func handlePrint() {

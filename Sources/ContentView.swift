@@ -8,28 +8,46 @@ final class FindState: ObservableObject {
 }
 
 struct ContentView: View {
-    let html: String
+    @StateObject private var watcher: DocumentWatcher
     let baseURL: URL?
+    let fileURL: URL?
     @StateObject private var findState = FindState()
     @State private var window: NSWindow?
+    @State private var showUpdatedPill = false
+    @State private var pillDismissWork: DispatchWorkItem?
 
-    init(document: MarkdownDocument, baseURL: URL?) {
-        let result = MarkdownRenderer.render(document.text)
-        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid)
+    init(document: MarkdownDocument, baseURL: URL?, fileURL: URL? = nil) {
+        _watcher = StateObject(wrappedValue: DocumentWatcher(initialText: document.text, fileURL: fileURL))
         self.baseURL = baseURL
+        self.fileURL = fileURL
     }
 
     var body: some View {
         ZStack(alignment: .top) {
-            WebView(html: html, baseURL: baseURL, findState: findState)
+            WebView(baseURL: baseURL, findState: findState, watcher: watcher)
                 .frame(minWidth: 500, minHeight: 400)
+                .ignoresSafeArea(.container, edges: .top)
+                .overlay(alignment: .bottomTrailing) {
+                    if showUpdatedPill {
+                        Text("Updated")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(.regularMaterial, in: Capsule())
+                            .padding(16)
+                            .transition(.opacity)
+                    }
+                }
                 .background(WindowAccessor { window in
                     self.window = window
                     WindowCascader.shared.cascade(window)
+                    configureWindowChrome(window)
                 })
 
             if findState.isVisible {
                 FindBar(state: findState)
+                    .padding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
@@ -42,6 +60,48 @@ struct ContentView: View {
                 findState.isVisible = true
             }
         }
+        .onChange(of: watcher.html) { _ in
+            withAnimation(.easeOut(duration: 0.2)) {
+                showUpdatedPill = true
+            }
+            pillDismissWork?.cancel()
+            let work = DispatchWorkItem {
+                withAnimation(.easeIn(duration: 0.4)) {
+                    showUpdatedPill = false
+                }
+            }
+            pillDismissWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+        }
+    }
+
+    /// Configure the NSWindow for a Bear/Messages-style chrome:
+    /// - Content extends behind the toolbar via `.fullSizeContentView`.
+    /// - No hairline separator between the toolbar and the content.
+    /// - Window background uses the *text background* color so the toolbar area
+    ///   matches the document (white in light, near-black in dark) instead of the
+    ///   default system window gray.
+    /// - An empty `NSToolbar` is attached so macOS Tahoe applies the larger
+    ///   window corner radius (Apple scales the radius to toolbar height; a
+    ///   window without a toolbar gets the smaller, title-bar-only radius).
+    ///
+    /// We leave the system title visible — the macOS Document Title Menu (rename,
+    /// move to, duplicate) is bolted to it, and the dropdown disappears the moment
+    /// `titleVisibility = .hidden` is set.
+    private func configureWindowChrome(_ window: NSWindow) {
+        if !window.styleMask.contains(.fullSizeContentView) {
+            window.styleMask.insert(.fullSizeContentView)
+        }
+        if window.toolbar == nil {
+            window.toolbar = NSToolbar()
+            // `.unifiedCompact` collapses title bar + toolbar into a single row
+            // (title sits inline with traffic lights, like Messages). `.unified`
+            // is taller and leaves an empty second row when the toolbar has no
+            // items, which looks asymmetric.
+            window.toolbarStyle = .unifiedCompact
+        }
+        window.titlebarSeparatorStyle = .none
+        window.backgroundColor = NSColor.textBackgroundColor
     }
 }
 
@@ -85,9 +145,15 @@ struct FindBar: View {
             .keyboardShortcut(.escape, modifiers: [])
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.regularMaterial)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.primary.opacity(0.1)), alignment: .bottom)
+        .padding(.vertical, 6)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08))
+        )
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        .frame(maxWidth: 380)
+        .padding(.horizontal, 16)
         .onAppear { searchFocused = true }
     }
 
