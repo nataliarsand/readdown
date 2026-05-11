@@ -52,7 +52,9 @@ check_sdk() {
     fi
 }
 
-check_sdk "$APP_PATH/Contents/MacOS/ReadDown" "Main app"
+# Main app intentionally keeps SDK 26.x to get macOS Tahoe chrome on macOS 26+.
+# Only the QL extension and Sparkle binaries must stay <= SDK 15 for macOS 15
+# compatibility (extensions / installer XPC services that macOS 15 refuses to load).
 check_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/ReadDownQuickLook" "Quick Look extension"
 check_sdk "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer" "Sparkle Installer"
 check_sdk "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate" "Sparkle Autoupdate"

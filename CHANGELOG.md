@@ -2,6 +2,32 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.11
+
+### New
+- Live refresh — documents update automatically when edited in another app
+- Refreshed window chrome — larger rounded corners and a cleaner title bar on macOS Tahoe
+- Thin auto-hiding scrollbar
+- Redesigned find bar
+
+### Fixed
+- Open documents reopen automatically after relaunch (Sparkle update, login, force-quit)
+- Pinch-to-zoom now matches Cmd-scroll range (50%–300%) instead of stopping at 100%
+
+### Details
+
+**New**
+
+- Live refresh: if you edit a Markdown file in VS Code, Obsidian, or any other editor, Readdown reloads the rendered view automatically and shows a small "Updated" indicator. Scroll position is preserved across reloads.
+- Window chrome polish: on macOS Tahoe (26+), windows use a unified-compact toolbar and the larger native corner radius that matches Messages, Mail, and Bear. The title bar background flows continuously into the document area.
+- Auto-hiding scrollbar: the side scrollbar is invisible at rest and fades in for a moment when you scroll.
+- Find bar redesign: floating capsule near the top of the window instead of a full-width flush sheet.
+
+**Fixed**
+
+- Documents you had open before quitting (or before a Sparkle auto-update) reopen automatically on next launch via macOS state restoration.
+- Pinch-to-zoom on the trackpad now uses the same 50%–300% range as Cmd-scroll and Cmd+/Cmd-. Previously WebKit's built-in handler clamped to 100% as the minimum, so you couldn't pinch out below the default size.
+
 ## 1.10
 
 ### New

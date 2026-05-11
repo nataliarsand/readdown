@@ -10,6 +10,10 @@ enum HTMLTemplate {
 
     static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false) -> String {
         let fontSize = compact ? "14px" : "16px"
+        // Main app uses a `.unifiedCompact` toolbar (~38pt) with the WebView
+        // extending behind it via `.ignoresSafeArea`. Top padding keeps the
+        // first heading clear of the toolbar. Quick Look has no toolbar.
+        let topPadding = compact ? "32px" : "40px"
         return """
         <!DOCTYPE html>
         <html>
@@ -56,7 +60,7 @@ enum HTMLTemplate {
             color: var(--text);
             background: var(--bg);
             margin: 0;
-            padding: 32px clamp(28px, 5vw, 96px);
+            padding: \(topPadding) clamp(28px, 5vw, 96px) 32px clamp(28px, 5vw, 96px);
             word-wrap: break-word;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
@@ -233,6 +237,31 @@ enum HTMLTemplate {
             max-width: 100%;
             height: auto;
         }
+        /* Autohide scrollbar: invisible by default, fades in while scrolling.
+           Thin Bear-style: ~6px visible thumb (10px track, 2px transparent border). */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+            background: transparent;
+        }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+            background: transparent;
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+            transition: background-color 0.25s ease;
+        }
+        body.rd-scrolling::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.32);
+            background-clip: content-box;
+        }
+        @media (prefers-color-scheme: dark) {
+            body.rd-scrolling::-webkit-scrollbar-thumb {
+                background-color: rgba(255, 255, 255, 0.32);
+                background-clip: content-box;
+            }
+        }
         mark.rd-find {
             background: #fff59d;
             color: inherit;
@@ -351,6 +380,17 @@ enum HTMLTemplate {
                 },
                 clear: clear
             };
+        })();
+        </script>
+        <script>
+        // Autohide scrollbar: add `rd-scrolling` class for 700ms after any scroll event.
+        (function() {
+            let timer;
+            window.addEventListener('scroll', () => {
+                document.body.classList.add('rd-scrolling');
+                clearTimeout(timer);
+                timer = setTimeout(() => document.body.classList.remove('rd-scrolling'), 700);
+            }, { passive: true });
         })();
         </script>
         \(hasMermaid && mermaidJS != nil ? """

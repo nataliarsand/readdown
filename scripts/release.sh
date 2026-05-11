@@ -109,9 +109,11 @@ patch_sdk() {
     fi
 }
 
-# Patch QL extension first (inner), then main app (outer)
+# Patch QL extension (must stay SDK 15 so macOS 15 will load the extension).
+# Main app is intentionally NOT patched — keeping it at SDK 26.x is what makes
+# AppKit apply macOS Tahoe chrome (unified toolbar + larger corner radius) on
+# Tahoe users. Deployment target still gates available APIs.
 patch_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/ReadDownQuickLook"
-patch_sdk "$APP_PATH/Contents/MacOS/ReadDown"
 
 # Patch Sparkle framework binaries (installer, updater, downloader, autoupdate)
 SPARKLE_FW="$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B"
@@ -299,6 +301,7 @@ else
             <sparkle:version>${BUILD}</sparkle:version>
             <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:phasedRolloutInterval>86400</sparkle:phasedRolloutInterval>
 ${DESCRIPTION_TAG}
             <enclosure url="${ZIP_URL}"
                        length="${ZIP_SIZE}"
