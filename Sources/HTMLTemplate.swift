@@ -23,25 +23,27 @@ enum HTMLTemplate {
         <meta name="color-scheme" content="light dark">
         <style>
         :root {
-            --text: #24292f;
-            --bg: #ffffff;
+            --text: #1f2328;            /* warmer than pure black, gentler on backlit screens */
+            --bg: #fdfdfc;              /* a hair off-white to reduce glare */
+            --muted: #57606a;           /* secondary text — blockquotes, h6, captions */
             --code-bg: #f6f8fa;
             --border: #d0d7de;
             --link: #0969da;
-            --blockquote-text: #57606a;
+            --link-underline: rgba(9, 105, 218, 0.35);
             --blockquote-border: #d0d7de;
-            --table-stripe: #eef1f5;
-            --table-header: #e1e6eb;
+            --table-stripe: #f6f8fa;
+            --table-header: #eef1f5;
         }
 
         @media screen and (prefers-color-scheme: dark) {
             :root {
                 --text: #e6edf3;
                 --bg: #0d1117;
+                --muted: #9198a1;       /* lifted from #8b949e for WCAG AA contrast */
                 --code-bg: #161b22;
                 --border: #3d444d;
                 --link: #58a6ff;
-                --blockquote-text: #8b949e;
+                --link-underline: rgba(88, 166, 255, 0.40);
                 --blockquote-border: #30363d;
                 --table-stripe: #161b22;
                 --table-header: #252c35;
@@ -52,9 +54,13 @@ enum HTMLTemplate {
             box-sizing: border-box;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
-                         Helvetica, Arial, sans-serif, "Apple Color Emoji";
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+                         "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji";
             font-size: \(fontSize);
             line-height: 1.6;
             color: var(--text);
@@ -62,54 +68,70 @@ enum HTMLTemplate {
             margin: 0;
             padding: \(topPadding) clamp(28px, 5vw, 96px) 32px clamp(28px, 5vw, 96px);
             word-wrap: break-word;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
+        /* Modular scale on 1.25 (major third). Em-relative margins so heading
+           breathing room scales with the heading size — h1 gets more space
+           above and below than h4 automatically. */
         h1, h2, h3, h4, h5, h6 {
-            margin-top: 24px;
-            margin-bottom: 16px;
+            margin: 1.6em 0 0.6em;
             font-weight: 600;
             line-height: 1.25;
+            /* When an anchor link scrolls to a heading, leave room for the
+               toolbar (which extends over the top of the content area). */
+            scroll-margin-top: 56px;
         }
-
-        h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
-        h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h1 { font-size: 1.95em; letter-spacing: -0.015em; }
+        h2 { font-size: 1.56em; letter-spacing: -0.01em; }
         h3 { font-size: 1.25em; }
         h4 { font-size: 1em; }
         h5 { font-size: 0.875em; }
-        h6 { font-size: 0.85em; color: var(--blockquote-text); }
+        h6 { font-size: 0.85em; color: var(--muted); }
+
+        /* First element shouldn't push the page down — body padding-top
+           already provides the chrome clearance. */
+        body > :first-child { margin-top: 0; }
 
         p {
             margin-top: 0;
-            margin-bottom: 16px;
+            margin-bottom: 1em;
         }
 
+        /* Always-on subtle underline — easier to scan for links than hover-only
+           underline, but quieter than the default. */
         a {
             color: var(--link);
-            text-decoration: none;
+            text-decoration: underline;
+            text-decoration-color: var(--link-underline);
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
         }
 
         a:hover {
-            text-decoration: underline;
+            text-decoration-color: var(--link);
         }
 
         code {
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-            font-size: 85%;
-            padding: 0.2em 0.4em;
+            font-size: 0.875em;
+            padding: 0.15em 0.35em;
             background: var(--code-bg);
-            border-radius: 6px;
+            border-radius: 4px;
         }
 
         pre {
-            padding: 16px;
+            padding: 16px 20px;
             overflow: auto;
-            font-size: 85%;
-            line-height: 1.45;
+            font-size: 0.875em;
+            line-height: 1.55;
             background: var(--code-bg);
-            border-radius: 6px;
-            margin-bottom: 16px;
+            border-radius: 8px;
+            margin: 1.25em 0;
             max-width: 100%;
         }
 
@@ -121,28 +143,28 @@ enum HTMLTemplate {
         }
 
         blockquote {
-            margin: 0 0 16px 0;
+            margin: 0 0 1em 0;
             padding: 0 1em;
-            color: var(--blockquote-text);
-            border-left: 0.25em solid var(--blockquote-border);
+            color: var(--muted);
+            border-left: 3px solid var(--blockquote-border);
         }
 
         ul, ol {
             margin-top: 0;
-            margin-bottom: 16px;
+            margin-bottom: 1em;
             padding-left: 2em;
         }
 
         li + li {
-            margin-top: 0.25em;
+            margin-top: 0.35em;
         }
 
         hr {
             height: 0;
             padding: 0;
-            margin: 24px 0;
+            margin: 2em 0;
             border: 0;
-            border-top: 0.25em solid var(--border);
+            border-top: 1px solid var(--border);
         }
 
         img {
@@ -158,22 +180,23 @@ enum HTMLTemplate {
         table {
             border-collapse: collapse;
             border-spacing: 0;
-            margin-top: 0;
-            margin-bottom: 16px;
+            margin: 0 0 1em 0;
             width: auto;
             max-width: 100%;
             overflow: auto;
             display: block;
+            font-size: 0.95em;
         }
 
         th, td {
-            padding: 6px 13px;
+            padding: 8px 14px;
             border: 1px solid var(--border);
         }
 
         th {
             font-weight: 600;
             background: var(--table-header);
+            text-align: left;
         }
 
         tr:nth-child(even) {

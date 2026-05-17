@@ -6,15 +6,37 @@ final class MarkdownRendererTests: XCTestCase {
     // MARK: - Headings
 
     func testHeadings() {
-        XCTAssertEqual(MarkdownRenderer.render("# Hello").html, "<h1>Hello</h1>")
-        XCTAssertEqual(MarkdownRenderer.render("## Hello").html, "<h2>Hello</h2>")
-        XCTAssertEqual(MarkdownRenderer.render("### Hello").html, "<h3>Hello</h3>")
-        XCTAssertEqual(MarkdownRenderer.render("###### Hello").html, "<h6>Hello</h6>")
+        XCTAssertEqual(MarkdownRenderer.render("# Hello").html, "<h1 id=\"hello\">Hello</h1>")
+        XCTAssertEqual(MarkdownRenderer.render("## Hello").html, "<h2 id=\"hello\">Hello</h2>")
+        XCTAssertEqual(MarkdownRenderer.render("### Hello").html, "<h3 id=\"hello\">Hello</h3>")
+        XCTAssertEqual(MarkdownRenderer.render("###### Hello").html, "<h6 id=\"hello\">Hello</h6>")
     }
 
     func testHeadingWithInlineFormatting() {
         let result = MarkdownRenderer.render("# Hello **world**").html
         XCTAssertTrue(result.contains("<strong>world</strong>"))
+    }
+
+    func testHeadingSlugs() {
+        // Spaces become hyphens, punctuation is stripped, case is lowered.
+        XCTAssertEqual(
+            MarkdownRenderer.render("## Getting Started").html,
+            "<h2 id=\"getting-started\">Getting Started</h2>"
+        )
+        XCTAssertEqual(
+            MarkdownRenderer.render("## What's New?").html,
+            "<h2 id=\"whats-new\">What&#39;s New?</h2>"
+        )
+        // Duplicate headings get -1, -2 suffixes.
+        let dup = MarkdownRenderer.render("# Intro\n\n# Intro\n\n# Intro").html
+        XCTAssertTrue(dup.contains("<h1 id=\"intro\">Intro</h1>"))
+        XCTAssertTrue(dup.contains("<h1 id=\"intro-1\">Intro</h1>"))
+        XCTAssertTrue(dup.contains("<h1 id=\"intro-2\">Intro</h1>"))
+        // Unicode letters survive.
+        XCTAssertEqual(
+            MarkdownRenderer.render("## Café Münchner").html,
+            "<h2 id=\"café-münchner\">Café Münchner</h2>"
+        )
     }
 
     // MARK: - Emphasis

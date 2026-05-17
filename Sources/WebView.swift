@@ -306,6 +306,17 @@ struct WebView: NSViewRepresentable {
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             if navigationAction.navigationType == .linkActivated,
                let url = navigationAction.request.url {
+                // Same-document fragment links (`#heading-anchor`) — let WebKit
+                // handle the scroll natively. Detected when the URL has a
+                // fragment and otherwise matches the document's loaded URL.
+                if url.fragment != nil,
+                   let current = webView.url,
+                   url.scheme == current.scheme,
+                   url.host == current.host,
+                   url.path == current.path {
+                    decisionHandler(.allow)
+                    return
+                }
                 guard isAllowedExternalURL(url) else {
                     decisionHandler(.cancel)
                     return
