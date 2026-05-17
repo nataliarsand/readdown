@@ -148,7 +148,14 @@ final class DocumentSession {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.queue.async { self?.isTerminating = true }
+            // Synchronous flush: Sparkle relaunches the app immediately after
+            // willTerminate, so we can't trust async writes to land. Block the
+            // shutdown long enough to persist + force the defaults to disk.
+            self?.queue.sync {
+                self?.isTerminating = true
+                self?.persistLocked()
+            }
+            UserDefaults.standard.synchronize()
         }
     }
 

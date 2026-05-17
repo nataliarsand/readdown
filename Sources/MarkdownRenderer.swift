@@ -44,6 +44,9 @@ enum MarkdownRenderer {
         var html: [String] = []
         var hasMermaid = false
         var i = 0
+        // GitHub-style anchor slugs for heading IDs. Tracks duplicate counts so
+        // `# Intro` and a later `# Intro` produce `intro` and `intro-1`.
+        var headingSlugs: [String: Int] = [:]
 
         while i < lines.count {
             let line = lines[i]
@@ -97,7 +100,8 @@ enum MarkdownRenderer {
                 let trimmedLine = String(line.drop(while: { $0 == " " || $0 == "\t" }))
                 let level = min(trimmedLine.prefix(while: { $0 == "#" }).count, 6)
                 let text = String(trimmedLine.dropFirst(level)).trimmingCharacters(in: .whitespaces)
-                html.append("<h\(level)>\(inlineMarkdown(text))</h\(level)>")
+                let slug = uniqueSlug(for: text, existing: &headingSlugs)
+                html.append("<h\(level) id=\"\(slug)\">\(inlineMarkdown(text))</h\(level)>")
                 i += 1
                 continue
             }
@@ -509,6 +513,28 @@ enum MarkdownRenderer {
             .replacingOccurrences(of: "&amp;", with: "&")
             .replacingOccurrences(of: "&quot;", with: "\"")
             .replacingOccurrences(of: "&#39;", with: "'")
+    }
+
+    /// GitHub-style heading slug. Lowercase, strip punctuation (keep letters,
+    /// digits, hyphens, underscores, and Unicode letters like accented chars),
+    /// convert whitespace to hyphens, trim, and deduplicate against earlier
+    /// headings in the same document.
+    private static func uniqueSlug(for text: String, existing: inout [String: Int]) -> String {
+        var slug = text.lowercased()
+        // Drop inline HTML tags so e.g. `## <code>foo</code>` slugs to `foo`.
+        slug = slug.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        // Keep letters (Unicode), digits, hyphens, underscores, and whitespace; drop the rest.
+        slug = slug.replacingOccurrences(of: "[^\\p{L}\\p{N}\\-_\\s]", with: "", options: .regularExpression)
+        // Collapse runs of whitespace into single hyphens.
+        slug = slug.replacingOccurrences(of: "\\s+", with: "-", options: .regularExpression)
+        // Trim leading/trailing hyphens.
+        slug = slug.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        // Fallback if the heading was entirely punctuation.
+        if slug.isEmpty { slug = "section" }
+
+        let count = existing[slug, default: 0]
+        existing[slug] = count + 1
+        return count == 0 ? slug : "\(slug)-\(count)"
     }
 }
 
