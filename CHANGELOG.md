@@ -2,6 +2,28 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.12
+
+### New
+- Refreshed typography — warmer text, a cleaner heading scale, and restyled links and tables
+- Linkable headings — every heading gets an anchor, so in-page `#section` links jump and scroll
+
+### Fixed
+- Quick Look previews no longer hang on a loading spinner on some recent macOS builds
+- Open documents now reliably reappear after an update or relaunch
+
+### Details
+
+**New**
+
+- Typography pass: warmer body text on a softer off-white background, a modular heading scale with balanced spacing, an always-on subtle link underline, and restyled tables. Dark-mode secondary text was brightened to meet WCAG AA contrast.
+- Linkable headings: every heading now has a GitHub-style anchor (e.g. `getting-started`), so links to `#section` within a document jump to and smoothly scroll to the heading.
+
+**Fixed**
+
+- Quick Look: the preview extension relied on a private WebKit setting that some recent macOS builds no longer recognize, which left the preview stuck on a loading spinner. It has been removed — previews render reliably again.
+- Documents that were open are now restored correctly after a Sparkle auto-update or relaunch; a timing issue that could drop the saved session on quit was fixed.
+
 ## 1.11
 
 ### New
