@@ -15,7 +15,14 @@ class PreviewViewController: NSViewController, QLPreviewingController, WKNavigat
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
-        webView.setValue(false, forKey: "drawsBackground")
+        // Do NOT use `setValue(false, forKey: "drawsBackground")` here — that is a
+        // private, undocumented KVC key on WKWebView. If a macOS release removes or
+        // renames it, `setValue` throws NSUnknownKeyException inside loadView(),
+        // which Swift can't catch — the extension crashes before producing a view
+        // and Quick Look shows an endless spinner (GitHub issue #5). The HTML
+        // template paints its own opaque background and carries a `color-scheme`
+        // meta tag, so no background manipulation is needed — the main app's
+        // WebView renders the same content without it.
         self.view = webView
     }
 
