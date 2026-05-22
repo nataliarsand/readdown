@@ -211,7 +211,7 @@ enum HTMLTemplate {
 
         li.task-item {
             position: relative;
-            padding-left: 1.7em;
+            padding-left: 1.55em;
             margin-top: 0.15em;
             margin-bottom: 0.15em;
             line-height: 1.5;
@@ -236,20 +236,12 @@ enum HTMLTemplate {
         }
 
         li.task-item input[type="checkbox"]:checked {
-            background: var(--link);
+            background-color: var(--link);
             border-color: var(--link);
-        }
-
-        li.task-item input[type="checkbox"]:checked::after {
-            content: '';
-            position: absolute;
-            left: 4.5px;
-            top: 1px;
-            width: 4px;
-            height: 8px;
-            border: solid #fff;
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5 6.7 11.7 12.5 4.8'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 100% 100%;
         }
         pre.mermaid {
             background: transparent;
