@@ -9,7 +9,6 @@ import Foundation
 final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     @Published private(set) var html: String
     let fileURL: URL?
-    let baseURL: URL?
 
     var presentedItemURL: URL? { fileURL }
     let presentedItemOperationQueue: OperationQueue = .main
@@ -21,7 +20,6 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         let result = MarkdownRenderer.render(initialText)
         self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid)
         self.fileURL = fileURL
-        self.baseURL = fileURL?.deletingLastPathComponent()
         super.init()
         if fileURL != nil {
             NSFileCoordinator.addFilePresenter(self)

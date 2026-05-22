@@ -30,3 +30,6 @@ testfiles/
 
 # Planning docs
 docs/
+
+# Download metrics (snapshot-downloads.sh)
+metrics/

@@ -195,17 +195,23 @@ struct WebView: NSViewRepresentable {
             webView.resetZoom()
         }
 
+        /// Print/PDF configuration with Readdown's standard 36 pt margins.
+        private func standardPrintInfo() -> NSPrintInfo {
+            let printInfo = NSPrintInfo()
+            printInfo.horizontalPagination = .fit
+            printInfo.verticalPagination = .automatic
+            printInfo.topMargin = 36
+            printInfo.bottomMargin = 36
+            printInfo.leftMargin = 36
+            printInfo.rightMargin = 36
+            return printInfo
+        }
+
         private func handlePrint() {
             guard let webView, let window = webView.window, window == NSApp.keyWindow else { return }
             DispatchQueue.main.async { [weak self] in
                 guard let self, let webView = self.webView, let window = webView.window else { return }
-                let printInfo = NSPrintInfo()
-                printInfo.horizontalPagination = .fit
-                printInfo.verticalPagination = .automatic
-                printInfo.topMargin = 36
-                printInfo.bottomMargin = 36
-                printInfo.leftMargin = 36
-                printInfo.rightMargin = 36
+                let printInfo = self.standardPrintInfo()
 
                 let op = webView.printOperation(with: printInfo)
                 op.showsPrintPanel = true
@@ -267,13 +273,7 @@ struct WebView: NSViewRepresentable {
         }
 
         private func exportPaginatedPDF(webView: WKWebView, to url: URL, window: NSWindow) {
-            let printInfo = NSPrintInfo()
-            printInfo.horizontalPagination = .fit
-            printInfo.verticalPagination = .automatic
-            printInfo.topMargin = 36
-            printInfo.bottomMargin = 36
-            printInfo.leftMargin = 36
-            printInfo.rightMargin = 36
+            let printInfo = standardPrintInfo()
             printInfo.jobDisposition = .save
             printInfo.dictionary().setObject(url, forKey: NSPrintInfo.AttributeKey.jobSavingURL as NSCopying)
 

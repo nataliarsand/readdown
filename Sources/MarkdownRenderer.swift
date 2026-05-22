@@ -279,9 +279,19 @@ enum MarkdownRenderer {
     }
 
     private static func inlineMarkdown(_ text: String) -> String {
+        // Inline code — pulled out *first* so no later inline pass (autolink,
+        // escape, link, emphasis, …) can reach inside a code span. CommonMark:
+        // code span content is literal. The U+E000/U+E001 Private Use
+        // delimiters carry no markdown meaning, so later passes skip them.
+        var codeSpans: [String] = []
+        var s = text.replacing(codePattern) { match in
+            codeSpans.append("<code>\(escapeHTML(match[1]))</code>")
+            return "\u{E000}\(codeSpans.count - 1)\u{E001}"
+        }
+
         // Autolinks: <https://…> and <user@example.com>. Rewrite to <a> tags before escaping
         // so the rest of the pipeline treats them like any other HTML link.
-        var s = text.replacing(autolinkURLPattern) { match in
+        s = s.replacing(autolinkURLPattern) { match in
             let url = match[1]
             guard isSafeURL(url) else { return match[0] }
             return "<a href=\"\(escapeURLForAttribute(url))\">\(escapeURLForAttribute(url))</a>"
@@ -304,11 +314,6 @@ enum MarkdownRenderer {
             let url = sanitizedMarkdownURL(match[2])
             guard isSafeURL(url) else { return "\(match[1])" }
             return "<a href=\"\(escapeURLForAttribute(url))\">\(match[1])</a>"
-        }
-
-        // Inline code
-        s = s.replacing(codePattern) { match in
-            "<code>\(match[1])</code>"
         }
 
         // Bold + italic
@@ -343,6 +348,11 @@ enum MarkdownRenderer {
         // CommonMark: two trailing spaces + newline = hard break. Bare newline = soft break (space) so text reflows.
         s = s.replacingOccurrences(of: "  \n", with: "<br>")
         s = s.replacingOccurrences(of: "\n", with: " ")
+
+        // Restore code spans now that all delimiter-based passes are done.
+        for (idx, span) in codeSpans.enumerated() {
+            s = s.replacingOccurrences(of: "\u{E000}\(idx)\u{E001}", with: span)
+        }
 
         return s
     }
@@ -388,6 +398,9 @@ enum MarkdownRenderer {
             let currentIndent = listItemIndent(lines[i])
             if currentIndent < baseIndent { break }
 
+            // A more-indented line with no item yet at this level — parse it as
+            // a standalone nested list (defensive; well-formed input won't hit
+            // this, since nested runs are consumed per-item below).
             if currentIndent > baseIndent {
                 result += parseUnorderedList(&i, lines: lines)
                 continue
@@ -397,16 +410,27 @@ enum MarkdownRenderer {
             i += 1
 
             let contHTML = collectListItemContinuation(&i, lines: lines, ownPattern: ulPattern)
+
+            // A run of more-indented items immediately after this one is this
+            // item's nested list — it must render *inside* the <li>. Appending
+            // it as a sibling would emit a <ul> as a direct child of <ul>,
+            // which is invalid HTML.
+            var nestedHTML = ""
+            while i < lines.count && lines[i].matchesPattern(ulPattern)
+                && listItemIndent(lines[i]) > baseIndent {
+                nestedHTML += parseUnorderedList(&i, lines: lines)
+            }
+
             if text == "[ ]" || text.hasPrefix("[ ] ") {
                 let content = text.count > 4 ? String(text.dropFirst(4)) : ""
-                result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inlineMarkdown(content))\(contHTML)</li>"
+                result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inlineMarkdown(content))\(contHTML)\(nestedHTML)</li>"
                 hasTaskItem = true
             } else if text == "[x]" || text == "[X]" || text.hasPrefix("[x] ") || text.hasPrefix("[X] ") {
                 let content = text.count > 4 ? String(text.dropFirst(4)) : ""
-                result += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(inlineMarkdown(content))\(contHTML)</li>"
+                result += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(inlineMarkdown(content))\(contHTML)\(nestedHTML)</li>"
                 hasTaskItem = true
             } else {
-                result += "<li>\(inlineMarkdown(text))\(contHTML)</li>"
+                result += "<li>\(inlineMarkdown(text))\(contHTML)\(nestedHTML)</li>"
             }
         }
 

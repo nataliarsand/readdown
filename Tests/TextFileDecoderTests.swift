@@ -41,4 +41,14 @@ final class TextFileDecoderTests: XCTestCase {
         let result = try TextFileDecoder.decode(data)
         XCTAssertEqual(result, "")
     }
+
+    func testUTF8BOMIsStripped() throws {
+        // A UTF-8 file saved with a BOM must not keep the leading U+FEFF, or an
+        // invisible char precedes the content and a first-line heading fails to parse.
+        var data = Data([0xEF, 0xBB, 0xBF])
+        data.append("# Heading".data(using: .utf8)!)
+        let result = try TextFileDecoder.decode(data)
+        XCTAssertEqual(result, "# Heading")
+        XCTAssertFalse(result.hasPrefix("\u{FEFF}"))
+    }
 }
