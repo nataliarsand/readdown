@@ -139,6 +139,9 @@ final class DocumentSession {
     static let shared = DocumentSession()
     private static let bookmarksKey = "openDocumentBookmarks"
     private var bookmarks: [String: Data] = [:]
+    // URLs we hold a security-scoped access grant on (from restored bookmarks).
+    // Tracked so each start can be balanced with a stop when the document closes.
+    private var scopedURLs: [String: URL] = [:]
     private var isTerminating = false
     private let queue = DispatchQueue(label: "com.heya.readdown.documentsession")
 
@@ -182,6 +185,10 @@ final class DocumentSession {
         queue.async {
             guard !self.isTerminating else { return }
             self.bookmarks.removeValue(forKey: url.path)
+            // Release the security-scoped grant taken in restorePreviousSession().
+            if let scoped = self.scopedURLs.removeValue(forKey: url.path) {
+                scoped.stopAccessingSecurityScopedResource()
+            }
             self.persistLocked()
         }
     }
@@ -193,6 +200,9 @@ final class DocumentSession {
 
     /// Reopens documents from the previous session. Returns the count attempted.
     /// The actual `openDocument` calls are async; the count is what we asked for.
+    ///
+    /// Called once at launch, before any document window exists — so it mutates
+    /// `bookmarks`/`scopedURLs` directly. Anything running later must use `queue`.
     @discardableResult
     func restorePreviousSession() -> Int {
         guard let saved = UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data] else { return 0 }
@@ -206,7 +216,11 @@ final class DocumentSession {
                 bookmarkDataIsStale: &stale
             ) else { continue }
             guard FileManager.default.fileExists(atPath: url.path) else { continue }
-            _ = url.startAccessingSecurityScopedResource()
+            // Hold security-scoped access for the restored URL; balanced by a
+            // stop in unregister(_:) when the document window closes.
+            if url.startAccessingSecurityScopedResource() {
+                scopedURLs[url.path] = url
+            }
             bookmarks[url.path] = data
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
             attempted += 1

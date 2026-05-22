@@ -65,6 +65,30 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertEqual(MarkdownRenderer.render("`code`").html, "<p><code>code</code></p>")
     }
 
+    func testUnderscoresInCodeSpanAreNotEmphasis() {
+        // Issue #6: the emphasis passes reached inside code spans and ate
+        // underscores (turning them into <em>). Code span content must render
+        // verbatim per CommonMark — including across two code spans in one
+        // paragraph, which is what the original report hit.
+        let twoLines = MarkdownRenderer.render(
+            "This is test `test_text.md`\nAnother line `~/test_text.md`").html
+        XCTAssertTrue(twoLines.contains("<code>test_text.md</code>"))
+        XCTAssertTrue(twoLines.contains("<code>~/test_text.md</code>"))
+        XCTAssertFalse(twoLines.contains("<em>"))
+
+        XCTAssertEqual(MarkdownRenderer.render("`a_b_c`").html, "<p><code>a_b_c</code></p>")
+        XCTAssertEqual(MarkdownRenderer.render("`a*b*c`").html, "<p><code>a*b*c</code></p>")
+    }
+
+    func testHtmlTagsInCodeSpanAreLiteral() {
+        // Code span content must be fully verbatim — HTML tags inside it render
+        // as escaped text, not real markup.
+        XCTAssertEqual(MarkdownRenderer.render("`<div>`").html, "<p><code>&lt;div&gt;</code></p>")
+        let em = MarkdownRenderer.render("`<em>hi</em>`").html
+        XCTAssertTrue(em.contains("<code>&lt;em&gt;hi&lt;/em&gt;</code>"))
+        XCTAssertFalse(em.contains("<em>"))
+    }
+
     func testFencedCodeBlock() {
         let md = "```swift\nlet x = 1\n```"
         let result = MarkdownRenderer.render(md).html
@@ -143,6 +167,18 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("<li>one</li>"))
         XCTAssertTrue(result.contains("<li>two</li>"))
         XCTAssertTrue(result.contains("<li>three</li>"))
+    }
+
+    func testNestedUnorderedList() {
+        // A nested list was emitted as a sibling <ul> of the parent <li>
+        // (invalid HTML). It must render *inside* the parent <li>.
+        let basic = MarkdownRenderer.render("- parent\n  - child").html
+        XCTAssertEqual(basic, "<ul><li>parent<ul><li>child</li></ul></li></ul>")
+        XCTAssertFalse(basic.contains("</li><ul>"))
+
+        // A top-level item after a nested run stays a sibling of the right <li>.
+        let mixed = MarkdownRenderer.render("- a\n  - a1\n- b").html
+        XCTAssertEqual(mixed, "<ul><li>a<ul><li>a1</li></ul></li><li>b</li></ul>")
     }
 
     func testOrderedList() {

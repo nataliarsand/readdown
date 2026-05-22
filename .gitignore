@@ -30,3 +30,6 @@ HOW_TO_RELEASE.md
 
 # Planning docs
 docs/
+
+# Download metrics (snapshot-downloads.sh)
+metrics/

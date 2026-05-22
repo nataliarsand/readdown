@@ -34,6 +34,8 @@
     <string>aWnTX6ReQSmgWGsrmnb5T5u36CGnIlUETkqpFtET0EU=</string>
     <key>SUEnableInstallerLauncherService</key>
     <true/>
+    <key>SUEnableSystemProfiling</key>
+    <true/>
     <key>UTImportedTypeDeclarations</key>
     <array>
         <dict>

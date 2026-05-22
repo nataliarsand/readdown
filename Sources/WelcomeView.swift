@@ -118,10 +118,6 @@ struct WelcomeView: View {
     @State private var isDefault = false
     let dismissWindow: () -> Void
 
-    private var currentVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-    }
-
     private var currentBuild: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
     }
@@ -285,12 +281,17 @@ struct WelcomeView: View {
 
     private func refreshSetupStatus() {
         isDefault = isReaddownDefaultForMarkdown()
-        qlEnabled = isQLExtensionEnabled()
+        // isQLExtensionEnabled() spawns `pluginkit` and waits on it — never
+        // block the main thread. Run it off-main and publish the result back.
+        DispatchQueue.global(qos: .userInitiated).async {
+            let enabled = self.isQLExtensionEnabled()
+            DispatchQueue.main.async { self.qlEnabled = enabled }
+        }
     }
 
     private func openMarkdownFile() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType(importedAs: "net.daringfireball.markdown", conformingTo: .plainText)]
+        panel.allowedContentTypes = [.markdown]
         panel.allowsMultipleSelection = false
         if panel.runModal() == .OK, let url = panel.url {
             dismissWindow()
@@ -314,7 +315,8 @@ struct WelcomeView: View {
                 utis.append(uti)
             }
         }
-        if let fallback = UTType("net.daringfireball.markdown"), seen.insert(fallback.identifier).inserted {
+        let fallback = UTType.markdown
+        if seen.insert(fallback.identifier).inserted {
             utis.append(fallback)
         }
         for uti in utis {
