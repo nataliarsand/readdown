@@ -197,13 +197,14 @@ struct WebView: NSViewRepresentable {
 
         /// Print/PDF configuration with Readdown's standard 36 pt margins.
         private func standardPrintInfo() -> NSPrintInfo {
+            let margin: CGFloat = 36
             let printInfo = NSPrintInfo()
             printInfo.horizontalPagination = .fit
             printInfo.verticalPagination = .automatic
-            printInfo.topMargin = 36
-            printInfo.bottomMargin = 36
-            printInfo.leftMargin = 36
-            printInfo.rightMargin = 36
+            printInfo.topMargin = margin
+            printInfo.bottomMargin = margin
+            printInfo.leftMargin = margin
+            printInfo.rightMargin = margin
             return printInfo
         }
 

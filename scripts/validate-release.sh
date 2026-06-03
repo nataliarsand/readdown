@@ -5,6 +5,7 @@ set -euo pipefail
 # before shipping. Run against the exported .app bundle.
 
 APP_PATH="${1:-}"
+EXPECTED_BUNDLE_ID="com.heya.readdown"
 
 if [ -z "$APP_PATH" ]; then
     echo "Usage: $0 <path-to-Readdown.app>"
@@ -115,11 +116,11 @@ APP_PLIST="$APP_PATH/Contents/Info.plist"
 check "App Info.plist exists" test -f "$APP_PLIST"
 
 BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PLIST" 2>/dev/null || echo "")
-if [ "$BUNDLE_ID" = "com.heya.readdown" ]; then
-    echo "  PASS: Bundle ID is com.heya.readdown"
+if [ "$BUNDLE_ID" = "$EXPECTED_BUNDLE_ID" ]; then
+    echo "  PASS: Bundle ID is $EXPECTED_BUNDLE_ID"
     PASS=$((PASS + 1))
 else
-    echo "  FAIL: Bundle ID is '$BUNDLE_ID' (expected com.heya.readdown)"
+    echo "  FAIL: Bundle ID is '$BUNDLE_ID' (expected $EXPECTED_BUNDLE_ID)"
     FAIL=$((FAIL + 1))
 fi
 

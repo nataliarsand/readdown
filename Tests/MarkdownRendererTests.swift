@@ -181,6 +181,31 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertEqual(mixed, "<ul><li>a<ul><li>a1</li></ul></li><li>b</li></ul>")
     }
 
+    func testBoldDoesNotLeakAcrossListItemsWhenCodeSpansContainHTMLTags() {
+        //  regression: a bullet whose code spans contained `<strong>`
+        // and `<em>` (real HTML tag names) used to leak those tags through and
+        // turn every following <li> bold via the parser's active-formatting list.
+        let md = """
+        **Apply when (setting):**
+
+        - Don't wrap `b3nd` in `<strong>`, `<em>`, `**…**`, `*…*`, or any equivalent.
+        - Don't ship bold/italic cuts of the logo font. One face, one weight.
+        - Don't let surrounding context cascade into the word — `<b-3>` resets by default.
+        """
+        let html = MarkdownRenderer.render(md).html
+
+        XCTAssertTrue(html.contains("<strong>Apply when (setting):</strong>"))
+        // The bullets must not be wrapped in <strong>.
+        XCTAssertFalse(html.contains("<strong>Don't ship"))
+        XCTAssertFalse(html.contains("<strong>Don't let"))
+        // The HTML-tag code spans must render as escaped literal text.
+        XCTAssertTrue(html.contains("<code>&lt;strong&gt;</code>"))
+        XCTAssertTrue(html.contains("<code>&lt;em&gt;</code>"))
+        // And there must be no unbalanced/raw <strong> or <em> outside <code>.
+        XCTAssertFalse(html.contains("<code><strong>"))
+        XCTAssertFalse(html.contains("<code><em>"))
+    }
+
     func testOrderedList() {
         let md = "1. first\n2. second"
         let result = MarkdownRenderer.render(md).html
