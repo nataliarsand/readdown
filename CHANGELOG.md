@@ -2,6 +2,29 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.13
+
+### Fixed
+- Code spans render exactly as written — underscores, asterisks, and HTML tags inside backticks stay literal
+- Nested bullet lists render correctly
+- Markdown files saved with a UTF-8 byte-order mark open cleanly
+- Refined task-list checkboxes
+- Mermaid diagrams use a refreshed theme that reads well in both light and dark mode
+
+### Details
+
+**Fixed**
+
+- Inline code spans now render their content fully verbatim. Characters that would normally be interpreted as Markdown (underscores, asterisks) or as HTML (`<div>`, `<em>`, etc.) stay as plain text inside the code style. This also resolves a cascading bold/italic effect that could appear later in a document when a code span contained an HTML tag.
+- Nested bullet lists now render inside the parent list item instead of as a sibling list — correct nesting and spacing.
+- Files saved with a UTF-8 byte-order mark open cleanly. A first-line heading is recognized as a heading, not as paragraph text starting with an invisible character.
+- Task-list checkboxes use a centered SVG checkmark and tighter label spacing.
+- Mermaid diagrams: refreshed theme variables for both modes — edge labels (Yes/No) sit on a solid background that matches the document, arrows and text are tuned per mode for contrast, and the pie chart palette is high-contrast so small slices stay legible (issue #7).
+
+**Under the hood**
+
+- Update checks now send anonymous system info (macOS version, Mac model, CPU type) — no identifiers, no personal data — so we know which macOS versions to keep supporting.
+
 ## 1.12
 
 ### New

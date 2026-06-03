@@ -111,6 +111,10 @@ enum DefaultAppHelp {
 }
 
 struct WelcomeView: View {
+    /// Fixed window size — referenced by both the SwiftUI frame here and the
+    /// NSWindow contentRect in `ReadDownApp.showWelcomeWindow()`.
+    static let windowSize = CGSize(width: 320, height: 360)
+
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
     @AppStorage("lastLaunchedBuild") private var lastLaunchedBuild = ""
     @State private var qlEnabled = false
@@ -137,7 +141,7 @@ struct WelcomeView: View {
         .padding(.horizontal, 30)
         .padding(.top, 20)
         .padding(.bottom, 18)
-        .frame(width: 320, height: 360)
+        .frame(width: Self.windowSize.width, height: Self.windowSize.height)
         .onAppear(perform: onAppear)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             refreshSetupStatus()
