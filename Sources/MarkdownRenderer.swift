@@ -549,8 +549,10 @@ enum MarkdownRenderer {
         slug = slug.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         // Keep letters (Unicode), digits, hyphens, underscores, and whitespace; drop the rest.
         slug = slug.replacingOccurrences(of: "[^\\p{L}\\p{N}\\-_\\s]", with: "", options: .regularExpression)
-        // Collapse runs of whitespace into single hyphens.
-        slug = slug.replacingOccurrences(of: "\\s+", with: "-", options: .regularExpression)
+        // Replace each whitespace character with a hyphen individually. This matches GitHub's
+        // heading anchor algorithm: stripped punctuation that was surrounded by spaces leaves
+        // consecutive spaces that become consecutive hyphens, e.g. "Foo — Bar" → "foo--bar".
+        slug = slug.replacingOccurrences(of: "\\s", with: "-", options: .regularExpression)
         // Trim leading/trailing hyphens.
         slug = slug.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
         // Fallback if the heading was entirely punctuation.

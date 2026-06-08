@@ -308,10 +308,11 @@ struct WebView: NSViewRepresentable {
             if navigationAction.navigationType == .linkActivated,
                let url = navigationAction.request.url {
                 // Same-document fragment links (`#heading-anchor`) — let WebKit
-                // handle the scroll natively. Detected when the URL has a
-                // fragment and otherwise matches the document's loaded URL.
+                // handle the scroll natively. Detected when the URL has a fragment
+                // and otherwise matches the document's loaded URL. `webView.url` can
+                // be nil right after `loadHTMLString`, so fall back to `baseURL`.
                 if url.fragment != nil,
-                   let current = webView.url,
+                   let current = webView.url ?? baseURL,
                    url.scheme == current.scheme,
                    url.host == current.host,
                    url.path == current.path {
