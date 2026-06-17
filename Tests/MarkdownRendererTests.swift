@@ -229,6 +229,69 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("<br>"))
     }
 
+    // MARK: - Code Inside Lists (issue #9)
+
+    /// troelskn's exact repro from issue #9. Indented fence under an ordered
+    /// list item must render as a real code block, not collapsed into prose.
+    func testFencedCodeInsideOrderedListItem() {
+        let md = """
+        1. Lorem ipsum dolor sit amet:
+           ```bash
+           bin/foobar --yoinks
+           ```
+        2. Bish bash bosh:
+           ```bash
+           bin/foobar --yoinks
+           ```
+        """
+        let html = MarkdownRenderer.render(md).html
+        // Each item carries its own real <pre><code class="language-bash"> block.
+        let preCount = html.components(separatedBy: "<pre><code class=\"language-bash\">").count - 1
+        XCTAssertEqual(preCount, 2, "Both list items should contain a fenced code block")
+        XCTAssertTrue(html.contains("bin/foobar --yoinks"))
+        // Negative: the fence backticks must not leak as literal text.
+        XCTAssertFalse(html.contains("```bash"), "Raw fence should not appear as text")
+    }
+
+    /// Same flow under an unordered list — covers the shared continuation helper.
+    func testFencedCodeInsideUnorderedListItem() {
+        let md = """
+        - intro line
+          ```swift
+          let x = 1
+          ```
+        - next item
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<pre><code class=\"language-swift\">let x = 1</code></pre>"))
+        XCTAssertTrue(html.contains("<li>next item</li>"))
+    }
+
+    /// A bare (no-language) fence inside a list item still renders as a code block.
+    func testBareFencedCodeInsideListItem() {
+        let md = """
+        - prefix
+          ```
+          plain code
+          ```
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<pre><code>plain code</code></pre>"))
+    }
+
+    /// An unclosed fence inside a list item consumes to end-of-input rather than
+    /// leaving the renderer in a bad state.
+    func testUnclosedFencedCodeInsideListItemConsumesToEOF() {
+        let md = """
+        - start
+          ```bash
+          oops no close
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<pre><code class=\"language-bash\">"))
+        XCTAssertTrue(html.contains("oops no close"))
+    }
+
     // MARK: - Line breaks
 
     func testSoftNewlineBecomesSpace() {

@@ -382,8 +382,24 @@ enum MarkdownRenderer {
     /// Collects continuation lines for the current list item, advancing `i` past them.
     /// `ownPattern` is the list's own item pattern — a blank line followed by another item of
     /// `ownPattern` continues the list (consumes the blank); anything else terminates it.
+    ///
+    /// An indented fenced code block inside the continuation is rendered inline
+    /// as a block-level `<pre><code>` (issue #9). Without this, the indented
+    /// fence wouldn't match `next.hasPrefix("\`\`\`")` and the whole code block
+    /// would collapse into prose.
     private static func collectListItemContinuation(_ i: inout Int, lines: [String], ownPattern: NSRegularExpression) -> String {
-        var continuations: [String] = []
+        var output = ""
+        var paragraph: [String] = []
+
+        // Flush any accumulated prose continuation as inline text. Block
+        // elements (code fences) flush before they emit so the block sits
+        // *between* paragraph fragments, not glued onto one.
+        func flushParagraph() {
+            guard !paragraph.isEmpty else { return }
+            output += " " + paragraph.map { inlineMarkdown($0) }.joined(separator: " ")
+            paragraph.removeAll()
+        }
+
         while i < lines.count {
             let next = lines[i]
             let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
@@ -395,14 +411,57 @@ enum MarkdownRenderer {
                 }
                 break
             }
+
+            // Fenced code block inside the item — recognize the fence on the
+            // *trimmed* line so list indentation can't hide it. CommonMark §6.7
+            // strips the opener's leading-space count from each content line so
+            // the code renders flush against `<pre>` rather than carrying the
+            // list-item indent into the rendered output.
+            if nextTrimmed.matchesPattern(fencePattern) {
+                flushParagraph()
+                let openerIndent = next.prefix(while: { $0 == " " || $0 == "\t" }).count
+                let fenceChar: Character = nextTrimmed.first == "~" ? "~" : "`"
+                let fenceLen = nextTrimmed.prefix(while: { $0 == fenceChar }).count
+                let lang = String(nextTrimmed.dropFirst(fenceLen)).trimmingCharacters(in: .whitespaces)
+                var code: [String] = []
+                i += 1
+                while i < lines.count {
+                    let l = lines[i]
+                    let closeTrimmed = l.drop(while: { $0 == " " || $0 == "\t" })
+                    let closeLen = closeTrimmed.prefix(while: { $0 == fenceChar }).count
+                    if closeLen >= fenceLen
+                        && closeTrimmed.dropFirst(closeLen).allSatisfy({ $0.isWhitespace }) {
+                        i += 1
+                        break
+                    }
+                    // Strip up to `openerIndent` leading whitespace chars.
+                    var content = Substring(l)
+                    var stripped = 0
+                    while stripped < openerIndent, let first = content.first, first == " " || first == "\t" {
+                        content = content.dropFirst()
+                        stripped += 1
+                    }
+                    code.append(escapeHTML(String(content)))
+                    i += 1
+                }
+                let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
+                output += "<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>"
+                continue
+            }
+
+            // Anything that starts a new block at the parent level ends the
+            // continuation. The heading check mirrors `headingPattern` (same
+            // reason as the paragraph collector — see issue #8).
             if next.matchesPattern(ulPattern) || next.matchesPattern(olPattern)
-                || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix("~~~") || next.hasPrefix(">") {
+                || next.matchesPattern(headingPattern) || next.hasPrefix(">") {
                 break
             }
-            continuations.append(nextTrimmed)
+            paragraph.append(nextTrimmed)
             i += 1
         }
-        return continuations.isEmpty ? "" : " " + continuations.map { inlineMarkdown($0) }.joined(separator: " ")
+
+        flushParagraph()
+        return output
     }
 
     private static func parseUnorderedList(_ i: inout Int, lines: [String]) -> String {
