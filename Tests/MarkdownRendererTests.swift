@@ -479,4 +479,52 @@ final class MarkdownRendererTests: XCTestCase {
     func testBlankLines() {
         XCTAssertEqual(MarkdownRenderer.render("\n\n\n").html, "")
     }
+
+    // MARK: - Renderer Safety (no-advance / hang resistance — issue #8)
+
+    /// A line beginning with `#` followed by a non-space character isn't a heading
+    /// (per CommonMark and `headingPattern`). Earlier, the paragraph collector
+    /// rejected it on a bare `hasPrefix("#")` check and `i` never advanced —
+    /// hanging the renderer. Regression test for issue #8.
+    func testParagraphLineStartingWithHashNumberDoesNotHang() {
+        let input = """
+        # test
+
+        Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem
+        Ipsum has been the industry's standard dummy text ever since 1966, when designers
+        at Letraset and James Mosley, the librarian at St Bride Printing Library, took a
+        1914 Cicero translation and scrambled it to make dummy text for Letraset's Body
+        #24 Type sheets. It has survived not only many decades, but also the leap into
+        electronic typesetting, remaining essentially unchanged.
+        """
+        // If this returns at all (i.e. doesn't hang the test runner), the
+        // no-advance bug is fixed. Then verify the content is collected as
+        // a single paragraph with `#24 Type sheets` preserved inline.
+        let html = MarkdownRenderer.render(input).html
+        XCTAssertTrue(html.contains("<h1 id=\"test\">test</h1>"))
+        XCTAssertTrue(html.contains("#24 Type sheets"),
+                      "Line beginning with `#24` should be paragraph content, not split off")
+        XCTAssertTrue(html.contains("<p>") && html.contains("</p>"))
+    }
+
+    /// A standalone line consisting only of `#` followed by digits is a paragraph,
+    /// not a heading. Must not hang.
+    func testStandaloneHashNumberIsParagraph() {
+        let html = MarkdownRenderer.render("#24").html
+        XCTAssertEqual(html, "<p>#24</p>")
+    }
+
+    /// `#` followed immediately by non-space, non-digit characters (e.g. a hyphen,
+    /// a letter run with no space) is also not a heading.
+    func testHashWithoutSpaceFollowedByLetterIsParagraph() {
+        XCTAssertEqual(MarkdownRenderer.render("#hashtag").html, "<p>#hashtag</p>")
+        XCTAssertEqual(MarkdownRenderer.render("#-foo").html, "<p>#-foo</p>")
+    }
+
+    /// A lone `#` on a line IS a heading (empty title) per `headingPattern`'s
+    /// `(?:\s+|$)` alternative. Confirms we didn't accidentally narrow the
+    /// heading recognizer along with fixing the paragraph collector.
+    func testLoneHashIsEmptyHeading() {
+        XCTAssertEqual(MarkdownRenderer.render("#").html, "<h1 id=\"section\"></h1>")
+    }
 }
