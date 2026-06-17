@@ -2,6 +2,25 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.14
+
+### Fixed
+- Documents with a paragraph line beginning with `#` followed by a digit (e.g. `#24`) no longer freeze the app (issue #8)
+- Fenced code blocks inside list items render as real code blocks again (issue #9)
+- Heading anchor links (`#section`) inside a document scroll to the target instead of being silently cancelled
+
+### Details
+
+**Fixed**
+
+- Renderer no longer hangs on a paragraph line that starts with `#` immediately followed by a non-space character (issue #8). The paragraph collector previously rejected those lines on a bare `#`-prefix check while the heading parser rejected them for lacking a space — leaving the renderer with no branch that could claim the line. A defensive guard now also catches any future no-advance regression rather than risk a freeze.
+- Fenced code blocks indented under a list item are recognized again and render as `<pre><code>` blocks inside the list item (issue #9). They had been silently absorbed into the surrounding prose because the continuation parser only checked for fences at column zero.
+- Clicking a heading anchor link inside an open document now scrolls to the heading instead of being cancelled. The same-document check has been relaxed to tolerate the two real shapes the loader produces (an `about:blank` page URL for untitled docs and a trailing-slash mismatch for saved docs) while still routing external links with fragments to the system browser.
+
+**Thanks**
+
+- Both renderer fixes were reported by @troelskn — thank you.
+
 ## 1.13
 
 ### Fixed
