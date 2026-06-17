@@ -50,6 +50,9 @@ enum MarkdownRenderer {
 
         while i < lines.count {
             let line = lines[i]
+            // Sentinel for the defensive no-advance guard at the bottom of this
+            // loop — every branch below MUST move `i` forward. See issue #8.
+            let iAtStart = i
 
             // Fenced code block (allow up to 3 leading spaces)
             if line.matchesPattern(fencePattern) {
@@ -200,12 +203,17 @@ enum MarkdownRenderer {
                 continue
             }
 
-            // Paragraph — collect contiguous non-blank, non-special lines
+            // Paragraph — collect contiguous non-blank, non-special lines.
+            // The heading check must mirror `headingPattern` exactly (`#` + space
+            // or end-of-line): a bare `hasPrefix("#")` rejects lines like `#24`
+            // which the heading branch above also (rightly) rejects, leaving the
+            // paragraph branch unable to claim them and `i` stuck — an infinite
+            // loop (issue #8).
             var para: [String] = []
             while i < lines.count {
                 let l = lines[i]
                 let t = l.trimmingCharacters(in: .whitespaces)
-                if t.isEmpty || l.hasPrefix("#") || l.hasPrefix(">")
+                if t.isEmpty || l.matchesPattern(headingPattern) || l.hasPrefix(">")
                     || t.hasPrefix("```") || t.hasPrefix("~~~")
                     || l.matchesPattern(ulPattern) || l.matchesPattern(olPattern)
                     || isHTMLBlockStart(l) {
@@ -223,6 +231,14 @@ enum MarkdownRenderer {
             }
             if !para.isEmpty {
                 html.append("<p>\(inlineMarkdown(para.joined(separator: "\n")))</p>")
+            }
+
+            // Belt-and-braces: if every branch above somehow declined this line
+            // without advancing `i`, force-advance so the renderer can never
+            // hang the app. The targeted heading-check fix above closes the
+            // known case (issue #8); this guard catches any future regression.
+            if i == iAtStart {
+                i += 1
             }
         }
 
