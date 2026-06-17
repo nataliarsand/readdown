@@ -308,13 +308,17 @@ struct WebView: NSViewRepresentable {
             if navigationAction.navigationType == .linkActivated,
                let url = navigationAction.request.url {
                 // Same-document fragment links (`#heading-anchor`) — let WebKit
-                // handle the scroll natively. Detected when the URL has a
-                // fragment and otherwise matches the document's loaded URL.
+                // handle the scroll natively. The earlier strict scheme/host/
+                // path triple-match against `webView.url` rejected real intra-
+                // doc clicks because `loadHTMLString(_:baseURL:)` reports
+                // `about:blank` for an untitled doc and a trailing-slash-
+                // mismatched directory URL for a saved one — that broke all
+                // heading anchors from 1.12 onward. `isSameDocumentFragment`
+                // accepts both shapes while still rejecting external links
+                // that happen to carry a fragment (e.g. `https://evil/#x`),
+                // which must still go through `NSWorkspace.open`.
                 if url.fragment != nil,
-                   let current = webView.url,
-                   url.scheme == current.scheme,
-                   url.host == current.host,
-                   url.path == current.path {
+                   isSameDocumentFragment(click: url, page: webView.url) {
                     decisionHandler(.allow)
                     return
                 }
@@ -327,6 +331,30 @@ struct WebView: NSViewRepresentable {
                 return
             }
             decisionHandler(.allow)
+        }
+
+        /// Returns `true` when `click` is a fragment URL pointing inside the
+        /// currently-loaded document. Tolerates the two real-world shapes the
+        /// loader produces: an `about:blank` page URL (loaded with no baseURL),
+        /// and a directory baseURL whose path differs from the click's only by
+        /// a trailing slash.
+        private func isSameDocumentFragment(click: URL, page: URL?) -> Bool {
+            // No real page URL yet, or page is `about:blank` — accept only when
+            // the click URL is itself `about:`-scoped (which is what a bare
+            // `#frag` resolves to in that document context).
+            guard let page = page, page.absoluteString != "about:blank" else {
+                return click.scheme == nil || click.scheme == "about"
+            }
+            // Otherwise: scheme + host must match, and paths must match modulo
+            // a single trailing slash on either side.
+            guard click.scheme == page.scheme, click.host == page.host else {
+                return false
+            }
+            let clickPath = click.path
+            let pagePath = page.path
+            return clickPath == pagePath
+                || clickPath + "/" == pagePath
+                || clickPath == pagePath + "/"
         }
 
         private func isAllowedExternalURL(_ url: URL) -> Bool {
