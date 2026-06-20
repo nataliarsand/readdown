@@ -40,7 +40,9 @@ class PreviewViewController: NSViewController, QLPreviewingController, WKNavigat
         do {
             let markdown = try TextFileDecoder.decode(Data(contentsOf: url))
             let result = MarkdownRenderer.render(markdown)
-            let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, compact: true)
+            // Resolve dark vs light for the embedded Mermaid theme — see ContentView.init.
+            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, compact: true, isDark: isDark)
             webView.loadHTMLString(html, baseURL: url.deletingLastPathComponent())
             handler(nil)
         } catch {

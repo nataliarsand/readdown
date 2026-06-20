@@ -14,11 +14,20 @@ private let autolinkURLPattern = try! NSRegularExpression(pattern: "<(https?://[
 private let autolinkEmailPattern = try! NSRegularExpression(pattern: "<([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})>")
 private let codePattern = try! NSRegularExpression(pattern: "`([^`]+)`")
 private let boldItalicStarPattern = try! NSRegularExpression(pattern: "\\*\\*\\*(.+?)\\*\\*\\*", options: .dotMatchesLineSeparators)
-private let boldItalicUnderPattern = try! NSRegularExpression(pattern: "___(.+?)___", options: .dotMatchesLineSeparators)
 private let boldStarPattern = try! NSRegularExpression(pattern: "\\*\\*(.+?)\\*\\*", options: .dotMatchesLineSeparators)
-private let boldUnderPattern = try! NSRegularExpression(pattern: "__(.+?)__", options: .dotMatchesLineSeparators)
 private let italicStarPattern = try! NSRegularExpression(pattern: "\\*(.+?)\\*", options: .dotMatchesLineSeparators)
-private let italicUnderPattern = try! NSRegularExpression(pattern: "_(.+?)_", options: .dotMatchesLineSeparators)
+// Underscore variants require *word-boundary flanking* per CommonMark §6.2 —
+// `_` adjacent to a letter, digit, or another `_` on either side is a literal
+// underscore, not an emphasis delimiter. This keeps `snake_case`,
+// `lots_of_underscores`, `some__double__underscores`, and the like rendering
+// as plain text. The lookbehind/lookahead use Unicode letter (`\p{L}`) and
+// number (`\p{N}`), plus `_` itself so an italic `_x_` can't sneak in between
+// the two `__` of a bold run mid-word. (`*` emphasis is asymmetric and CAN
+// flank inside words per CommonMark, so the star patterns above stay
+// unchanged.)
+private let boldItalicUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])___(.+?)___(?![\\p{L}\\p{N}_])", options: .dotMatchesLineSeparators)
+private let boldUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])__(.+?)__(?![\\p{L}\\p{N}_])", options: .dotMatchesLineSeparators)
+private let italicUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])_(.+?)_(?![\\p{L}\\p{N}_])", options: .dotMatchesLineSeparators)
 private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~", options: .dotMatchesLineSeparators)
 private let htmlTagPattern = try! NSRegularExpression(pattern: "<!--[\\s\\S]*?-->|</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
 private let dangerousAttrPattern = try! NSRegularExpression(pattern: "\\s+(?:on\\w+|srcdoc|formaction)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)", options: .caseInsensitive)
@@ -50,6 +59,9 @@ enum MarkdownRenderer {
 
         while i < lines.count {
             let line = lines[i]
+            // Sentinel for the defensive no-advance guard at the bottom of this
+            // loop — every branch below MUST move `i` forward. See issue #8.
+            let iAtStart = i
 
             // Fenced code block (allow up to 3 leading spaces)
             if line.matchesPattern(fencePattern) {
@@ -200,12 +212,17 @@ enum MarkdownRenderer {
                 continue
             }
 
-            // Paragraph — collect contiguous non-blank, non-special lines
+            // Paragraph — collect contiguous non-blank, non-special lines.
+            // The heading check must mirror `headingPattern` exactly (`#` + space
+            // or end-of-line): a bare `hasPrefix("#")` rejects lines like `#24`
+            // which the heading branch above also (rightly) rejects, leaving the
+            // paragraph branch unable to claim them and `i` stuck — an infinite
+            // loop (issue #8).
             var para: [String] = []
             while i < lines.count {
                 let l = lines[i]
                 let t = l.trimmingCharacters(in: .whitespaces)
-                if t.isEmpty || l.hasPrefix("#") || l.hasPrefix(">")
+                if t.isEmpty || l.matchesPattern(headingPattern) || l.hasPrefix(">")
                     || t.hasPrefix("```") || t.hasPrefix("~~~")
                     || l.matchesPattern(ulPattern) || l.matchesPattern(olPattern)
                     || isHTMLBlockStart(l) {
@@ -223,6 +240,14 @@ enum MarkdownRenderer {
             }
             if !para.isEmpty {
                 html.append("<p>\(inlineMarkdown(para.joined(separator: "\n")))</p>")
+            }
+
+            // Belt-and-braces: if every branch above somehow declined this line
+            // without advancing `i`, force-advance so the renderer can never
+            // hang the app. The targeted heading-check fix above closes the
+            // known case (issue #8); this guard catches any future regression.
+            if i == iAtStart {
+                i += 1
             }
         }
 
@@ -366,8 +391,24 @@ enum MarkdownRenderer {
     /// Collects continuation lines for the current list item, advancing `i` past them.
     /// `ownPattern` is the list's own item pattern — a blank line followed by another item of
     /// `ownPattern` continues the list (consumes the blank); anything else terminates it.
+    ///
+    /// An indented fenced code block inside the continuation is rendered inline
+    /// as a block-level `<pre><code>` (issue #9). Without this, the indented
+    /// fence wouldn't match `next.hasPrefix("\`\`\`")` and the whole code block
+    /// would collapse into prose.
     private static func collectListItemContinuation(_ i: inout Int, lines: [String], ownPattern: NSRegularExpression) -> String {
-        var continuations: [String] = []
+        var output = ""
+        var paragraph: [String] = []
+
+        // Flush any accumulated prose continuation as inline text. Block
+        // elements (code fences) flush before they emit so the block sits
+        // *between* paragraph fragments, not glued onto one.
+        func flushParagraph() {
+            guard !paragraph.isEmpty else { return }
+            output += " " + paragraph.map { inlineMarkdown($0) }.joined(separator: " ")
+            paragraph.removeAll()
+        }
+
         while i < lines.count {
             let next = lines[i]
             let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
@@ -379,14 +420,57 @@ enum MarkdownRenderer {
                 }
                 break
             }
+
+            // Fenced code block inside the item — recognize the fence on the
+            // *trimmed* line so list indentation can't hide it. CommonMark §6.7
+            // strips the opener's leading-space count from each content line so
+            // the code renders flush against `<pre>` rather than carrying the
+            // list-item indent into the rendered output.
+            if nextTrimmed.matchesPattern(fencePattern) {
+                flushParagraph()
+                let openerIndent = next.prefix(while: { $0 == " " || $0 == "\t" }).count
+                let fenceChar: Character = nextTrimmed.first == "~" ? "~" : "`"
+                let fenceLen = nextTrimmed.prefix(while: { $0 == fenceChar }).count
+                let lang = String(nextTrimmed.dropFirst(fenceLen)).trimmingCharacters(in: .whitespaces)
+                var code: [String] = []
+                i += 1
+                while i < lines.count {
+                    let l = lines[i]
+                    let closeTrimmed = l.drop(while: { $0 == " " || $0 == "\t" })
+                    let closeLen = closeTrimmed.prefix(while: { $0 == fenceChar }).count
+                    if closeLen >= fenceLen
+                        && closeTrimmed.dropFirst(closeLen).allSatisfy({ $0.isWhitespace }) {
+                        i += 1
+                        break
+                    }
+                    // Strip up to `openerIndent` leading whitespace chars.
+                    var content = Substring(l)
+                    var stripped = 0
+                    while stripped < openerIndent, let first = content.first, first == " " || first == "\t" {
+                        content = content.dropFirst()
+                        stripped += 1
+                    }
+                    code.append(escapeHTML(String(content)))
+                    i += 1
+                }
+                let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
+                output += "<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>"
+                continue
+            }
+
+            // Anything that starts a new block at the parent level ends the
+            // continuation. The heading check mirrors `headingPattern` (same
+            // reason as the paragraph collector — see issue #8).
             if next.matchesPattern(ulPattern) || next.matchesPattern(olPattern)
-                || next.hasPrefix("#") || next.hasPrefix("```") || next.hasPrefix("~~~") || next.hasPrefix(">") {
+                || next.matchesPattern(headingPattern) || next.hasPrefix(">") {
                 break
             }
-            continuations.append(nextTrimmed)
+            paragraph.append(nextTrimmed)
             i += 1
         }
-        return continuations.isEmpty ? "" : " " + continuations.map { inlineMarkdown($0) }.joined(separator: " ")
+
+        flushParagraph()
+        return output
     }
 
     private static func parseUnorderedList(_ i: inout Int, lines: [String]) -> String {

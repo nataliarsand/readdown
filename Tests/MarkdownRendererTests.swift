@@ -229,6 +229,69 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("<br>"))
     }
 
+    // MARK: - Code Inside Lists (issue #9)
+
+    /// troelskn's exact repro from issue #9. Indented fence under an ordered
+    /// list item must render as a real code block, not collapsed into prose.
+    func testFencedCodeInsideOrderedListItem() {
+        let md = """
+        1. Lorem ipsum dolor sit amet:
+           ```bash
+           bin/foobar --yoinks
+           ```
+        2. Bish bash bosh:
+           ```bash
+           bin/foobar --yoinks
+           ```
+        """
+        let html = MarkdownRenderer.render(md).html
+        // Each item carries its own real <pre><code class="language-bash"> block.
+        let preCount = html.components(separatedBy: "<pre><code class=\"language-bash\">").count - 1
+        XCTAssertEqual(preCount, 2, "Both list items should contain a fenced code block")
+        XCTAssertTrue(html.contains("bin/foobar --yoinks"))
+        // Negative: the fence backticks must not leak as literal text.
+        XCTAssertFalse(html.contains("```bash"), "Raw fence should not appear as text")
+    }
+
+    /// Same flow under an unordered list — covers the shared continuation helper.
+    func testFencedCodeInsideUnorderedListItem() {
+        let md = """
+        - intro line
+          ```swift
+          let x = 1
+          ```
+        - next item
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<pre><code class=\"language-swift\">let x = 1</code></pre>"))
+        XCTAssertTrue(html.contains("<li>next item</li>"))
+    }
+
+    /// A bare (no-language) fence inside a list item still renders as a code block.
+    func testBareFencedCodeInsideListItem() {
+        let md = """
+        - prefix
+          ```
+          plain code
+          ```
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<pre><code>plain code</code></pre>"))
+    }
+
+    /// An unclosed fence inside a list item consumes to end-of-input rather than
+    /// leaving the renderer in a bad state.
+    func testUnclosedFencedCodeInsideListItemConsumesToEOF() {
+        let md = """
+        - start
+          ```bash
+          oops no close
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<pre><code class=\"language-bash\">"))
+        XCTAssertTrue(html.contains("oops no close"))
+    }
+
     // MARK: - Line breaks
 
     func testSoftNewlineBecomesSpace() {
@@ -478,5 +541,126 @@ final class MarkdownRendererTests: XCTestCase {
 
     func testBlankLines() {
         XCTAssertEqual(MarkdownRenderer.render("\n\n\n").html, "")
+    }
+
+    // MARK: - Renderer Safety (no-advance / hang resistance — issue #8)
+
+    /// A line beginning with `#` followed by a non-space character isn't a heading
+    /// (per CommonMark and `headingPattern`). Earlier, the paragraph collector
+    /// rejected it on a bare `hasPrefix("#")` check and `i` never advanced —
+    /// hanging the renderer. Regression test for issue #8.
+    func testParagraphLineStartingWithHashNumberDoesNotHang() {
+        let input = """
+        # test
+
+        Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem
+        Ipsum has been the industry's standard dummy text ever since 1966, when designers
+        at Letraset and James Mosley, the librarian at St Bride Printing Library, took a
+        1914 Cicero translation and scrambled it to make dummy text for Letraset's Body
+        #24 Type sheets. It has survived not only many decades, but also the leap into
+        electronic typesetting, remaining essentially unchanged.
+        """
+        // If this returns at all (i.e. doesn't hang the test runner), the
+        // no-advance bug is fixed. Then verify the content is collected as
+        // a single paragraph with `#24 Type sheets` preserved inline.
+        let html = MarkdownRenderer.render(input).html
+        XCTAssertTrue(html.contains("<h1 id=\"test\">test</h1>"))
+        XCTAssertTrue(html.contains("#24 Type sheets"),
+                      "Line beginning with `#24` should be paragraph content, not split off")
+        XCTAssertTrue(html.contains("<p>") && html.contains("</p>"))
+    }
+
+    /// A standalone line consisting only of `#` followed by digits is a paragraph,
+    /// not a heading. Must not hang.
+    func testStandaloneHashNumberIsParagraph() {
+        let html = MarkdownRenderer.render("#24").html
+        XCTAssertEqual(html, "<p>#24</p>")
+    }
+
+    /// `#` followed immediately by non-space, non-digit characters (e.g. a hyphen,
+    /// a letter run with no space) is also not a heading.
+    func testHashWithoutSpaceFollowedByLetterIsParagraph() {
+        XCTAssertEqual(MarkdownRenderer.render("#hashtag").html, "<p>#hashtag</p>")
+        XCTAssertEqual(MarkdownRenderer.render("#-foo").html, "<p>#-foo</p>")
+    }
+
+    /// A lone `#` on a line IS a heading (empty title) per `headingPattern`'s
+    /// `(?:\s+|$)` alternative. Confirms we didn't accidentally narrow the
+    /// heading recognizer along with fixing the paragraph collector.
+    func testLoneHashIsEmptyHeading() {
+        XCTAssertEqual(MarkdownRenderer.render("#").html, "<h1 id=\"section\"></h1>")
+    }
+
+    // MARK: - Underscore emphasis flanking (CommonMark §6.2)
+
+    /// Single underscores inside words are literal, not italic delimiters.
+    /// Regression caught while QA-ing 1.14 against `stress-large.md` §7.
+    func testIntraWordUnderscoresAreNotItalic() {
+        let html = MarkdownRenderer.render("lots_of_underscores_in_names").html
+        XCTAssertFalse(html.contains("<em>"), "Intra-word `_` must not italicize")
+        XCTAssertTrue(html.contains("lots_of_underscores_in_names"))
+    }
+
+    /// Same rule for `__double__` inside a word — no bold.
+    func testIntraWordDoubleUnderscoresAreNotBold() {
+        let html = MarkdownRenderer.render("some__double__underscores").html
+        XCTAssertFalse(html.contains("<strong>"), "Intra-word `__` must not bold")
+        XCTAssertTrue(html.contains("some__double__underscores"))
+    }
+
+    /// Standalone `_word_` still italicizes — we only added flanking, not removed emphasis.
+    func testStandaloneUnderscoreItalicStillWorks() {
+        XCTAssertEqual(MarkdownRenderer.render("_italic_").html, "<p><em>italic</em></p>")
+    }
+
+    /// Standalone `__word__` still bolds.
+    func testStandaloneDoubleUnderscoreBoldStillWorks() {
+        XCTAssertEqual(MarkdownRenderer.render("__bold__").html, "<p><strong>bold</strong></p>")
+    }
+
+    /// Punctuation counts as a non-word boundary, so `(_x_)` italicizes.
+    func testUnderscoreItalicFlanksPunctuation() {
+        let html = MarkdownRenderer.render("(_x_)").html
+        XCTAssertTrue(html.contains("<em>x</em>"))
+    }
+
+    /// Unicode letters block flanking too — Cyrillic identifier stays literal.
+    func testUnderscoreFlankingRespectsUnicodeLetters() {
+        let html = MarkdownRenderer.render("мир_слов_здесь").html
+        XCTAssertFalse(html.contains("<em>"))
+    }
+
+    /// `snake_case` (single underscore, both sides letters) already failed to match
+    /// the pre-fix regex (needs two `_`s); confirm it stays literal post-fix too.
+    func testSnakeCaseStaysLiteral() {
+        let html = MarkdownRenderer.render("Use snake_case for variables").html
+        XCTAssertFalse(html.contains("<em>"))
+        XCTAssertTrue(html.contains("snake_case"))
+    }
+
+    // MARK: - HTML Template integration (Mermaid theming, 1.14)
+
+    /// The Mermaid-bearing HTML must carry `data-rd-theme` so the JS init script
+    /// can resolve the theme deterministically. Verifies the Swift→HTML→JS
+    /// pipeline emits both halves correctly.
+    func testMermaidHTMLCarriesThemeAttribute() {
+        let md = """
+        # x
+
+        ```mermaid
+        flowchart TD
+          A[Start] --> B[End]
+        ```
+        """
+        let renderResult = MarkdownRenderer.render(md)
+        XCTAssertTrue(renderResult.hasMermaid)
+
+        let darkHTML = HTMLTemplate.wrap(body: renderResult.html, hasMermaid: true, isDark: true)
+        XCTAssertTrue(darkHTML.contains("data-rd-theme=\"dark\""))
+        XCTAssertTrue(darkHTML.contains("dataset.rdTheme"))
+        XCTAssertTrue(darkHTML.contains("dark ? 'dark' : 'default'"))
+
+        let lightHTML = HTMLTemplate.wrap(body: renderResult.html, hasMermaid: true, isDark: false)
+        XCTAssertTrue(lightHTML.contains("data-rd-theme=\"light\""))
     }
 }
