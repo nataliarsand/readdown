@@ -27,10 +27,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
     }
 
-    /// macOS encrypts restored state for sandboxed apps. Opting in lets
-    /// `NSDocument`-based windows reopen across relaunches.
+    /// We manage session restoration ourselves via `DocumentSession.restorePreviousSession()`
+    /// — see `applicationDidFinishLaunching` above. AppKit's automatic
+    /// `NSDocumentControllerPersistentRestoration` mechanism (which this method
+    /// opts into when it returns `true`) was racing with our restoration: both
+    /// fired concurrently at launch, AppKit had no file-existence guard, and the
+    /// two flows deadlocked SwiftUI's `AppWindowsController.makeWindowController`
+    /// when state was inconsistent (force-quit with files since deleted, Time
+    /// Machine restore, etc.) — the app would hang at launch with no window.
+    /// Return `false` so AppKit skips its own restoration and only ours runs.
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
-        true
+        false
     }
 
     private func dismissOpenPanels() {
