@@ -13,12 +13,14 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     var presentedItemURL: URL? { fileURL }
     let presentedItemOperationQueue: OperationQueue = .main
 
+    private let isDark: Bool
     private var isRegistered = false
     private var reloadWorkItem: DispatchWorkItem?
 
-    init(initialText: String, fileURL: URL?) {
+    init(initialText: String, fileURL: URL?, isDark: Bool) {
         let result = MarkdownRenderer.render(initialText)
-        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid)
+        self.isDark = isDark
+        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: isDark)
         self.fileURL = fileURL
         super.init()
         if fileURL != nil {
@@ -56,7 +58,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
 
         guard let text = decoded else { return }
         let result = MarkdownRenderer.render(text)
-        let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid)
+        let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: isDark)
         if next != html {
             html = next
         }
