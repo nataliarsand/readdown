@@ -2,6 +2,21 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.14.1
+
+### Fixed
+- Heading anchor links now match GitHub's slug convention for headings with stripped punctuation (e.g. `# Foo — bar` produces `foo--bar`, not `foo-bar`), so anchor links from GitHub-style TOCs scroll to the right place
+
+### Details
+
+**Fixed**
+
+- `# Foo — bar` and similar headings (with whitespace-surrounded punctuation that gets stripped) now produce GitHub-compatible slugs. The previous slug generator collapsed runs of whitespace into a single hyphen; GitHub converts each whitespace character individually, preserving consecutive hyphens. Without this fix, `[link](#foo--bar)` from a TOC silently failed to scroll.
+
+**Thanks**
+
+- @ReubenCowell — first-time contributor, caught and reported (PR #10).
+
 ## 1.14
 
 ### Fixed
