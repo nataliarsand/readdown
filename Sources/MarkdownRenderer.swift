@@ -14,11 +14,20 @@ private let autolinkURLPattern = try! NSRegularExpression(pattern: "<(https?://[
 private let autolinkEmailPattern = try! NSRegularExpression(pattern: "<([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})>")
 private let codePattern = try! NSRegularExpression(pattern: "`([^`]+)`")
 private let boldItalicStarPattern = try! NSRegularExpression(pattern: "\\*\\*\\*(.+?)\\*\\*\\*", options: .dotMatchesLineSeparators)
-private let boldItalicUnderPattern = try! NSRegularExpression(pattern: "___(.+?)___", options: .dotMatchesLineSeparators)
 private let boldStarPattern = try! NSRegularExpression(pattern: "\\*\\*(.+?)\\*\\*", options: .dotMatchesLineSeparators)
-private let boldUnderPattern = try! NSRegularExpression(pattern: "__(.+?)__", options: .dotMatchesLineSeparators)
 private let italicStarPattern = try! NSRegularExpression(pattern: "\\*(.+?)\\*", options: .dotMatchesLineSeparators)
-private let italicUnderPattern = try! NSRegularExpression(pattern: "_(.+?)_", options: .dotMatchesLineSeparators)
+// Underscore variants require *word-boundary flanking* per CommonMark §6.2 —
+// `_` adjacent to a letter, digit, or another `_` on either side is a literal
+// underscore, not an emphasis delimiter. This keeps `snake_case`,
+// `lots_of_underscores`, `some__double__underscores`, and the like rendering
+// as plain text. The lookbehind/lookahead use Unicode letter (`\p{L}`) and
+// number (`\p{N}`), plus `_` itself so an italic `_x_` can't sneak in between
+// the two `__` of a bold run mid-word. (`*` emphasis is asymmetric and CAN
+// flank inside words per CommonMark, so the star patterns above stay
+// unchanged.)
+private let boldItalicUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])___(.+?)___(?![\\p{L}\\p{N}_])", options: .dotMatchesLineSeparators)
+private let boldUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])__(.+?)__(?![\\p{L}\\p{N}_])", options: .dotMatchesLineSeparators)
+private let italicUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])_(.+?)_(?![\\p{L}\\p{N}_])", options: .dotMatchesLineSeparators)
 private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~", options: .dotMatchesLineSeparators)
 private let htmlTagPattern = try! NSRegularExpression(pattern: "<!--[\\s\\S]*?-->|</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
 private let dangerousAttrPattern = try! NSRegularExpression(pattern: "\\s+(?:on\\w+|srcdoc|formaction)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)", options: .caseInsensitive)
