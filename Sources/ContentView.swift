@@ -17,7 +17,12 @@ struct ContentView: View {
     @State private var pillDismissWork: DispatchWorkItem?
 
     init(document: MarkdownDocument, baseURL: URL?, fileURL: URL? = nil) {
-        _watcher = StateObject(wrappedValue: DocumentWatcher(initialText: document.text, fileURL: fileURL))
+        // Resolve dark vs light at template-generation time so the embedded
+        // Mermaid theme matches the page palette. WKWebView's JS-side dark-mode
+        // signals (`matchMedia`, `getComputedStyle` of var()-resolved colors)
+        // are unreliable, so the source of truth is Swift's `NSAppearance`.
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        _watcher = StateObject(wrappedValue: DocumentWatcher(initialText: document.text, fileURL: fileURL, isDark: isDark))
         self.baseURL = baseURL
         self.fileURL = fileURL
     }
