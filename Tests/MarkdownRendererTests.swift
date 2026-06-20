@@ -590,4 +590,51 @@ final class MarkdownRendererTests: XCTestCase {
     func testLoneHashIsEmptyHeading() {
         XCTAssertEqual(MarkdownRenderer.render("#").html, "<h1 id=\"section\"></h1>")
     }
+
+    // MARK: - Underscore emphasis flanking (CommonMark §6.2)
+
+    /// Single underscores inside words are literal, not italic delimiters.
+    /// Regression caught while QA-ing 1.14 against `stress-large.md` §7.
+    func testIntraWordUnderscoresAreNotItalic() {
+        let html = MarkdownRenderer.render("lots_of_underscores_in_names").html
+        XCTAssertFalse(html.contains("<em>"), "Intra-word `_` must not italicize")
+        XCTAssertTrue(html.contains("lots_of_underscores_in_names"))
+    }
+
+    /// Same rule for `__double__` inside a word — no bold.
+    func testIntraWordDoubleUnderscoresAreNotBold() {
+        let html = MarkdownRenderer.render("some__double__underscores").html
+        XCTAssertFalse(html.contains("<strong>"), "Intra-word `__` must not bold")
+        XCTAssertTrue(html.contains("some__double__underscores"))
+    }
+
+    /// Standalone `_word_` still italicizes — we only added flanking, not removed emphasis.
+    func testStandaloneUnderscoreItalicStillWorks() {
+        XCTAssertEqual(MarkdownRenderer.render("_italic_").html, "<p><em>italic</em></p>")
+    }
+
+    /// Standalone `__word__` still bolds.
+    func testStandaloneDoubleUnderscoreBoldStillWorks() {
+        XCTAssertEqual(MarkdownRenderer.render("__bold__").html, "<p><strong>bold</strong></p>")
+    }
+
+    /// Punctuation counts as a non-word boundary, so `(_x_)` italicizes.
+    func testUnderscoreItalicFlanksPunctuation() {
+        let html = MarkdownRenderer.render("(_x_)").html
+        XCTAssertTrue(html.contains("<em>x</em>"))
+    }
+
+    /// Unicode letters block flanking too — Cyrillic identifier stays literal.
+    func testUnderscoreFlankingRespectsUnicodeLetters() {
+        let html = MarkdownRenderer.render("мир_слов_здесь").html
+        XCTAssertFalse(html.contains("<em>"))
+    }
+
+    /// `snake_case` (single underscore, both sides letters) already failed to match
+    /// the pre-fix regex (needs two `_`s); confirm it stays literal post-fix too.
+    func testSnakeCaseStaysLiteral() {
+        let html = MarkdownRenderer.render("Use snake_case for variables").html
+        XCTAssertFalse(html.contains("<em>"))
+        XCTAssertTrue(html.contains("snake_case"))
+    }
 }
