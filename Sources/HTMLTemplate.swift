@@ -8,7 +8,7 @@ enum HTMLTemplate {
         return js
     }()
 
-    static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false) -> String {
+    static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
         let fontSize = compact ? "14px" : "16px"
         // Main app uses a `.unifiedCompact` toolbar (~38pt) with the WebView
         // extending behind it via `.ignoresSafeArea`. Top padding keeps the
@@ -309,7 +309,7 @@ enum HTMLTemplate {
         }
         </style>
         </head>
-        <body>
+        <body data-rd-theme="\(isDark ? "dark" : "light")">
         \(body)
         <script>\(SyntaxHighlight.js)</script>
         <script>
@@ -407,65 +407,61 @@ enum HTMLTemplate {
         \(hasMermaid && mermaidJS != nil ? """
         <script>\(mermaidJS!)</script>
         <script>
-        // Mermaid: 'base' theme + themeVariables tuned to match Readdown's palette
-        // in both modes. Mermaid bakes colors into the rendered SVG at init time
-        // (no live CSS-var support), so the colors are duplicated here from :root.
-        // The defaults render pale lavender on light and dark text on dark — both
-        // unreadable here.
-        const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // Mermaid theming. Two layers:
+        //   1. `theme: 'dark' | 'default'` — Mermaid's built-in palettes. These
+        //      are baked into the bundle and apply reliably inside WKWebView.
+        //      `theme: 'base'` (which would let themeVariables alone define the
+        //      palette) silently failed to apply our overrides under WKWebView
+        //      even though it worked in Safari — the "fix" shipped in 1.13
+        //      never actually took effect on users' machines. Always start
+        //      from a built-in theme.
+        //   2. `themeVariables` — overrides on top, tuned to Readdown's palette
+        //      so diagrams blend with the document. Mermaid stacks these on
+        //      top of the chosen theme, so we keep both Readdown branding
+        //      AND a working baseline.
+        //
+        // Dark-mode detection: Swift decides up-front (via NSApp.effectiveAppearance
+        // when the template is generated) and emits `data-rd-theme` on `<body>`.
+        // JS detection alternatives all failed in WKWebView — matchMedia returns
+        // stale results, getComputedStyle doesn't resolve CSS variables, and
+        // freshly-injected probe elements don't get styles applied synchronously.
+        // Reading a pre-emitted data attribute removes every race condition.
+        const dark = document.body.dataset.rdTheme === 'dark';
+        // Mermaid's built-in `'dark'` palette renders pie slices in nearly-
+        // black against our nearly-black document background — invisible.
+        // Pass only the pie-related `themeVariables` (which Mermaid stacks on
+        // top of the named theme) so the slices and legend are legible.
+        // Don't be tempted to add other themeVariables here — passing a wider
+        // set silently disables the named theme's per-diagram styling under
+        // WKWebView (the bug shipped in 1.13).
+        // `edgeLabelBackground` is also overridden so flowchart edge labels
+        // (`Yes`/`No`) sit on the document background instead of Mermaid's
+        // default gray box, which looks pasted-on against our near-black page.
+        const themeVars = dark ? {
+            edgeLabelBackground: '#0d1117',
+            pie1: '#58a6ff', pie2: '#f59e0b', pie3: '#34d399',
+            pie4: '#a78bfa', pie5: '#f87171',
+            pieTitleTextColor: '#e6edf3',
+            pieSectionTextColor: '#0d1117',
+            pieLegendTextColor: '#e6edf3',
+            pieStrokeColor: '#0d1117',
+            pieOuterStrokeColor: '#3d444d',
+            pieOpacity: '1'
+        } : {
+            edgeLabelBackground: '#fdfdfc',
+            pie1: '#0969da', pie2: '#f59e0b', pie3: '#10b981',
+            pie4: '#8b5cf6', pie5: '#ef4444',
+            pieTitleTextColor: '#1f2328',
+            pieSectionTextColor: '#ffffff',
+            pieLegendTextColor: '#1f2328',
+            pieStrokeColor: '#ffffff',
+            pieOuterStrokeColor: '#d0d7de',
+            pieOpacity: '1'
+        };
         mermaid.initialize({
             startOnLoad: true,
-            theme: 'base',
-            themeVariables: dark ? {
-                darkMode: true,
-                background: '#0d1117',
-                primaryColor: '#161b22',
-                primaryBorderColor: '#3d444d',
-                primaryTextColor: '#e6edf3',
-                lineColor: '#8b949e',
-                textColor: '#e6edf3',
-                edgeLabelBackground: '#0d1117',
-                actorBkg: '#21262d',
-                actorTextColor: '#e6edf3',
-                actorBorder: '#3d444d',
-                actorLineColor: '#3d444d',
-                signalColor: '#e6edf3',
-                signalTextColor: '#e6edf3',
-                noteBkgColor: '#3d2f00',
-                noteTextColor: '#e6edf3',
-                noteBorderColor: '#d4a72c',
-                labelTextColor: '#e6edf3',
-                pie1: '#58a6ff', pie2: '#f59e0b', pie3: '#34d399', pie4: '#a78bfa', pie5: '#f87171',
-                pieTitleTextColor: '#e6edf3',
-                pieSectionTextColor: '#0d1117',
-                pieLegendTextColor: '#e6edf3',
-                pieOuterStrokeColor: '#3d444d',
-                pieOpacity: '1'
-            } : {
-                background: '#fdfdfc',
-                primaryColor: '#f6f8fa',
-                primaryBorderColor: '#d0d7de',
-                primaryTextColor: '#1f2328',
-                lineColor: '#6e7681',
-                textColor: '#1f2328',
-                edgeLabelBackground: '#fdfdfc',
-                actorBkg: '#f6f8fa',
-                actorTextColor: '#1f2328',
-                actorBorder: '#d0d7de',
-                actorLineColor: '#d0d7de',
-                signalColor: '#1f2328',
-                signalTextColor: '#1f2328',
-                noteBkgColor: '#fff8c5',
-                noteTextColor: '#1f2328',
-                noteBorderColor: '#d4a72c',
-                labelTextColor: '#1f2328',
-                pie1: '#0969da', pie2: '#f59e0b', pie3: '#10b981', pie4: '#8b5cf6', pie5: '#ef4444',
-                pieTitleTextColor: '#1f2328',
-                pieSectionTextColor: '#ffffff',
-                pieLegendTextColor: '#1f2328',
-                pieOuterStrokeColor: '#d0d7de',
-                pieOpacity: '1'
-            },
+            theme: dark ? 'dark' : 'default',
+            themeVariables: themeVars,
             securityLevel: 'strict'
         });
         </script>

@@ -637,4 +637,30 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(html.contains("<em>"))
         XCTAssertTrue(html.contains("snake_case"))
     }
+
+    // MARK: - HTML Template integration (Mermaid theming, 1.14)
+
+    /// The Mermaid-bearing HTML must carry `data-rd-theme` so the JS init script
+    /// can resolve the theme deterministically. Verifies the Swift→HTML→JS
+    /// pipeline emits both halves correctly.
+    func testMermaidHTMLCarriesThemeAttribute() {
+        let md = """
+        # x
+
+        ```mermaid
+        flowchart TD
+          A[Start] --> B[End]
+        ```
+        """
+        let renderResult = MarkdownRenderer.render(md)
+        XCTAssertTrue(renderResult.hasMermaid)
+
+        let darkHTML = HTMLTemplate.wrap(body: renderResult.html, hasMermaid: true, isDark: true)
+        XCTAssertTrue(darkHTML.contains("data-rd-theme=\"dark\""))
+        XCTAssertTrue(darkHTML.contains("dataset.rdTheme"))
+        XCTAssertTrue(darkHTML.contains("dark ? 'dark' : 'default'"))
+
+        let lightHTML = HTMLTemplate.wrap(body: renderResult.html, hasMermaid: true, isDark: false)
+        XCTAssertTrue(lightHTML.contains("data-rd-theme=\"light\""))
+    }
 }
