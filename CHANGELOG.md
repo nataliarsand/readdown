@@ -10,6 +10,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 - Heading anchor links (`#section`) inside a document scroll to the target instead of being silently cancelled
 - Underscores inside words (`snake_case`, `lots_of_underscores`) are no longer mistaken for italic/bold delimiters
 - Mermaid diagrams in dark mode are legible again — every text label now picks up the dark theme
+- Readdown no longer hangs at launch when the previous session's documents have moved or been deleted
 
 ### Details
 
@@ -20,6 +21,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 - Clicking a heading anchor link inside an open document now scrolls to the heading instead of being cancelled. The same-document check has been relaxed to tolerate the two real shapes the loader produces (an `about:blank` page URL for untitled docs and a trailing-slash mismatch for saved docs) while still routing external links with fragments to the system browser.
 - Intra-word underscores stay literal. The underscore emphasis patterns now require word-boundary flanking (CommonMark §6.2), so `snake_case` identifiers, `lots_of_underscores_in_names`, and `some__double__underscores` render as plain text instead of italicising or bolding fragments of the word. Asterisk emphasis (`*italic*`, `**bold**`) is unchanged.
 - Mermaid diagrams render correctly in dark mode. The previous detection (`window.matchMedia('(prefers-color-scheme: dark)')`) can return the wrong answer inside WKWebView — leaving every Mermaid diagram in its light palette on a dark page (invisible edge labels, dark-on-dark sequence messages, dark-on-dark pie chart legends). A luminance-based fallback now also checks the page's resolved background colour, so dark mode is reliably detected on screen.
+- Readdown no longer hangs at launch when the previous session's saved documents have been moved or deleted (e.g. after a force-quit, sudden power off, or Time Machine restore). Two restoration mechanisms — Readdown's own and AppKit's automatic one — had been racing at launch; AppKit's path has no file-existence guard, so a stale doc reference could deadlock the app indefinitely. AppKit's redundant path is now disabled.
 
 **Thanks**
 
