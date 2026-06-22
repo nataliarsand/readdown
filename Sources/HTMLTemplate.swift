@@ -144,6 +144,64 @@ enum HTMLTemplate {
             font-size: 100%;
         }
 
+        /* Copy button. Lives on a non-scrolling wrapper so it stays pinned to the
+           top-right while the <pre> scrolls horizontally underneath it. Hidden by
+           default, revealed on hover/focus — keeps the reading view quiet and means
+           it never shows up in printed or exported output (no hover at render time). */
+        .rd-codeblock {
+            position: relative;
+        }
+
+        .rd-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            color: var(--muted);
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: default;
+            opacity: 0;
+            transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .rd-codeblock:hover .rd-copy-btn,
+        .rd-copy-btn:focus-visible {
+            opacity: 1;
+        }
+
+        .rd-copy-btn:hover {
+            color: var(--text);
+            border-color: var(--muted);
+        }
+
+        .rd-copy-btn.rd-copied {
+            opacity: 1;
+            color: #1a7f37;
+            border-color: #1a7f37;
+        }
+
+        @media screen and (prefers-color-scheme: dark) {
+            .rd-copy-btn.rd-copied {
+                color: #3fb950;
+                border-color: #3fb950;
+            }
+        }
+
+        .rd-copy-btn svg {
+            display: block;
+            width: 16px;
+            height: 16px;
+        }
+
         blockquote {
             margin: 0 0 1em 0;
             padding: 0 1em;
@@ -306,6 +364,7 @@ enum HTMLTemplate {
             }
             pre, blockquote, table, img { page-break-inside: avoid; }
             h1, h2, h3, h4 { page-break-after: avoid; }
+            .rd-copy-btn { display: none; }
         }
         </style>
         </head>
@@ -319,6 +378,77 @@ enum HTMLTemplate {
             'swift', 'typescript', 'xml', 'yaml'
         ]});
         hljs.highlightAll();
+        </script>
+        <script>
+        // Copy button for fenced code blocks (ChatGPT-style). Wraps each
+        // <pre><code> in a positioned container and pins a button to the
+        // top-right. Runs after highlightAll so the highlighted DOM is final;
+        // Mermaid blocks are <pre class="mermaid"> with no <code> child, so the
+        // `pre > code` selector skips them.
+        (function() {
+            const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+            const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+            function legacyCopy(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.top = '0';
+                ta.style.left = '0';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                document.body.removeChild(ta);
+                return ok;
+            }
+
+            function showCopied(btn) {
+                btn.classList.add('rd-copied');
+                btn.innerHTML = CHECK_ICON;
+                btn.setAttribute('aria-label', 'Copied');
+                clearTimeout(btn._rdTimer);
+                btn._rdTimer = setTimeout(function() {
+                    btn.classList.remove('rd-copied');
+                    btn.innerHTML = COPY_ICON;
+                    btn.setAttribute('aria-label', 'Copy code');
+                }, 1600);
+            }
+
+            function copyCode(code, btn) {
+                // textContent gives the exact source (newlines preserved, HTML
+                // entities and highlight.js token spans resolved back to plain text).
+                const text = code.textContent;
+                // Prefer the async Clipboard API; fall back to execCommand, which is
+                // the reliable path inside WKWebView's loadHTMLString context.
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(
+                        function() { showCopied(btn); },
+                        function() { if (legacyCopy(text)) showCopied(btn); }
+                    );
+                } else if (legacyCopy(text)) {
+                    showCopied(btn);
+                }
+            }
+
+            document.querySelectorAll('pre > code').forEach(function(code) {
+                const pre = code.parentElement;
+                const wrap = document.createElement('div');
+                wrap.className = 'rd-codeblock';
+                pre.parentNode.insertBefore(wrap, pre);
+                wrap.appendChild(pre);
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'rd-copy-btn';
+                btn.setAttribute('aria-label', 'Copy code');
+                btn.innerHTML = COPY_ICON;
+                btn.addEventListener('click', function() { copyCode(code, btn); });
+                wrap.appendChild(btn);
+            });
+        })();
         </script>
         <script>
         (function() {
