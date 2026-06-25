@@ -29,6 +29,15 @@ private let boldItalicUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p
 private let boldUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])__(.+?)__(?![\\p{L}\\p{N}_])", options: .dotMatchesLineSeparators)
 private let italicUnderPattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}_])_(.+?)_(?![\\p{L}\\p{N}_])", options: .dotMatchesLineSeparators)
 private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~", options: .dotMatchesLineSeparators)
+// Inline TeX math. `$…$` requires non-space flanking and a non-digit after the
+// closing `$`, so prose like "it cost $5 and $7 today" isn't mis-parsed as a
+// math span. `\(…\)` is the unambiguous LaTeX inline delimiter. Display math
+// (`$$…$$`, `\[…\]`) is block-level and handled directly in `render`. The raw
+// TeX is stashed verbatim and emitted into `<span class="rd-math …">` elements
+// that the bundled MathJax turns into SVG in the WebView — so no later inline
+// pass (escape, emphasis, link, …) can corrupt the source.
+private let inlineMathDollarPattern = try! NSRegularExpression(pattern: "(?<![\\\\$])\\$(?=\\S)([^\\n$]*?[^\\s$])\\$(?![0-9$])")
+private let inlineMathParenPattern = try! NSRegularExpression(pattern: "\\\\\\((.+?)\\\\\\)")
 private let htmlTagPattern = try! NSRegularExpression(pattern: "<!--[\\s\\S]*?-->|</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
 private let dangerousAttrPattern = try! NSRegularExpression(pattern: "\\s+(?:on\\w+|srcdoc|formaction)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)", options: .caseInsensitive)
 private let htmlEntityPattern = try! NSRegularExpression(pattern: "&(?:[a-zA-Z][a-zA-Z0-9]{0,31}|#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6});")
@@ -45,6 +54,7 @@ enum MarkdownRenderer {
 
     struct Result {
         let html: String
+        let hasMath: Bool
         let hasMermaid: Bool
     }
 
@@ -90,6 +100,14 @@ enum MarkdownRenderer {
                     let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
                     html.append("<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>")
                 }
+                continue
+            }
+
+            // Display math block — `$$ … $$` or `\[ … \]`, single- or multi-line.
+            // Checked after fenced code (so a code block containing `$$` stays
+            // literal) and before the paragraph collector.
+            if let mathHTML = parseDisplayMath(&i, lines: lines) {
+                if !mathHTML.isEmpty { html.append(mathHTML) }
                 continue
             }
 
@@ -224,6 +242,7 @@ enum MarkdownRenderer {
                 let t = l.trimmingCharacters(in: .whitespaces)
                 if t.isEmpty || l.matchesPattern(headingPattern) || l.hasPrefix(">")
                     || t.hasPrefix("```") || t.hasPrefix("~~~")
+                    || t.hasPrefix("$$") || t.hasPrefix("\\[")
                     || l.matchesPattern(ulPattern) || l.matchesPattern(olPattern)
                     || isHTMLBlockStart(l) {
                     break
@@ -251,7 +270,13 @@ enum MarkdownRenderer {
             }
         }
 
-        return Result(html: html.joined(separator: "\n"), hasMermaid: hasMermaid)
+        let joined = html.joined(separator: "\n")
+        // Inline math is stashed deep inside `inlineMarkdown` (which only returns a
+        // String), and display math nested in blockquotes bubbles up through the
+        // recursive `render`. Scanning the assembled HTML for the `rd-math` marker
+        // catches both without threading a flag through every call site.
+        let hasMath = joined.contains("class=\"rd-math")
+        return Result(html: joined, hasMath: hasMath, hasMermaid: hasMermaid)
     }
 
     // MARK: - Inline Markdown
@@ -314,6 +339,20 @@ enum MarkdownRenderer {
             return "\u{E000}\(codeSpans.count - 1)\u{E001}"
         }
 
+        // Inline math — stashed before every other inline pass so emphasis,
+        // escaping, and link parsing can't reach into the TeX source. Code spans
+        // are already removed above, so `` `$x$` `` stays literal code. `\$` is an
+        // escaped literal dollar and must never open a math span, so park it
+        // first and restore it at the very end. `\(…\)` is tried before `$…$`.
+        s = s.replacingOccurrences(of: "\\$", with: "\u{E004}")
+        var mathSpans: [String] = []
+        func stashMath(_ tex: String) -> String {
+            mathSpans.append("<span class=\"rd-math rd-math-inline\">\(escapeHTML(tex))</span>")
+            return "\u{E002}\(mathSpans.count - 1)\u{E003}"
+        }
+        s = s.replacing(inlineMathParenPattern) { stashMath($0[1]) }
+        s = s.replacing(inlineMathDollarPattern) { stashMath($0[1]) }
+
         // Autolinks: <https://…> and <user@example.com>. Rewrite to <a> tags before escaping
         // so the rest of the pipeline treats them like any other HTML link.
         s = s.replacing(autolinkURLPattern) { match in
@@ -373,6 +412,13 @@ enum MarkdownRenderer {
         // CommonMark: two trailing spaces + newline = hard break. Bare newline = soft break (space) so text reflows.
         s = s.replacingOccurrences(of: "  \n", with: "<br>")
         s = s.replacingOccurrences(of: "\n", with: " ")
+
+        // Restore math spans (raw TeX wrapped for MathJax) and the escaped-dollar
+        // placeholder, then code spans — all after the delimiter-based passes.
+        for (idx, span) in mathSpans.enumerated() {
+            s = s.replacingOccurrences(of: "\u{E002}\(idx)\u{E003}", with: span)
+        }
+        s = s.replacingOccurrences(of: "\u{E004}", with: "$")
 
         // Restore code spans now that all delimiter-based passes are done.
         for (idx, span) in codeSpans.enumerated() {
@@ -523,6 +569,46 @@ enum MarkdownRenderer {
     }
 
     // MARK: - Block Helpers
+
+    /// Parses a display-math block opening at `lines[i]` (`$$ … $$` or `\[ … \]`),
+    /// advancing `i` past it. Returns the rendered `<div>` (raw TeX inside, for the
+    /// bundled MathJax to typeset), `""` for an empty block, or `nil` when the line
+    /// doesn't open display math — in which case `i` is left untouched so the caller
+    /// can keep trying other block types. An unterminated block consumes to EOF
+    /// rather than hanging.
+    private static func parseDisplayMath(_ i: inout Int, lines: [String]) -> String? {
+        let trimmed = lines[i].trimmingCharacters(in: .whitespaces)
+        let isDollar = trimmed.hasPrefix("$$")
+        let isBracket = trimmed.hasPrefix("\\[")
+        guard isDollar || isBracket else { return nil }
+        let closeTok = isDollar ? "$$" : "\\]"
+
+        let rest = String(trimmed.dropFirst(2))
+
+        // Single-line form: opener and closer on the same line, e.g. `$$x^2$$`.
+        if let r = rest.range(of: closeTok) {
+            i += 1
+            let tex = String(rest[..<r.lowerBound]).trimmingCharacters(in: .whitespaces)
+            return tex.isEmpty ? "" : "<div class=\"rd-math rd-math-display\">\(escapeHTML(tex))</div>"
+        }
+
+        // Multi-line form: collect until a line containing the closer.
+        var content: [String] = []
+        if !rest.trimmingCharacters(in: .whitespaces).isEmpty { content.append(rest) }
+        i += 1
+        while i < lines.count {
+            if let r = lines[i].range(of: closeTok) {
+                let before = String(lines[i][..<r.lowerBound])
+                if !before.trimmingCharacters(in: .whitespaces).isEmpty { content.append(before) }
+                i += 1
+                break
+            }
+            content.append(lines[i])
+            i += 1
+        }
+        let tex = content.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return tex.isEmpty ? "" : "<div class=\"rd-math rd-math-display\">\(escapeHTML(tex))</div>"
+    }
 
     private static func isHorizontalRule(_ trimmed: String) -> Bool {
         guard trimmed.count >= 3 else { return false }
