@@ -473,6 +473,107 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.hasMermaid)
     }
 
+    // MARK: - Math (TeX)
+
+    func testInlineDollarMath() {
+        let result = MarkdownRenderer.render("Euler: $e^{i\\pi}+1=0$ done")
+        XCTAssertTrue(result.html.contains("<span class=\"rd-math rd-math-inline\">e^{i\\pi}+1=0</span>"))
+        XCTAssertTrue(result.hasMath)
+        XCTAssertFalse(result.hasMermaid)
+    }
+
+    func testInlineParenMath() {
+        let result = MarkdownRenderer.render("Inline \\(x^2\\) here")
+        XCTAssertTrue(result.html.contains("<span class=\"rd-math rd-math-inline\">x^2</span>"))
+        XCTAssertTrue(result.hasMath)
+    }
+
+    func testDisplayDollarMathSingleLine() {
+        let result = MarkdownRenderer.render("$$\\int_0^1 x\\,dx$$")
+        XCTAssertTrue(result.html.contains("<div class=\"rd-math rd-math-display\">\\int_0^1 x\\,dx</div>"))
+        XCTAssertTrue(result.hasMath)
+    }
+
+    func testDisplayMathMultiLine() {
+        let result = MarkdownRenderer.render("$$\nx = y\n+ z\n$$").html
+        XCTAssertTrue(result.contains("<div class=\"rd-math rd-math-display\">x = y\n+ z</div>"))
+    }
+
+    func testDisplayBracketMath() {
+        let result = MarkdownRenderer.render("\\[ a^2 + b^2 \\]").html
+        XCTAssertTrue(result.contains("<div class=\"rd-math rd-math-display\">a^2 + b^2</div>"))
+    }
+
+    /// Markdown delimiters inside math are part of the TeX, not formatting — the
+    /// span is stashed before any emphasis/escape pass runs.
+    func testMathProtectedFromInlineMarkdown() {
+        let underscores = MarkdownRenderer.render("$a_i + b_j$").html
+        XCTAssertTrue(underscores.contains("a_i + b_j"))
+        XCTAssertFalse(underscores.contains("<em>"))
+
+        let stars = MarkdownRenderer.render("$a * b * c$").html
+        XCTAssertTrue(stars.contains("<span class=\"rd-math rd-math-inline\">a * b * c</span>"))
+        XCTAssertFalse(stars.contains("<strong>"))
+        XCTAssertFalse(stars.contains("<em>"))
+    }
+
+    /// `<`, `>`, `&` in TeX are HTML-escaped so the markup is valid; the browser
+    /// decodes them back via `textContent` before MathJax parses the source.
+    func testMathHTMLEscaped() {
+        let result = MarkdownRenderer.render("$a < b & c$").html
+        XCTAssertTrue(result.contains("a &lt; b &amp; c"))
+        XCTAssertFalse(result.contains("a < b"))
+    }
+
+    /// A code span wins over math: `` `$x$` `` is literal code, not an equation.
+    func testCodeSpanBeatsMath() {
+        let result = MarkdownRenderer.render("Use `$x$` in code")
+        XCTAssertTrue(result.html.contains("<code>$x$</code>"))
+        XCTAssertFalse(result.hasMath)
+    }
+
+    /// A fenced code block containing `$$` stays literal — fences are matched
+    /// before the display-math block.
+    func testFenceBeatsDisplayMath() {
+        let result = MarkdownRenderer.render("```\n$$not math$$\n```")
+        XCTAssertTrue(result.html.contains("<pre><code>"))
+        XCTAssertTrue(result.html.contains("$$not math$$"))
+        XCTAssertFalse(result.hasMath)
+    }
+
+    /// Dollar amounts in prose must not be parsed as inline math.
+    func testDollarAmountsAreNotMath() {
+        let result = MarkdownRenderer.render("It cost $5 and then $10 total")
+        XCTAssertFalse(result.hasMath)
+        XCTAssertFalse(result.html.contains("rd-math"))
+    }
+
+    /// `\$` is an escaped literal dollar and never opens a math span.
+    func testEscapedDollarIsLiteral() {
+        let result = MarkdownRenderer.render("Price is \\$5 today")
+        XCTAssertTrue(result.html.contains("Price is $5 today"))
+        XCTAssertFalse(result.hasMath)
+    }
+
+    /// A display block immediately after a paragraph (no blank line) still splits
+    /// off instead of being absorbed as prose.
+    func testDisplayMathSplitsFromParagraph() {
+        let result = MarkdownRenderer.render("Some text\n$$x^2$$").html
+        XCTAssertTrue(result.contains("<p>Some text</p>"))
+        XCTAssertTrue(result.contains("rd-math-display"))
+    }
+
+    /// Math nested in a blockquote bubbles `hasMath` up through the recursive render.
+    func testMathInBlockquoteSetsHasMath() {
+        let result = MarkdownRenderer.render("> Euler $e^{i\\pi}=-1$")
+        XCTAssertTrue(result.hasMath)
+        XCTAssertTrue(result.html.contains("rd-math-inline"))
+    }
+
+    func testNoMathFlagForPlainText() {
+        XCTAssertFalse(MarkdownRenderer.render("just regular **prose** here").hasMath)
+    }
+
     // MARK: - Tilde Fences
 
     func testTildeFenceWithLanguage() {

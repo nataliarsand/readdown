@@ -27,4 +27,25 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(result.contains("task-list"))
         XCTAssertTrue(result.contains("task-item"))
     }
+
+    func testInjectsMathJaxWhenHasMath() {
+        let result = HTMLTemplate.wrap(
+            body: "<span class=\"rd-math rd-math-inline\">x^2</span>", hasMath: true)
+        // Config emitted before the bundle, plus our explicit conversion call.
+        XCTAssertTrue(result.contains("window.MathJax = {"))
+        XCTAssertTrue(result.contains("MathJax.tex2svg("))
+        XCTAssertTrue(result.contains("enableAssistiveMml: false"))
+        XCTAssertTrue(result.contains("enableMenu: false"))
+    }
+
+    func testNoMathJaxWhenNoMath() {
+        let result = HTMLTemplate.wrap(body: "<p>no math here</p>", hasMath: false)
+        XCTAssertFalse(result.contains("window.MathJax"))
+        XCTAssertFalse(result.contains("MathJax.tex2svg("))
+    }
+
+    func testMathStylesAlwaysPresent() {
+        let result = HTMLTemplate.wrap(body: "")
+        XCTAssertTrue(result.contains("rd-math-display"))
+    }
 }
