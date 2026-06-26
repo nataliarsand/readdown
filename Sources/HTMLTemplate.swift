@@ -279,6 +279,17 @@ enum HTMLTemplate {
         .rd-math-inline mjx-container { display: inline-block; }
         mjx-container[display="true"] { margin: 0 !important; }
         mjx-container svg { max-width: 100%; }
+        /* MathJax injects an assistive MathML copy for screen readers. Its own
+           hiding stylesheet is injected dynamically and races with WKWebView's
+           layout — the MathML text flashes or stays visible. Force-hide it here
+           so the SVG rendering is the only visible output. */
+        mjx-assistive-mml {
+            position: absolute !important;
+            clip: rect(1px, 1px, 1px, 1px) !important;
+            height: 1px !important;
+            width: 1px !important;
+            overflow: hidden !important;
+        }
         .rd-math-error {
             color: #cf222e;
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
