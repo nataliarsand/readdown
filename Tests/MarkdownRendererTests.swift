@@ -548,6 +548,13 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.html.contains("rd-math"))
     }
 
+    /// `$5:$x$` must not parse `$5:` as a math span — a digit immediately after
+    /// the opening `$` signals currency, not TeX.
+    func testDollarBeforeDigitIsNotMath() {
+        let result = MarkdownRenderer.render("It cost $5:$x$ is odd notation")
+        XCTAssertFalse(result.html.contains(">5:<"))
+    }
+
     /// `\$` is an escaped literal dollar and never opens a math span.
     func testEscapedDollarIsLiteral() {
         let result = MarkdownRenderer.render("Price is \\$5 today")

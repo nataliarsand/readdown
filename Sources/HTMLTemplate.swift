@@ -279,10 +279,10 @@ enum HTMLTemplate {
         .rd-math-inline mjx-container { display: inline-block; }
         mjx-container[display="true"] { margin: 0 !important; }
         mjx-container svg { max-width: 100%; }
-        /* MathJax injects an assistive MathML copy for screen readers. Its own
-           hiding stylesheet is injected dynamically and races with WKWebView's
-           layout — the MathML text flashes or stays visible. Force-hide it here
-           so the SVG rendering is the only visible output. */
+        /* Belt-and-braces for WKWebView: even with enableAssistiveMml:false,
+           MathJax's dynamic stylesheet injection can race with layout and leave
+           the assistive MathML text visible. Unconditionally hide the element so
+           only the SVG output is shown. See enableAssistiveMml comment above. */
         mjx-assistive-mml {
             position: absolute !important;
             clip: rect(1px, 1px, 1px, 1px) !important;
@@ -454,10 +454,12 @@ enum HTMLTemplate {
         // Configure MathJax before its bundle loads. `typeset: false` — we never
         // scan the document; we convert only the `.rd-math` elements the renderer
         // emitted. That means stray `$` in prose can't become math and `<pre>`/
-        // `<code>` are left alone. Menu and assistive-MML are disabled: both would
-        // try to lazy-load extra components from a CDN (blocked by this page's
-        // `connect-src 'none'`), and the hidden MathML assistive-MML injects would
-        // otherwise pollute the in-document find with invisible, matchable text.
+        // `<code>` are left alone. enableMenu is off: it tries to lazy-load from
+        // a CDN (blocked by `connect-src 'none'`). enableAssistiveMml is off:
+        // the hidden MathML copy it injects would pollute in-document find with
+        // invisible, matchable text in WKWebView. The SVG output already carries
+        // accessible text via <title> elements for VoiceOver; a web-browser
+        // deployment where AT reads hidden MathML would want this re-enabled.
         window.MathJax = {
             svg: { fontCache: 'local' },
             options: { enableMenu: false, enableAssistiveMml: false },

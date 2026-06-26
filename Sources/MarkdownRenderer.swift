@@ -36,7 +36,7 @@ private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~", optio
 // TeX is stashed verbatim and emitted into `<span class="rd-math …">` elements
 // that the bundled MathJax turns into SVG in the WebView — so no later inline
 // pass (escape, emphasis, link, …) can corrupt the source.
-private let inlineMathDollarPattern = try! NSRegularExpression(pattern: "(?<![\\\\$])\\$(?=\\S)([^\\n$]*?[^\\s$])\\$(?![0-9$])")
+private let inlineMathDollarPattern = try! NSRegularExpression(pattern: "(?<![\\\\$])\\$(?!\\d)(?=\\S)([^\\n$]*?[^\\s$])\\$(?![0-9$])")
 private let inlineMathParenPattern = try! NSRegularExpression(pattern: "\\\\\\((.+?)\\\\\\)")
 private let htmlTagPattern = try! NSRegularExpression(pattern: "<!--[\\s\\S]*?-->|</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
 private let dangerousAttrPattern = try! NSRegularExpression(pattern: "\\s+(?:on\\w+|srcdoc|formaction)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)", options: .caseInsensitive)
