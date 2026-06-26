@@ -13,26 +13,26 @@
 		A100000000000000000004 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000004 /* WebView.swift */; };
 		A100000000000000000005 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000005 /* MarkdownRenderer.swift */; };
 		A100000000000000000006 /* HTMLTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000006 /* HTMLTemplate.swift */; };
-		A100000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000009 /* Assets.xcassets */; };
 		A10000000000000000000A /* TextFileDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000A /* TextFileDecoder.swift */; };
 		A10000000000000000000B /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000B /* WelcomeView.swift */; };
 		A10000000000000000000C /* SyntaxHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C /* SyntaxHighlight.swift */; };
-		A10000000000000000000D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P200000000000000000001 /* Sparkle */; };
-		A10000000000000000000E /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
 		A10000000000000000000F /* DocumentWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000F /* DocumentWatcher.swift */; };
-		A100000000000000000101 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000101 /* mathjax.min.js */; };
+		A200000000000000000007 /* SyntaxHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C /* SyntaxHighlight.swift */; };
+		A100000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000009 /* Assets.xcassets */; };
 		A200000000000000000001 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000000000000000001 /* PreviewViewController.swift */; };
 		A200000000000000000002 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000005 /* MarkdownRenderer.swift */; };
 		A200000000000000000003 /* HTMLTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000006 /* HTMLTemplate.swift */; };
 		A200000000000000000004 /* ReadDownQuickLook.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D200000000000000000001 /* ReadDownQuickLook.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A200000000000000000005 /* TextFileDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000A /* TextFileDecoder.swift */; };
 		A200000000000000000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000009 /* Assets.xcassets */; };
-		A200000000000000000007 /* SyntaxHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C /* SyntaxHighlight.swift */; };
-		A200000000000000000008 /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
-		A200000000000000000101 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000101 /* mathjax.min.js */; };
 		A300000000000000000001 /* MarkdownRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000001 /* MarkdownRendererTests.swift */; };
 		A300000000000000000002 /* TextFileDecoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000002 /* TextFileDecoderTests.swift */; };
 		A300000000000000000003 /* HTMLTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000003 /* HTMLTemplateTests.swift */; };
+		A10000000000000000000D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P200000000000000000001 /* Sparkle */; };
+		A10000000000000000000E /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
+		A200000000000000000008 /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
+		A100000000000000000101 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000101 /* mathjax.min.js */; };
+		A200000000000000000101 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000101 /* mathjax.min.js */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,24 +73,24 @@
 		B100000000000000000004 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		B100000000000000000005 /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
 		B100000000000000000006 /* HTMLTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLTemplate.swift; sourceTree = "<group>"; };
-		B100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B100000000000000000008 /* ReadDown.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDown.entitlements; sourceTree = "<group>"; };
-		B100000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10000000000000000000A /* TextFileDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFileDecoder.swift; sourceTree = "<group>"; };
 		B10000000000000000000B /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		B10000000000000000000C /* SyntaxHighlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntaxHighlight.swift; sourceTree = "<group>"; };
-		B10000000000000000000D /* mermaid.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = mermaid.min.js; sourceTree = "<group>"; };
 		B10000000000000000000F /* DocumentWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWatcher.swift; sourceTree = "<group>"; };
+		B100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B100000000000000000008 /* ReadDown.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDown.entitlements; sourceTree = "<group>"; };
+		B100000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B10000000000000000000D /* mermaid.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = mermaid.min.js; sourceTree = "<group>"; };
 		B100000000000000000101 /* mathjax.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = mathjax.min.js; sourceTree = "<group>"; };
 		B200000000000000000001 /* PreviewViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewController.swift; sourceTree = "<group>"; };
 		B200000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B200000000000000000003 /* ReadDownQuickLook.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDownQuickLook.entitlements; sourceTree = "<group>"; };
-		B300000000000000000001 /* MarkdownRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRendererTests.swift; sourceTree = "<group>"; };
-		B300000000000000000002 /* TextFileDecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFileDecoderTests.swift; sourceTree = "<group>"; };
-		B300000000000000000003 /* HTMLTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLTemplateTests.swift; sourceTree = "<group>"; };
 		D100000000000000000001 /* ReadDown.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ReadDown.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D200000000000000000001 /* ReadDownQuickLook.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ReadDownQuickLook.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D300000000000000000001 /* ReadDownTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReadDownTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B300000000000000000001 /* MarkdownRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRendererTests.swift; sourceTree = "<group>"; };
+		B300000000000000000002 /* TextFileDecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFileDecoderTests.swift; sourceTree = "<group>"; };
+		B300000000000000000003 /* HTMLTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLTemplateTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,7 +122,7 @@
 		C100000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				C100000000000000000002 /* Sources */,
+				C100000000000000000002 /* MarkdownViewer */,
 				C200000000000000000001 /* ReadDownQuickLook */,
 				C300000000000000000001 /* Tests */,
 				C100000000000000000003 /* Products */,
@@ -161,16 +161,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		C200000000000000000001 /* ReadDownQuickLook */ = {
-			isa = PBXGroup;
-			children = (
-				B200000000000000000001 /* PreviewViewController.swift */,
-				B200000000000000000002 /* Info.plist */,
-				B200000000000000000003 /* ReadDownQuickLook.entitlements */,
-			);
-			path = ReadDownQuickLook;
-			sourceTree = "<group>";
-		};
 		C300000000000000000001 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
@@ -179,6 +169,16 @@
 				B300000000000000000003 /* HTMLTemplateTests.swift */,
 			);
 			path = Tests;
+			sourceTree = "<group>";
+		};
+		C200000000000000000001 /* ReadDownQuickLook */ = {
+			isa = PBXGroup;
+			children = (
+				B200000000000000000001 /* PreviewViewController.swift */,
+				B200000000000000000002 /* Info.plist */,
+				B200000000000000000003 /* ReadDownQuickLook.entitlements */,
+			);
+			path = ReadDownQuickLook;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -307,21 +307,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		E100000000000000000005 /* Patch SDK Version */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/$(EXECUTABLE_PATH)",
-			);
-			name = "Patch SDK Version";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Main app keeps its native SDK 26.x stamp so AppKit applies macOS Tahoe\n# chrome (unified toolbar, larger corner radius). The QL extension has its\n# own patch step — it MUST stay SDK 15 so macOS 15 will load the extension.\n# Deployment target (MACOSX_DEPLOYMENT_TARGET) still gates which APIs are\n# available, so the main app continues to run on macOS 13+.\n\n# GENERATE_INFOPLIST_FILE overwrites CFBundleName with PRODUCT_NAME. Restore\n# the user-facing 'Readdown' so system dialogs (Set as Default, etc.) show it.\nPLIST=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleName Readdown\" \"$PLIST\" 2>/dev/null || true\n";
-		};
 		E200000000000000000005 /* Patch SDK Version */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -336,6 +321,21 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Xcode 26 beta stamps sdk 26.x into the binary, which crashes\n# ExtensionFoundation on macOS 15 (no Quick Look preview extension\n# point registered in ExtensionKit). Rewrite to sdk 15.0.\nBINARY=\"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}\"\nif vtool -show-build \"$BINARY\" 2>/dev/null | grep -q 'sdk 2[6-9]'; then\n  vtool -set-build-version macos \"${MACOSX_DEPLOYMENT_TARGET}\" 15.0 -replace -output \"${BINARY}.tmp\" \"$BINARY\"\n  mv \"${BINARY}.tmp\" \"$BINARY\"\nfi\n\n# GENERATE_INFOPLIST_FILE overwrites CFBundleName with PRODUCT_NAME. Restore\n# the user-facing 'Readdown' so system dialogs (Set as Default, etc.) show it.\nPLIST=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleName Readdown\" \"$PLIST\" 2>/dev/null || true\n";
+		};
+		E100000000000000000005 /* Patch SDK Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(EXECUTABLE_PATH)",
+			);
+			name = "Patch SDK Version";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Main app keeps its native SDK 26.x stamp so AppKit applies macOS Tahoe\n# chrome (unified toolbar, larger corner radius). The QL extension has its\n# own patch step — it MUST stay SDK 15 so macOS 15 will load the extension.\n# Deployment target (MACOSX_DEPLOYMENT_TARGET) still gates which APIs are\n# available, so the main app continues to run on macOS 13+.\n\n# GENERATE_INFOPLIST_FILE overwrites CFBundleName with PRODUCT_NAME. Restore\n# the user-facing 'Readdown' so system dialogs (Set as Default, etc.) show it.\nPLIST=\"${BUILT_PRODUCTS_DIR}/${INFOPLIST_PATH}\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleName Readdown\" \"$PLIST\" 2>/dev/null || true\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
