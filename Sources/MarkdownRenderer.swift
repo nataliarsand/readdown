@@ -242,7 +242,6 @@ enum MarkdownRenderer {
                 let t = l.trimmingCharacters(in: .whitespaces)
                 if t.isEmpty || l.matchesPattern(headingPattern) || l.hasPrefix(">")
                     || t.hasPrefix("```") || t.hasPrefix("~~~")
-                    || t.hasPrefix("$$") || t.hasPrefix("\\[")
                     || l.matchesPattern(ulPattern) || l.matchesPattern(olPattern)
                     || isHTMLBlockStart(l) {
                     break
@@ -592,9 +591,12 @@ enum MarkdownRenderer {
             return tex.isEmpty ? "" : "<div class=\"rd-math rd-math-display\">\(escapeHTML(tex))</div>"
         }
 
-        // Multi-line form: collect until a line containing the closer.
+        // Multi-line form: only enter when the opener line is blank after the
+        // delimiter — `$$x^2` (no closer on the same line) is prose, not math.
+        // This prevents `$$5 million` or `\[RFC 1234]` from eating subsequent
+        // lines as TeX content.
+        guard rest.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
         var content: [String] = []
-        if !rest.trimmingCharacters(in: .whitespaces).isEmpty { content.append(rest) }
         i += 1
         while i < lines.count {
             if let r = lines[i].range(of: closeTok) {

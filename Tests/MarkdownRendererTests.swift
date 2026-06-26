@@ -574,6 +574,25 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(MarkdownRenderer.render("just regular **prose** here").hasMath)
     }
 
+    /// A line beginning with `$$` but with no closing `$$` on the same line and
+    /// content after the opener must NOT be treated as display math — it's prose.
+    /// Regression test for the "$$5 million eats subsequent lines" bug.
+    func testDoubleDollarInProseIsNotDisplayMath() {
+        let result = MarkdownRenderer.render("Revenue was $$5 million\nNext line of prose")
+        XCTAssertFalse(result.hasMath)
+        XCTAssertTrue(result.html.contains("$$5 million"))
+        XCTAssertTrue(result.html.contains("Next line of prose"))
+    }
+
+    /// A line beginning with `\[` but with no `\]` on the same line must NOT
+    /// trigger a display-math block when the content looks like prose.
+    /// Regression test for the "\[RFC 1234] eats subsequent lines" bug.
+    func testBackslashBracketInProseIsNotDisplayMath() {
+        let result = MarkdownRenderer.render("See \\[RFC 1234] for details\nNext paragraph")
+        XCTAssertFalse(result.hasMath)
+        XCTAssertTrue(result.html.contains("Next paragraph"))
+    }
+
     // MARK: - Tilde Fences
 
     func testTildeFenceWithLanguage() {
