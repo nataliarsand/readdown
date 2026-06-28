@@ -31,6 +31,8 @@
 		A10000000000000000000D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P200000000000000000001 /* Sparkle */; };
 		A10000000000000000000E /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
 		A200000000000000000008 /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
+		A100000000000000000101 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000101 /* mathjax.min.js */; };
+		A200000000000000000101 /* mathjax.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000101 /* mathjax.min.js */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,6 +81,7 @@
 		B100000000000000000008 /* ReadDown.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDown.entitlements; sourceTree = "<group>"; };
 		B100000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10000000000000000000D /* mermaid.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = mermaid.min.js; sourceTree = "<group>"; };
+		B100000000000000000101 /* mathjax.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = mathjax.min.js; sourceTree = "<group>"; };
 		B200000000000000000001 /* PreviewViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewController.swift; sourceTree = "<group>"; };
 		B200000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B200000000000000000003 /* ReadDownQuickLook.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDownQuickLook.entitlements; sourceTree = "<group>"; };
@@ -140,6 +143,7 @@
 				B10000000000000000000C /* SyntaxHighlight.swift */,
 				B10000000000000000000F /* DocumentWatcher.swift */,
 				B10000000000000000000D /* mermaid.min.js */,
+				B100000000000000000101 /* mathjax.min.js */,
 				B100000000000000000007 /* Info.plist */,
 				B100000000000000000008 /* ReadDown.entitlements */,
 				B100000000000000000009 /* Assets.xcassets */,
@@ -286,6 +290,7 @@
 			files = (
 				A100000000000000000009 /* Assets.xcassets in Resources */,
 				A10000000000000000000E /* mermaid.min.js in Resources */,
+				A100000000000000000101 /* mathjax.min.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -295,6 +300,7 @@
 			files = (
 				A200000000000000000006 /* Assets.xcassets in Resources */,
 				A200000000000000000008 /* mermaid.min.js in Resources */,
+				A200000000000000000101 /* mathjax.min.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

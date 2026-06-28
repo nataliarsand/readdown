@@ -8,7 +8,17 @@ enum HTMLTemplate {
         return js
     }()
 
-    static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
+    // MathJax's `tex-svg-full` build: SVG output with all TeX extensions and the
+    // math fonts compiled in as vector paths. No web fonts and no network at all,
+    // so it renders under the page's strict CSP (`font-src 'none'`,
+    // `connect-src 'none'`) exactly like the bundled Mermaid.
+    private static let mathJaxJS: String? = {
+        guard let url = Bundle.main.url(forResource: "mathjax.min", withExtension: "js"),
+              let js = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        return js
+    }()
+
+    static func wrap(body: String, hasMermaid: Bool = false, hasMath: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
         let fontSize = compact ? "14px" : "16px"
         // Main app uses a `.unifiedCompact` toolbar (~38pt) with the WebView
         // extending behind it via `.ignoresSafeArea`. Top padding keeps the
@@ -254,6 +264,41 @@ enum HTMLTemplate {
             max-width: 100%;
             height: auto;
         }
+        /* Math (MathJax SVG). Display blocks center and scroll horizontally so a
+           wide equation never forces the page wider. MathJax SVG draws with
+           `currentColor`, so math inherits `--text` and adapts to dark mode for
+           free. Until MathJax runs, the raw TeX source shows as a graceful
+           fallback; `rd-math-error` styling marks anything that failed to parse. */
+        .rd-math-display {
+            display: block;
+            margin: 1.25em 0;
+            text-align: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        .rd-math-inline mjx-container { display: inline-block; }
+        mjx-container[display="true"] { margin: 0 !important; }
+        mjx-container svg { max-width: 100%; }
+        /* Belt-and-braces for WKWebView: even with enableAssistiveMml:false,
+           MathJax's dynamic stylesheet injection can race with layout and leave
+           the assistive MathML text visible. Unconditionally hide the element so
+           only the SVG output is shown. See enableAssistiveMml comment above. */
+        mjx-assistive-mml {
+            position: absolute !important;
+            clip: rect(1px, 1px, 1px, 1px) !important;
+            height: 1px !important;
+            width: 1px !important;
+            overflow: hidden !important;
+        }
+        .rd-math-error {
+            color: #cf222e;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.875em;
+            white-space: pre-wrap;
+        }
+        @media screen and (prefers-color-scheme: dark) {
+            .rd-math-error { color: #ff7b72; }
+        }
         /* Autohide scrollbar: invisible by default, fades in while scrolling.
            Thin Bear-style: ~6px visible thumb (10px track, 2px transparent border). */
         ::-webkit-scrollbar {
@@ -404,6 +449,44 @@ enum HTMLTemplate {
             }, { passive: true });
         })();
         </script>
+        \(hasMath && mathJaxJS != nil ? """
+        <script>
+        // Configure MathJax before its bundle loads. `typeset: false` — we never
+        // scan the document; we convert only the `.rd-math` elements the renderer
+        // emitted. That means stray `$` in prose can't become math and `<pre>`/
+        // `<code>` are left alone. enableMenu is off: it tries to lazy-load from
+        // a CDN (blocked by `connect-src 'none'`). enableAssistiveMml is off:
+        // the hidden MathML copy it injects would pollute in-document find with
+        // invisible, matchable text in WKWebView. The SVG output already carries
+        // accessible text via <title> elements for VoiceOver; a web-browser
+        // deployment where AT reads hidden MathML would want this re-enabled.
+        window.MathJax = {
+            svg: { fontCache: 'local' },
+            options: { enableMenu: false, enableAssistiveMml: false },
+            startup: { typeset: false }
+        };
+        </script>
+        <script>\(mathJaxJS!)</script>
+        <script>
+        MathJax.startup.promise.then(function() {
+            var nodes = document.querySelectorAll('.rd-math');
+            for (var i = 0; i < nodes.length; i++) {
+                var el = nodes[i];
+                var display = el.classList.contains('rd-math-display');
+                try {
+                    // textContent gives the raw TeX back (the browser decodes the
+                    // HTML-escaped `<`, `&`, … the renderer wrote).
+                    var out = MathJax.tex2svg(el.textContent, { display: display });
+                    while (el.firstChild) el.removeChild(el.firstChild);
+                    el.appendChild(out);
+                } catch (e) {
+                    // Leave the source text in place; just flag it.
+                    el.classList.add('rd-math-error');
+                }
+            }
+        });
+        </script>
+        """ : "")
         \(hasMermaid && mermaidJS != nil ? """
         <script>\(mermaidJS!)</script>
         <script>

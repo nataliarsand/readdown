@@ -20,7 +20,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     init(initialText: String, fileURL: URL?, isDark: Bool) {
         let result = MarkdownRenderer.render(initialText)
         self.isDark = isDark
-        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: isDark)
+        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
         self.fileURL = fileURL
         super.init()
         if fileURL != nil {
@@ -58,7 +58,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
 
         guard let text = decoded else { return }
         let result = MarkdownRenderer.render(text)
-        let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: isDark)
+        let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
         if next != html {
             html = next
         }
