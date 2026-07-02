@@ -5,6 +5,9 @@ import SwiftUI
 /// as one surface with the document.
 enum ReaderTheme {
     static let pageBackground = dynamic(light: (0xFC, 0xFC, 0xFB), dark: (0x0D, 0x11, 0x17))
+    /// Floating action pill — solid, slightly elevated above the page.
+    /// Dark value matches the dark `--code-bg` so it reads as an elevated surface.
+    static let pill = dynamic(light: (0xFF, 0xFF, 0xFF), dark: (0x16, 0x1B, 0x22))
 
     private static func dynamic(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
         NSColor(name: nil) { appearance in
@@ -48,8 +51,22 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            WebView(baseURL: baseURL, findState: findState, watcher: watcher)
-                .frame(minWidth: 500, minHeight: 400)
+            // WebView and header pills share one container that extends behind
+            // the title bar, so the pills ride in the title-bar row itself
+            // (ChatGPT/Craft-style floating header over the document).
+            ZStack(alignment: .top) {
+                WebView(baseURL: baseURL, findState: findState, watcher: watcher)
+                    .frame(minWidth: 500, minHeight: 400)
+                HStack(spacing: 0) {
+                    titlePill
+                    Spacer(minLength: 12)
+                    actionPill
+                }
+                // Leading padding clears the native traffic lights.
+                .padding(.top, 6)
+                .padding(.leading, 76)
+                .padding(.trailing, 12)
+            }
                 .ignoresSafeArea(.container, edges: .top)
                 .overlay(alignment: .bottomTrailing) {
                     if let pillText {
@@ -75,15 +92,6 @@ struct ContentView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .toolbar {
-            // On macOS 26 the group renders as a floating Liquid Glass capsule
-            // over the document (Craft-style); earlier systems draw bare icons.
-            ToolbarItemGroup(placement: .primaryAction) {
-                copyButton
-                searchButton
-                showInFinderButton
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: .findInDocument)) { _ in
             // Only the front-most document should respond. `window?.isKeyWindow` asks the window
             // itself instead of comparing object references against `NSApp.keyWindow`, which can
@@ -102,39 +110,46 @@ struct ContentView: View {
         }
     }
 
-    // Toolbar actions. `.help` sits on the Image, not the Button — tooltips on
-    // toolbar Buttons don't render. Accessibility labels keep VoiceOver from
-    // falling back to the SF Symbol names ("Copy", "Search", "Move").
-    private var copyButton: some View {
-        Button(action: copyMarkdown) {
-            Image(systemName: "doc.on.doc")
-                .help("Copy Markdown")
-        }
-        .accessibilityLabel("Copy Markdown")
+    /// Floating title pill: the document name in its own capsule, next to the
+    /// traffic lights. Replaces the system title, which is hidden — see
+    /// `configureWindowChrome`.
+    private var titlePill: some View {
+        Text(fileURL?.lastPathComponent ?? "Untitled")
+            .font(.system(size: 13, weight: .semibold))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .padding(.horizontal, 14)
+            .frame(height: 34)
+            .background(Color(nsColor: ReaderTheme.pill), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
+            .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
     }
 
-    private var searchButton: some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.15)) {
-                findState.isVisible = true
+    /// Floating action pill at the window's top-trailing corner, sitting in the
+    /// title-bar row over the document (Craft-style). Custom rather than a
+    /// SwiftUI `.toolbar` on purpose: toolbar items ship with the system glass
+    /// capsule, an opaque header band, and non-working tooltips.
+    private var actionPill: some View {
+        HStack(spacing: 2) {
+            PillIconButton(icon: "doc.on.doc", label: "Copy Markdown",
+                           tooltip: "Copy Markdown", action: copyMarkdown)
+            PillIconButton(icon: "magnifyingglass", label: "Find in Document",
+                           tooltip: "Find in Document (⌘F)") {
+                withAnimation(.easeOut(duration: 0.15)) {
+                    findState.isVisible = true
+                }
             }
-        } label: {
-            Image(systemName: "magnifyingglass")
-                .help("Find in Document (⌘F)")
+            PillIconButton(icon: "folder", label: "Show in Finder",
+                           tooltip: "Show in Finder (⇧⌘R)",
+                           disabled: fileURL == nil) {
+                guard let fileURL else { return }
+                NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+            }
         }
-        .accessibilityLabel("Find in Document")
-    }
-
-    private var showInFinderButton: some View {
-        Button {
-            guard let fileURL else { return }
-            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
-        } label: {
-            Image(systemName: "folder")
-                .help("Show in Finder (⇧⌘R)")
-        }
-        .accessibilityLabel("Show in Finder")
-        .disabled(fileURL == nil)
+        .padding(4)
+        .background(Color(nsColor: ReaderTheme.pill), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
     }
 
     /// Transient status pill at the card's bottom-trailing corner ("Updated", "Copied").
@@ -161,20 +176,20 @@ struct ContentView: View {
     }
 
     /// Configure the NSWindow for a Bear/Messages-style chrome:
-    /// - Content extends behind the toolbar via `.fullSizeContentView`; the
-    ///   toolbar icons float over it (Liquid Glass capsule on macOS 26).
-    /// - No hairline separator between the toolbar and the content.
-    /// - Window background uses `ReaderTheme.pageBackground` so the toolbar
+    /// - Content extends behind the title bar via `.fullSizeContentView`; the
+    ///   header is fully transparent (no material, no separator) and the
+    ///   custom action pill floats over the document in that row.
+    /// - Window background uses `ReaderTheme.pageBackground` so the header
     ///   area matches the document instead of the default system window gray.
-    /// - An `NSToolbar` is required so macOS Tahoe applies the larger window
-    ///   corner radius (Apple scales the radius to toolbar height; a window
-    ///   without a toolbar gets the smaller, title-bar-only radius). SwiftUI's
-    ///   `.toolbar` items normally install one; the empty fallback covers
-    ///   windows where that hasn't happened yet.
-    ///
-    /// We leave the system title visible — the macOS Document Title Menu (rename,
-    /// move to, duplicate) is bolted to it, and the dropdown disappears the moment
-    /// `titleVisibility = .hidden` is set.
+    /// - An empty `NSToolbar` is attached so macOS Tahoe applies the larger
+    ///   window corner radius (Apple scales the radius to toolbar height; a
+    ///   window without a toolbar gets the smaller, title-bar-only radius).
+    ///   It must stay empty — real toolbar items would bring back the system
+    ///   toolbar background band.
+    /// - The system title is hidden; the custom title pill shows the file name
+    ///   instead. This trades away the macOS Document Title Menu (rename, move
+    ///   to, duplicate), which is bolted to the system title — Show in Finder
+    ///   and the File menu cover those flows.
     private func configureWindowChrome(_ window: NSWindow) {
         if !window.styleMask.contains(.fullSizeContentView) {
             window.styleMask.insert(.fullSizeContentView)
@@ -184,10 +199,43 @@ struct ContentView: View {
         }
         // `.unifiedCompact` collapses title bar + toolbar into a single row
         // (title sits inline with traffic lights, like Messages). `.unified`
-        // is taller and looks asymmetric with only a few icon items.
+        // is taller and leaves an empty second row when the toolbar has no
+        // items, which looks asymmetric.
         window.toolbarStyle = .unifiedCompact
+        window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
+        window.titleVisibility = .hidden
         window.backgroundColor = ReaderTheme.pageBackground
+    }
+}
+
+/// Icon button inside the floating action pill: rounded hover highlight,
+/// tooltip, and an explicit VoiceOver label (SF Symbol names are not it).
+private struct PillIconButton: View {
+    let icon: String
+    let label: String
+    let tooltip: String
+    var disabled = false
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(disabled ? .tertiary : .secondary)
+                .frame(width: 30, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(hovered && !disabled ? 0.07 : 0))
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .onHover { hovered = $0 }
+        .help(tooltip)
+        .accessibilityLabel(label)
     }
 }
 
