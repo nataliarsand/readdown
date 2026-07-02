@@ -10,10 +10,10 @@ enum HTMLTemplate {
 
     static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
         let fontSize = compact ? "14px" : "16px"
-        // Main app uses a `.unifiedCompact` toolbar (~38pt) with the WebView
-        // extending behind it via `.ignoresSafeArea`. Top padding keeps the
-        // first heading clear of the toolbar. Quick Look has no toolbar.
-        let topPadding = compact ? "32px" : "40px"
+        // Main app shows the document in an inset card below the toolbar
+        // (see ContentView), so the page only needs its own breathing room.
+        // Quick Look fills its preview panel edge to edge.
+        let topPadding = compact ? "32px" : "28px"
         return """
         <!DOCTYPE html>
         <html>
@@ -24,7 +24,7 @@ enum HTMLTemplate {
         <style>
         :root {
             --text: #1f2328;            /* warmer than pure black, gentler on backlit screens */
-            --bg: #fdfdfc;              /* a hair off-white to reduce glare */
+            --bg: #fcfcfb;              /* a hair off-white to reduce glare; matches ReaderTheme.card */
             --muted: #57606a;           /* secondary text — blockquotes, h6, captions */
             --code-bg: #f6f8fa;
             --border: #d0d7de;
@@ -84,9 +84,8 @@ enum HTMLTemplate {
             margin: 1.6em 0 0.6em;
             font-weight: 600;
             line-height: 1.25;
-            /* When an anchor link scrolls to a heading, leave room for the
-               toolbar (which extends over the top of the content area). */
-            scroll-margin-top: 56px;
+            /* Breathing room above a heading when an anchor link scrolls to it. */
+            scroll-margin-top: 16px;
         }
         h1 { font-size: 1.95em; letter-spacing: -0.015em; }
         h2 { font-size: 1.56em; letter-spacing: -0.01em; }
@@ -448,7 +447,7 @@ enum HTMLTemplate {
             pieOuterStrokeColor: '#3d444d',
             pieOpacity: '1'
         } : {
-            edgeLabelBackground: '#fdfdfc',
+            edgeLabelBackground: '#fcfcfb',
             pie1: '#0969da', pie2: '#f59e0b', pie3: '#10b981',
             pie4: '#8b5cf6', pie5: '#ef4444',
             pieTitleTextColor: '#1f2328',

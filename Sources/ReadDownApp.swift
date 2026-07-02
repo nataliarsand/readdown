@@ -324,6 +324,12 @@ struct ReadDownApp: App {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(viewModel: appDelegate.checkForUpdatesViewModel)
             }
+            CommandGroup(after: .saveItem) {
+                Button("Show in Finder") {
+                    NotificationCenter.default.post(name: .showInFinder, object: nil)
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+            }
             CommandGroup(replacing: .printItem) {
                 Button("Export as PDF...") {
                     NotificationCenter.default.post(name: .exportPDF, object: nil)

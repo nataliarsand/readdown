@@ -8,6 +8,9 @@ import Foundation
 /// HTML is rendered synchronously in `init` so the first paint has no flash.
 final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     @Published private(set) var html: String
+    /// Latest raw markdown source — kept in sync with `html` so
+    /// "Copy Markdown" copies what's on disk, not the launch-time text.
+    @Published private(set) var text: String
     let fileURL: URL?
 
     var presentedItemURL: URL? { fileURL }
@@ -21,6 +24,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         let result = MarkdownRenderer.render(initialText)
         self.isDark = isDark
         self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: isDark)
+        self.text = initialText
         self.fileURL = fileURL
         super.init()
         if fileURL != nil {
@@ -60,6 +64,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         let result = MarkdownRenderer.render(text)
         let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: isDark)
         if next != html {
+            self.text = text
             html = next
         }
     }
