@@ -10,10 +10,10 @@ enum HTMLTemplate {
 
     static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
         let fontSize = compact ? "14px" : "16px"
-        // Main app shows the document in an inset card below the toolbar
-        // (see ContentView), so the page only needs its own breathing room.
-        // Quick Look fills its preview panel edge to edge.
-        let topPadding = compact ? "32px" : "28px"
+        // Main app uses a `.unifiedCompact` toolbar (~38pt) with the WebView
+        // extending behind it via `.ignoresSafeArea`. Top padding keeps the
+        // first heading clear of the toolbar. Quick Look has no toolbar.
+        let topPadding = compact ? "32px" : "40px"
         return """
         <!DOCTYPE html>
         <html>
@@ -84,8 +84,9 @@ enum HTMLTemplate {
             margin: 1.6em 0 0.6em;
             font-weight: 600;
             line-height: 1.25;
-            /* Breathing room above a heading when an anchor link scrolls to it. */
-            scroll-margin-top: 16px;
+            /* When an anchor link scrolls to a heading, leave room for the
+               toolbar (which extends over the top of the content area). */
+            scroll-margin-top: 56px;
         }
         h1 { font-size: 1.95em; letter-spacing: -0.015em; }
         h2 { font-size: 1.56em; letter-spacing: -0.01em; }
