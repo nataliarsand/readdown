@@ -2,6 +2,38 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.15
+
+### New
+- A cleaner reading view with a floating header: the file name and quick actions (copy, find, show in Finder) tuck into the title bar
+- Copy the whole document, or any single code block, to the clipboard in one click
+- Optional, anonymous usage stats to guide what gets improved, off unless you opt in
+
+### Fixed
+- Mermaid diagrams re-theme instantly on light and dark switch, and printing or exporting to PDF from dark mode now comes out light
+- Ordered lists keep their starting number, and bold or italic spanning a wrapped line inside a list item now render (issues #15, #16)
+
+### Details
+
+**New**
+
+- A redesigned window with a floating header. The file name sits in its own pill next to the traffic lights, and a matching pill holds Copy to Clipboard, Find, and Show in Finder. The title bar is transparent so the document reads full width, with a soft blur under the header as you scroll. Show in Finder is also in the File menu and on ⇧⌘R.
+- Copy to Clipboard copies the document's full Markdown source, with a checkmark to confirm. Every fenced code block gets its own copy button on hover.
+- A redesigned About window with links to leave feedback, report a bug, or support the project.
+- Optional usage stats. If you opt in, through a one-time prompt or the Help menu, Readdown sends an anonymous daily count of which features you use, along with the app and macOS version. There are no identifiers of any kind, and your documents never leave your Mac. It is off unless you say yes, and you can change your mind anytime in the Help menu.
+
+**Fixed**
+
+- Mermaid diagrams re-theme the moment the system appearance changes, instead of staying in the old palette until the document is reopened.
+- Printing and exporting to PDF from dark mode now produce light pages, so paper no longer inherits the dark theme (Mermaid diagrams especially, whose colors are baked into the diagram).
+- Ordered lists starting at a number other than 1 (such as `2.`) now keep that start number instead of renumbering from 1 (issue #16).
+- Inline bold and italic that span a wrapped line inside a list item now render, the same way they already did in paragraphs (issue #15).
+
+**Thanks**
+
+- @jantomec for the code-block copy button (PR #12).
+- @troelskn for reporting the ordered-list and wrapped-emphasis issues (#15, #16).
+
 ## 1.14.1
 
 ### Fixed

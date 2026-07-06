@@ -17,6 +17,8 @@
 		A10000000000000000000B /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000B /* WelcomeView.swift */; };
 		A10000000000000000000C /* SyntaxHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C /* SyntaxHighlight.swift */; };
 		A10000000000000000000F /* DocumentWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000F /* DocumentWatcher.swift */; };
+		A100000000000000000010 /* UsageMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000010 /* UsageMetrics.swift */; };
+		A100000000000000000011 /* ThanksPop.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000011 /* ThanksPop.swift */; };
 		A200000000000000000007 /* SyntaxHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C /* SyntaxHighlight.swift */; };
 		A100000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000009 /* Assets.xcassets */; };
 		A200000000000000000001 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000000000000000001 /* PreviewViewController.swift */; };
@@ -28,6 +30,9 @@
 		A300000000000000000001 /* MarkdownRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000001 /* MarkdownRendererTests.swift */; };
 		A300000000000000000002 /* TextFileDecoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000002 /* TextFileDecoderTests.swift */; };
 		A300000000000000000003 /* HTMLTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000003 /* HTMLTemplateTests.swift */; };
+		A300000000000000000004 /* DocumentWatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000004 /* DocumentWatcherTests.swift */; };
+		A300000000000000000005 /* FindInPageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000005 /* FindInPageTests.swift */; };
+		A300000000000000000006 /* UsageMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000006 /* UsageMetricsTests.swift */; };
 		A10000000000000000000D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P200000000000000000001 /* Sparkle */; };
 		A10000000000000000000E /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
 		A200000000000000000008 /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
@@ -75,6 +80,8 @@
 		B10000000000000000000B /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		B10000000000000000000C /* SyntaxHighlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntaxHighlight.swift; sourceTree = "<group>"; };
 		B10000000000000000000F /* DocumentWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWatcher.swift; sourceTree = "<group>"; };
+		B100000000000000000010 /* UsageMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMetrics.swift; sourceTree = "<group>"; };
+		B100000000000000000011 /* ThanksPop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThanksPop.swift; sourceTree = "<group>"; };
 		B100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B100000000000000000008 /* ReadDown.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDown.entitlements; sourceTree = "<group>"; };
 		B100000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -88,6 +95,9 @@
 		B300000000000000000001 /* MarkdownRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRendererTests.swift; sourceTree = "<group>"; };
 		B300000000000000000002 /* TextFileDecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFileDecoderTests.swift; sourceTree = "<group>"; };
 		B300000000000000000003 /* HTMLTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLTemplateTests.swift; sourceTree = "<group>"; };
+		B300000000000000000004 /* DocumentWatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWatcherTests.swift; sourceTree = "<group>"; };
+		B300000000000000000005 /* FindInPageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindInPageTests.swift; sourceTree = "<group>"; };
+		B300000000000000000006 /* UsageMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMetricsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -139,6 +149,8 @@
 				B10000000000000000000B /* WelcomeView.swift */,
 				B10000000000000000000C /* SyntaxHighlight.swift */,
 				B10000000000000000000F /* DocumentWatcher.swift */,
+				B100000000000000000010 /* UsageMetrics.swift */,
+				B100000000000000000011 /* ThanksPop.swift */,
 				B10000000000000000000D /* mermaid.min.js */,
 				B100000000000000000007 /* Info.plist */,
 				B100000000000000000008 /* ReadDown.entitlements */,
@@ -163,6 +175,9 @@
 				B300000000000000000001 /* MarkdownRendererTests.swift */,
 				B300000000000000000002 /* TextFileDecoderTests.swift */,
 				B300000000000000000003 /* HTMLTemplateTests.swift */,
+				B300000000000000000004 /* DocumentWatcherTests.swift */,
+				B300000000000000000005 /* FindInPageTests.swift */,
+				B300000000000000000006 /* UsageMetricsTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -348,6 +363,8 @@
 				A10000000000000000000B /* WelcomeView.swift in Sources */,
 				A10000000000000000000C /* SyntaxHighlight.swift in Sources */,
 				A10000000000000000000F /* DocumentWatcher.swift in Sources */,
+				A100000000000000000010 /* UsageMetrics.swift in Sources */,
+				A100000000000000000011 /* ThanksPop.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -370,6 +387,9 @@
 				A300000000000000000001 /* MarkdownRendererTests.swift in Sources */,
 				A300000000000000000002 /* TextFileDecoderTests.swift in Sources */,
 				A300000000000000000003 /* HTMLTemplateTests.swift in Sources */,
+				A300000000000000000004 /* DocumentWatcherTests.swift in Sources */,
+				A300000000000000000005 /* FindInPageTests.swift in Sources */,
+				A300000000000000000006 /* UsageMetricsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -520,7 +540,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -536,7 +556,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.14.1;
+				MARKETING_VERSION = 1.15;
 				PRODUCT_BUNDLE_IDENTIFIER = com.heya.readdown;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -553,7 +573,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -569,7 +589,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.14.1;
+				MARKETING_VERSION = 1.15;
 				PRODUCT_BUNDLE_IDENTIFIER = com.heya.readdown;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -584,7 +604,7 @@
 				CODE_SIGN_ENTITLEMENTS = ReadDownQuickLook/ReadDownQuickLook.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -598,7 +618,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 1.14.1;
+				MARKETING_VERSION = 1.15;
 				PRODUCT_BUNDLE_IDENTIFIER = com.heya.readdown.ReadDownQuickLook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -614,7 +634,7 @@
 				CODE_SIGN_ENTITLEMENTS = ReadDownQuickLook/ReadDownQuickLook.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -628,7 +648,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 1.14.1;
+				MARKETING_VERSION = 1.15;
 				PRODUCT_BUNDLE_IDENTIFIER = com.heya.readdown.ReadDownQuickLook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -642,10 +662,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.14.1;
+				MARKETING_VERSION = 1.15;
 				PRODUCT_BUNDLE_IDENTIFIER = com.heya.readdown.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -659,10 +679,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.14.1;
+				MARKETING_VERSION = 1.15;
 				PRODUCT_BUNDLE_IDENTIFIER = com.heya.readdown.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;

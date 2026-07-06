@@ -10,10 +10,24 @@ enum HTMLTemplate {
 
     static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
         let fontSize = compact ? "14px" : "16px"
-        // Main app uses a `.unifiedCompact` toolbar (~38pt) with the WebView
-        // extending behind it via `.ignoresSafeArea`. Top padding keeps the
-        // first heading clear of the toolbar. Quick Look has no toolbar.
-        let topPadding = compact ? "32px" : "40px"
+        // Extra clearance for the floating header; Quick Look (compact) has none.
+        let topPadding = compact ? "32px" : "64px"
+        // Blur veil under the header. Disabled in print (fixed = every page).
+        let headerBlur = compact ? "" : """
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            pointer-events: none;
+            z-index: 10;
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+            mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+        }
+        @media print { body::before { display: none; } }
+        """
         return """
         <!DOCTYPE html>
         <html>
@@ -24,7 +38,7 @@ enum HTMLTemplate {
         <style>
         :root {
             --text: #1f2328;            /* warmer than pure black, gentler on backlit screens */
-            --bg: #fcfcfb;              /* a hair off-white to reduce glare; matches ReaderTheme.card */
+            --bg: #fcfcfb;              /* a hair off-white to reduce glare; matches ReaderTheme.pageBackground */
             --muted: #57606a;           /* secondary text — blockquotes, h6, captions */
             --code-bg: #f6f8fa;
             --border: #d0d7de;
@@ -59,6 +73,8 @@ enum HTMLTemplate {
         html {
             scroll-behavior: smooth;
         }
+
+        \(headerBlur)
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
@@ -406,6 +422,8 @@ enum HTMLTemplate {
             }
 
             function showCopied(btn) {
+                // No-op unless the host installed the handler.
+                try { window.webkit.messageHandlers.rdUsage.postMessage('copy_code'); } catch (e) {}
                 btn.classList.add('rd-copied');
                 btn.innerHTML = CHECK_ICON;
                 btn.setAttribute('aria-label', 'Copied');
