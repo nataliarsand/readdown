@@ -38,6 +38,7 @@ private struct ShortcutsListView: View {
     private let groups: [(String, [(String, String)])] = [
         ("File", [
             ("⌘O", "Open file"),
+            ("⇧⌘R", "Show in Finder"),
             ("⌘W", "Close window"),
         ]),
         ("Find", [

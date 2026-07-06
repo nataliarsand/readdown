@@ -5,6 +5,7 @@ import WebKit
 
 extension Notification.Name {
     static let printDocument = Notification.Name("printDocument")
+    static let showInFinder = Notification.Name("showInFinder")
     static let exportPDF = Notification.Name("exportPDF")
     static let zoomIn = Notification.Name("zoomIn")
     static let zoomOut = Notification.Name("zoomOut")
@@ -57,6 +58,8 @@ struct WebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
+        // Weak proxy: the content controller retains its handlers.
+        config.userContentController.add(WeakScriptMessageHandler(context.coordinator), name: "rdUsage")
 
         let webView = ZoomableWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -75,7 +78,28 @@ struct WebView: NSViewRepresentable {
         // avoids re-loading the 200KB embedded highlight.js on every SwiftUI rerender.
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    /// Breaks the retain cycle from WKUserContentController to the Coordinator.
+    final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+        private weak var delegate: WKScriptMessageHandler?
+
+        init(_ delegate: WKScriptMessageHandler) {
+            self.delegate = delegate
+        }
+
+        func userContentController(_ userContentController: WKUserContentController,
+                                   didReceive message: WKScriptMessage) {
+            delegate?.userContentController(userContentController, didReceive: message)
+        }
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        func userContentController(_ userContentController: WKUserContentController,
+                                   didReceive message: WKScriptMessage) {
+            if message.name == "rdUsage", message.body as? String == "copy_code" {
+                UsageMetrics.record(.copyCodeBlock)
+            }
+        }
+
         var baseURL: URL?
         weak var webView: WKWebView?
         let findState: FindState
@@ -85,6 +109,7 @@ struct WebView: NSViewRepresentable {
         private var watcherObserver: AnyCancellable?
         private var activePrintOp: NSPrintOperation?
         private var pendingScrollY: Double?
+        private var printRenderer: PrintRenderer?
 
         init(baseURL: URL?, findState: FindState, watcher: DocumentWatcher) {
             self.baseURL = baseURL
@@ -185,13 +210,16 @@ struct WebView: NSViewRepresentable {
             observers.append(token)
         }
 
+        // Counted here (menu/keyboard) but not on pinch, which fires per frame.
         private func adjustZoom(by delta: CGFloat) {
             guard let webView = webView as? ZoomableWebView, webView.window == NSApp.keyWindow else { return }
+            UsageMetrics.record(.zoom)
             webView.applyZoomDelta(delta)
         }
 
         private func resetZoom() {
             guard let webView = webView as? ZoomableWebView, webView.window == NSApp.keyWindow else { return }
+            UsageMetrics.record(.zoom)
             webView.resetZoom()
         }
 
@@ -208,13 +236,30 @@ struct WebView: NSViewRepresentable {
             return printInfo
         }
 
+        /// Provides the WebView to print/export from. In dark mode this is a
+        /// light-themed offscreen render, so paper never inherits the dark
+        /// palette — Mermaid bakes its colours into the generated SVG, so the
+        /// on-screen view can't just be reused. In light mode it's the live view.
+        private func printSource(_ completion: @escaping (WKWebView) -> Void) {
+            guard let live = webView else { return }
+            guard NSApp.effectiveAppearance.isDark else {
+                completion(live)
+                return
+            }
+            printRenderer = PrintRenderer(text: watcher.text, baseURL: baseURL, width: live.bounds.width) { [weak self] lightView in
+                completion(lightView)
+                self?.printRenderer = nil
+            }
+        }
+
         private func handlePrint() {
-            guard let webView, let window = webView.window, window == NSApp.keyWindow else { return }
-            DispatchQueue.main.async { [weak self] in
-                guard let self, let webView = self.webView, let window = webView.window else { return }
+            guard let webView, webView.window == NSApp.keyWindow else { return }
+            UsageMetrics.record(.printDocument)
+            printSource { [weak self] source in
+                guard let self, let window = self.webView?.window else { return }
                 let printInfo = self.standardPrintInfo()
 
-                let op = webView.printOperation(with: printInfo)
+                let op = source.printOperation(with: printInfo)
                 op.showsPrintPanel = true
                 op.showsProgressPanel = true
                 op.printPanel.options.insert(.showsPreview)
@@ -230,6 +275,7 @@ struct WebView: NSViewRepresentable {
 
         private func handleExportPDF() {
             guard let webView, let window = webView.window, window == NSApp.keyWindow else { return }
+            UsageMetrics.record(.exportPDF)
             DispatchQueue.main.async { [weak self] in
                 guard let self, let webView = self.webView, let window = webView.window else { return }
                 let savePanel = NSSavePanel()
@@ -250,24 +296,26 @@ struct WebView: NSViewRepresentable {
                 savePanel.beginSheetModal(for: window) { response in
                     guard response == .OK, let url = savePanel.url else { return }
                     let continuous = layoutPicker.indexOfSelectedItem == 0
-                    if continuous {
-                        let config = WKPDFConfiguration()
-                        webView.createPDF(configuration: config) { result in
-                            DispatchQueue.main.async {
-                                switch result {
-                                case .success(let data):
-                                    do {
-                                        try data.write(to: url)
-                                    } catch {
+                    self.printSource { source in
+                        if continuous {
+                            let config = WKPDFConfiguration()
+                            source.createPDF(configuration: config) { result in
+                                DispatchQueue.main.async {
+                                    switch result {
+                                    case .success(let data):
+                                        do {
+                                            try data.write(to: url)
+                                        } catch {
+                                            self.showExportError(error.localizedDescription, window: window)
+                                        }
+                                    case .failure(let error):
                                         self.showExportError(error.localizedDescription, window: window)
                                     }
-                                case .failure(let error):
-                                    self.showExportError(error.localizedDescription, window: window)
                                 }
                             }
+                        } else {
+                            self.exportPaginatedPDF(webView: source, to: url, window: window)
                         }
-                    } else {
-                        self.exportPaginatedPDF(webView: webView, to: url, window: window)
                     }
                 }
             }
@@ -369,5 +417,63 @@ struct WebView: NSViewRepresentable {
                 return false
             }
         }
+    }
+}
+
+/// Renders a document into an offscreen, light-themed WebView for print/PDF
+/// output, then calls back once it (including any Mermaid diagrams) has
+/// finished laying out. Held by the Coordinator until the operation completes.
+private final class PrintRenderer: NSObject, WKNavigationDelegate {
+    private let webView: WKWebView
+    private let hasMermaid: Bool
+    private let completion: (WKWebView) -> Void
+    private var finished = false
+
+    init(text: String, baseURL: URL?, width: CGFloat, completion: @escaping (WKWebView) -> Void) {
+        let result = MarkdownRenderer.render(text)
+        hasMermaid = result.hasMermaid
+        self.completion = completion
+        let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: false)
+        webView = WKWebView(frame: NSRect(x: 0, y: 0, width: max(width, 320), height: 10))
+        // Force light appearance so the page CSS `prefers-color-scheme` also
+        // resolves light — `isDark: false` only covers Mermaid and the theme
+        // attribute, not the media-query palette.
+        webView.appearance = NSAppearance(named: .aqua)
+        webView.underPageBackgroundColor = .white
+        super.init()
+        webView.navigationDelegate = self
+        webView.loadHTMLString(html, baseURL: baseURL)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        hasMermaid ? waitForMermaid() : finish()
+    }
+
+    /// Mermaid renders asynchronously after load; wait until every diagram has
+    /// produced its SVG (bounded, so a failed render can't hang printing).
+    private func waitForMermaid(attempt: Int = 0) {
+        let js = """
+        (function() {
+            var pending = document.querySelectorAll('pre.mermaid');
+            var drawn = document.querySelectorAll('pre.mermaid svg');
+            return pending.length === 0 || drawn.length >= pending.length;
+        })()
+        """
+        webView.evaluateJavaScript(js) { [weak self] result, _ in
+            guard let self else { return }
+            if (result as? Bool) == true || attempt >= 40 {
+                self.finish()
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    self.waitForMermaid(attempt: attempt + 1)
+                }
+            }
+        }
+    }
+
+    private func finish() {
+        guard !finished else { return }
+        finished = true
+        completion(webView)
     }
 }

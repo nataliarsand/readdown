@@ -10,10 +10,24 @@ enum HTMLTemplate {
 
     static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
         let fontSize = compact ? "14px" : "16px"
-        // Main app uses a `.unifiedCompact` toolbar (~38pt) with the WebView
-        // extending behind it via `.ignoresSafeArea`. Top padding keeps the
-        // first heading clear of the toolbar. Quick Look has no toolbar.
-        let topPadding = compact ? "32px" : "40px"
+        // Extra clearance for the floating header; Quick Look (compact) has none.
+        let topPadding = compact ? "32px" : "64px"
+        // Blur veil under the header. Disabled in print (fixed = every page).
+        let headerBlur = compact ? "" : """
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            pointer-events: none;
+            z-index: 10;
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+            mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+        }
+        @media print { body::before { display: none; } }
+        """
         return """
         <!DOCTYPE html>
         <html>
@@ -24,7 +38,7 @@ enum HTMLTemplate {
         <style>
         :root {
             --text: #1f2328;            /* warmer than pure black, gentler on backlit screens */
-            --bg: #fdfdfc;              /* a hair off-white to reduce glare */
+            --bg: #fcfcfb;              /* a hair off-white to reduce glare; matches ReaderTheme.pageBackground */
             --muted: #57606a;           /* secondary text — blockquotes, h6, captions */
             --code-bg: #f6f8fa;
             --border: #d0d7de;
@@ -59,6 +73,8 @@ enum HTMLTemplate {
         html {
             scroll-behavior: smooth;
         }
+
+        \(headerBlur)
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
@@ -142,6 +158,64 @@ enum HTMLTemplate {
             background: transparent;
             border-radius: 0;
             font-size: 100%;
+        }
+
+        /* Copy button. Lives on a non-scrolling wrapper so it stays pinned to the
+           top-right while the <pre> scrolls horizontally underneath it. Hidden by
+           default, revealed on hover/focus — keeps the reading view quiet and means
+           it never shows up in printed or exported output (no hover at render time). */
+        .rd-codeblock {
+            position: relative;
+        }
+
+        .rd-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            color: var(--muted);
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: default;
+            opacity: 0;
+            transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .rd-codeblock:hover .rd-copy-btn,
+        .rd-copy-btn:focus-visible {
+            opacity: 1;
+        }
+
+        .rd-copy-btn:hover {
+            color: var(--text);
+            border-color: var(--muted);
+        }
+
+        .rd-copy-btn.rd-copied {
+            opacity: 1;
+            color: #1a7f37;
+            border-color: #1a7f37;
+        }
+
+        @media screen and (prefers-color-scheme: dark) {
+            .rd-copy-btn.rd-copied {
+                color: #3fb950;
+                border-color: #3fb950;
+            }
+        }
+
+        .rd-copy-btn svg {
+            display: block;
+            width: 16px;
+            height: 16px;
         }
 
         blockquote {
@@ -306,6 +380,7 @@ enum HTMLTemplate {
             }
             pre, blockquote, table, img { page-break-inside: avoid; }
             h1, h2, h3, h4 { page-break-after: avoid; }
+            .rd-copy-btn { display: none; }
         }
         </style>
         </head>
@@ -319,6 +394,79 @@ enum HTMLTemplate {
             'swift', 'typescript', 'xml', 'yaml'
         ]});
         hljs.highlightAll();
+        </script>
+        <script>
+        // Copy button for fenced code blocks (ChatGPT-style). Wraps each
+        // <pre><code> in a positioned container and pins a button to the
+        // top-right. Runs after highlightAll so the highlighted DOM is final;
+        // Mermaid blocks are <pre class="mermaid"> with no <code> child, so the
+        // `pre > code` selector skips them.
+        (function() {
+            const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+            const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+            function legacyCopy(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.top = '0';
+                ta.style.left = '0';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                document.body.removeChild(ta);
+                return ok;
+            }
+
+            function showCopied(btn) {
+                // No-op unless the host installed the handler.
+                try { window.webkit.messageHandlers.rdUsage.postMessage('copy_code'); } catch (e) {}
+                btn.classList.add('rd-copied');
+                btn.innerHTML = CHECK_ICON;
+                btn.setAttribute('aria-label', 'Copied');
+                clearTimeout(btn._rdTimer);
+                btn._rdTimer = setTimeout(function() {
+                    btn.classList.remove('rd-copied');
+                    btn.innerHTML = COPY_ICON;
+                    btn.setAttribute('aria-label', 'Copy code');
+                }, 1600);
+            }
+
+            function copyCode(code, btn) {
+                // textContent gives the exact source (newlines preserved, HTML
+                // entities and highlight.js token spans resolved back to plain text).
+                const text = code.textContent;
+                // Prefer the async Clipboard API; fall back to execCommand, which is
+                // the reliable path inside WKWebView's loadHTMLString context.
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(
+                        function() { showCopied(btn); },
+                        function() { if (legacyCopy(text)) showCopied(btn); }
+                    );
+                } else if (legacyCopy(text)) {
+                    showCopied(btn);
+                }
+            }
+
+            document.querySelectorAll('pre > code').forEach(function(code) {
+                const pre = code.parentElement;
+                const wrap = document.createElement('div');
+                wrap.className = 'rd-codeblock';
+                pre.parentNode.insertBefore(wrap, pre);
+                wrap.appendChild(pre);
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'rd-copy-btn';
+                btn.setAttribute('aria-label', 'Copy code');
+                btn.innerHTML = COPY_ICON;
+                btn.addEventListener('click', function() { copyCode(code, btn); });
+                wrap.appendChild(btn);
+            });
+        })();
         </script>
         <script>
         (function() {
@@ -448,7 +596,7 @@ enum HTMLTemplate {
             pieOuterStrokeColor: '#3d444d',
             pieOpacity: '1'
         } : {
-            edgeLabelBackground: '#fdfdfc',
+            edgeLabelBackground: '#fcfcfb',
             pie1: '#0969da', pie2: '#f59e0b', pie3: '#10b981',
             pie4: '#8b5cf6', pie5: '#ef4444',
             pieTitleTextColor: '#1f2328',

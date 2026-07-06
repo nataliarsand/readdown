@@ -3,27 +3,43 @@ import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var welcomeWindow: NSWindow?
+    var aboutWindow: NSWindow?
     let updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
     lazy var checkForUpdatesViewModel = CheckForUpdatesViewModel(updater: updaterController.updater)
     private var launchedWithFiles = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Skip the launch sequence when hosting the test runner.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+
         resetQuickLook()
         _ = checkForUpdatesViewModel // force lazy init
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.updaterController.startUpdater()
         }
 
-        // Restore previous session unless the app was launched by opening files
-        // (in which case the user explicitly asked for those, not the old set).
-        let restoredCount = launchedWithFiles ? 0 : DocumentSession.shared.restorePreviousSession()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        // Defer the restore decision. macOS may deliver application(_:open:) —
+        // which sets launchedWithFiles and opens the clicked document — around
+        // or just after this callback, so restoring synchronously here would
+        // resurrect the whole previous session before we know a file was opened.
+        // Waiting a beat, then skipping restore if a file was opened (flag set,
+        // or a document already exists), means opening a file shows just that
+        // file while a plain Dock/Spotlight launch still restores the old set.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             guard let self else { return }
             self.dismissOpenPanels()
+            if self.launchedWithFiles || !NSDocumentController.shared.documents.isEmpty {
+                return
+            }
+            let restoredCount = DocumentSession.shared.restorePreviousSession()
             if restoredCount == 0 && NSDocumentController.shared.documents.isEmpty {
                 self.showWelcomeWindow()
             }
+        }
+
+        UsageMetrics.sendIfDue()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            UsageMetrics.promptForConsentIfNeeded()
         }
     }
 
@@ -90,6 +106,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }))
         window.makeKeyAndOrderFront(nil)
         welcomeWindow = window
+    }
+
+    /// Custom About window — replaces the standard about panel, which clips a
+    /// credits block this size and reads as a wall of links.
+    func showAboutWindow() {
+        if let existing = aboutWindow {
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: AboutView.windowSize),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.contentView = NSHostingView(rootView: AboutView())
+        window.makeKeyAndOrderFront(nil)
+        aboutWindow = window
     }
 
     /// Reset Quick Look so the system re-scans extensions.
@@ -295,6 +334,7 @@ struct CheckForUpdatesView: View {
 @main
 struct ReadDownApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @AppStorage(UsageMetrics.consentKey) private var shareUsageData = false
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(
@@ -304,6 +344,7 @@ struct ReadDownApp: App {
             )
                 .onAppear {
                     appDelegate.dismissWelcomeWindow()
+                    UsageMetrics.record(.documentOpened)
                     if let url = file.fileURL {
                         DocumentSession.shared.register(url)
                     }
@@ -314,15 +355,27 @@ struct ReadDownApp: App {
                     }
                 }
         }
+        // Hidden title bar at the scene level, so SwiftUI never installs a
+        // toolbar/title of its own. A window-level override alone gets undone
+        // on SwiftUI's next update pass — the header band would reappear a
+        // moment after the window opens. The pills in ContentView are the
+        // visible header.
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 880, height: 720)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About Readdown") {
-                    showAboutPanel()
+                    appDelegate.showAboutWindow()
                 }
             }
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(viewModel: appDelegate.checkForUpdatesViewModel)
+            }
+            CommandGroup(after: .saveItem) {
+                Button("Show in Finder") {
+                    NotificationCenter.default.post(name: .showInFinder, object: nil)
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
             }
             CommandGroup(replacing: .printItem) {
                 Button("Export as PDF...") {
@@ -382,46 +435,106 @@ struct ReadDownApp: App {
                 Button("Send Feedback...") {
                     NSWorkspace.shared.open(URL(string: "https://github.com/nataliarsand/readdown/issues")!)
                 }
+
+                Divider()
+
+                // Via setConsent so switching off also clears pending counts.
+                Toggle("Share Anonymous Usage Data", isOn: Binding(
+                    get: { shareUsageData },
+                    set: { granted in
+                        UsageMetrics.setConsent(granted)
+                        shareUsageData = granted
+                    }
+                ))
             }
         }
     }
 
-    private func showAboutPanel() {
-        let credits = NSMutableAttributedString()
+}
 
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
-        paragraphStyle.paragraphSpacing = 8
+/// Custom About window content. Hierarchy over a link dump: icon, name,
+/// version, tagline; then attribution as one sentence with subtle links; then
+/// the support actions as a row of buttons.
+struct AboutView: View {
+    static let windowSize = NSSize(width: 380, height: 452)
 
-        let centeredAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12),
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: paragraphStyle
-        ]
+    private var version: String {
+        let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+        return "\(short) (\(build))"
+    }
 
-        credits.append(NSAttributedString(
-            string: "A clean, fast Markdown reader for macOS.\nJust open or hit space on any .md file to read it.\n\n",
-            attributes: centeredAttrs
-        ))
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 76, height: 76)
 
-        let linkParagraph = NSMutableParagraphStyle()
-        linkParagraph.alignment = .center
-        let donateURL = URL(string: "https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC")!
-        let linkAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .link: donateURL,
-            .paragraphStyle: linkParagraph
-        ]
-        credits.append(NSAttributedString(
-            string: "Buy me a coffee \u{2615}",
-            attributes: linkAttrs
-        ))
+            VStack(spacing: 3) {
+                Text("Readdown")
+                    .font(.system(size: 22, weight: .semibold))
+                Text("Version \(version)")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
 
-        NSApplication.shared.orderFrontStandardAboutPanel(options: [
-            .applicationName: "Readdown",
-            .credits: credits,
-            .applicationVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
-            .version: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        ])
+            Text("A clean, fast Markdown reader for macOS. Just open or hit space on any .md file to read it.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider().frame(width: 160)
+
+            Text("Built by Natalia at [Eixo.design](https://eixo.design/?utm_source=readdown&utm_medium=app&utm_campaign=about) with help from its [contributors](https://github.com/nataliarsand/readdown/graphs/contributors).")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .tint(.primary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 10) {
+                AboutActionButton(icon: "star.bubble", title: "Feedback",
+                                  url: "https://www.producthunt.com/products/readdown/reviews/new")
+                AboutActionButton(icon: "ladybug", title: "Report a Bug",
+                                  url: "https://github.com/nataliarsand/readdown/issues")
+                AboutActionButton(icon: "cup.and.saucer", title: "Buy a Coffee",
+                                  url: "https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC")
+            }
+
+            Link("readdown.app", destination: URL(string: "https://readdown.app")!)
+                .font(.caption)
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 36)
+        .padding(.bottom, 24)
+        .frame(width: AboutView.windowSize.width)
+    }
+}
+
+/// A compact icon+label card used for the About window's support actions.
+private struct AboutActionButton: View {
+    let icon: String
+    let title: String
+    let url: String
+    @State private var hovered = false
+
+    var body: some View {
+        Link(destination: URL(string: url)!) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 17))
+                Text(title)
+                    .font(.caption2)
+            }
+            .foregroundStyle(.primary)
+            .frame(width: 92, height: 60)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.primary.opacity(hovered ? 0.10 : 0.05))
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
     }
 }

@@ -183,16 +183,19 @@ enum MarkdownRenderer {
                 continue
             }
 
-            // Ordered list
+            // Ordered list. The first item's number sets `start` (issue #16).
             if line.matchesPattern(olPattern) {
+                let startNumber = Int(line.trimmingCharacters(in: .whitespaces)
+                    .prefix(while: { $0.isNumber })) ?? 1
                 var items: [String] = []
                 while i < lines.count && lines[i].matchesPattern(olPattern) {
                     let text = lines[i].removingMatch(of: olPattern)
                     i += 1
-                    let contHTML = collectListItemContinuation(&i, lines: lines, ownPattern: olPattern)
-                    items.append("<li>\(inlineMarkdown(text))\(contHTML)</li>")
+                    let body = collectListItemBody(&i, lines: lines, ownPattern: olPattern, firstText: text)
+                    items.append("<li>\(body)</li>")
                 }
-                html.append("<ol>\(items.joined())</ol>")
+                let startAttr = startNumber == 1 ? "" : " start=\"\(startNumber)\""
+                html.append("<ol\(startAttr)>\(items.joined())</ol>")
                 continue
             }
 
@@ -388,24 +391,18 @@ enum MarkdownRenderer {
         line.prefix(while: { $0 == " " || $0 == "\t" }).reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }
     }
 
-    /// Collects continuation lines for the current list item, advancing `i` past them.
-    /// `ownPattern` is the list's own item pattern — a blank line followed by another item of
-    /// `ownPattern` continues the list (consumes the blank); anything else terminates it.
-    ///
-    /// An indented fenced code block inside the continuation is rendered inline
-    /// as a block-level `<pre><code>` (issue #9). Without this, the indented
-    /// fence wouldn't match `next.hasPrefix("\`\`\`")` and the whole code block
-    /// would collapse into prose.
-    private static func collectListItemContinuation(_ i: inout Int, lines: [String], ownPattern: NSRegularExpression) -> String {
+    /// Renders a list item's text plus its continuation lines, advancing `i`.
+    /// Prose is joined before inline processing so emphasis can span a soft wrap
+    /// (issue #15). An indented fenced code block renders as a block (issue #9).
+    private static func collectListItemBody(_ i: inout Int, lines: [String], ownPattern: NSRegularExpression, firstText: String) -> String {
         var output = ""
-        var paragraph: [String] = []
+        var paragraph: [String] = firstText.isEmpty ? [] : [firstText]
 
-        // Flush any accumulated prose continuation as inline text. Block
-        // elements (code fences) flush before they emit so the block sits
-        // *between* paragraph fragments, not glued onto one.
+        // Flush prose as one run; code fences flush first so they sit between runs.
         func flushParagraph() {
             guard !paragraph.isEmpty else { return }
-            output += " " + paragraph.map { inlineMarkdown($0) }.joined(separator: " ")
+            if !output.isEmpty { output += " " }
+            output += inlineMarkdown(paragraph.joined(separator: " "))
             paragraph.removeAll()
         }
 
@@ -493,7 +490,13 @@ enum MarkdownRenderer {
             let text = lines[i].removingMatch(of: ulPattern)
             i += 1
 
-            let contHTML = collectListItemContinuation(&i, lines: lines, ownPattern: ulPattern)
+            // Split the checkbox marker off so only the label is inline-processed.
+            let isOpenTask = text == "[ ]" || text.hasPrefix("[ ] ")
+            let isDoneTask = text == "[x]" || text == "[X]" || text.hasPrefix("[x] ") || text.hasPrefix("[X] ")
+            let label = (isOpenTask || isDoneTask)
+                ? (text.count > 4 ? String(text.dropFirst(4)) : "")
+                : text
+            let body = collectListItemBody(&i, lines: lines, ownPattern: ulPattern, firstText: label)
 
             // A run of more-indented items immediately after this one is this
             // item's nested list — it must render *inside* the <li>. Appending
@@ -505,16 +508,14 @@ enum MarkdownRenderer {
                 nestedHTML += parseUnorderedList(&i, lines: lines)
             }
 
-            if text == "[ ]" || text.hasPrefix("[ ] ") {
-                let content = text.count > 4 ? String(text.dropFirst(4)) : ""
-                result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inlineMarkdown(content))\(contHTML)\(nestedHTML)</li>"
+            if isOpenTask {
+                result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(body)\(nestedHTML)</li>"
                 hasTaskItem = true
-            } else if text == "[x]" || text == "[X]" || text.hasPrefix("[x] ") || text.hasPrefix("[X] ") {
-                let content = text.count > 4 ? String(text.dropFirst(4)) : ""
-                result += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(inlineMarkdown(content))\(contHTML)\(nestedHTML)</li>"
+            } else if isDoneTask {
+                result += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(body)\(nestedHTML)</li>"
                 hasTaskItem = true
             } else {
-                result += "<li>\(inlineMarkdown(text))\(contHTML)\(nestedHTML)</li>"
+                result += "<li>\(body)\(nestedHTML)</li>"
             }
         }
 

@@ -671,4 +671,57 @@ final class MarkdownRendererTests: XCTestCase {
         let lightHTML = HTMLTemplate.wrap(body: renderResult.html, hasMermaid: true, isDark: false)
         XCTAssertTrue(lightHTML.contains("data-rd-theme=\"light\""))
     }
+
+    // MARK: - Ordered list start numbers (issue #16)
+
+    /// troelskn's repro: a list starting at 2 must not be renumbered from 1.
+    func testOrderedListHonorsStartNumber() {
+        let html = MarkdownRenderer.render("2. two\n3. three").html
+        XCTAssertTrue(html.contains("<ol start=\"2\">"))
+        XCTAssertTrue(html.contains("<li>two</li><li>three</li>"))
+    }
+
+    func testOrderedListStartingAtZero() {
+        let html = MarkdownRenderer.render("0. zero\n1. one").html
+        XCTAssertTrue(html.contains("<ol start=\"0\">"))
+    }
+
+    func testOrderedListStartingAtOneHasNoStartAttribute() {
+        let html = MarkdownRenderer.render("1. one\n2. two").html
+        XCTAssertTrue(html.contains("<ol>"))
+        XCTAssertFalse(html.contains("start="))
+    }
+
+    // MARK: - Inline emphasis across wrapped list lines (issue #15)
+
+    /// troelskn's repro: bold spanning a lazy-continuation line in a list item.
+    func testBoldAcrossWrappedListItemLines() {
+        let md = """
+        - Inline bold on list item **doesn't
+          render**, if it line-wraps
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<strong>doesn&#39;t render</strong>"),
+                      "emphasis must span soft-wrapped list item lines, got: \(html)")
+    }
+
+    func testItalicAcrossWrappedOrderedListItemLines() {
+        let md = """
+        1. first *wraps
+           here* fine
+        2. second
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<em>wraps here</em>"))
+    }
+
+    func testCodeSpanAcrossWrappedListItemStaysLiteral() {
+        // A code span spanning the wrap must join before inline processing.
+        let md = """
+        - uses `some
+          code` inline
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertTrue(html.contains("<code>some code</code>"))
+    }
 }
