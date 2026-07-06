@@ -18,13 +18,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             self?.updaterController.startUpdater()
         }
 
-        // Restore previous session unless the app was launched by opening files
-        // (in which case the user explicitly asked for those, not the old set).
-        let restoredCount = launchedWithFiles ? 0 : DocumentSession.shared.restorePreviousSession()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        // Defer the restore decision. macOS may deliver application(_:open:) —
+        // which sets launchedWithFiles and opens the clicked document — around
+        // or just after this callback, so restoring synchronously here would
+        // resurrect the whole previous session before we know a file was opened.
+        // Waiting a beat, then skipping restore if a file was opened (flag set,
+        // or a document already exists), means opening a file shows just that
+        // file while a plain Dock/Spotlight launch still restores the old set.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             guard let self else { return }
             self.dismissOpenPanels()
+            if self.launchedWithFiles || !NSDocumentController.shared.documents.isEmpty {
+                return
+            }
+            let restoredCount = DocumentSession.shared.restorePreviousSession()
             if restoredCount == 0 && NSDocumentController.shared.documents.isEmpty {
                 self.showWelcomeWindow()
             }

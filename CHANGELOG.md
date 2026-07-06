@@ -10,6 +10,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 - Optional, anonymous usage stats to guide what gets improved, off unless you opt in
 
 ### Fixed
+- Opening a file no longer reopens your entire previous session on top of it
 - Mermaid diagrams re-theme instantly on light and dark switch, and printing or exporting to PDF from dark mode now comes out light
 - Ordered lists keep their starting number, and bold or italic spanning a wrapped line inside a list item now render (issues #15, #16)
 
@@ -24,6 +25,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 
 **Fixed**
 
+- Opening a file at launch now shows just that file. The app could previously restore your entire previous session first, burying the file you opened underneath it. Launching without a file, from the Dock or after an update, still restores your open documents.
 - Mermaid diagrams re-theme the moment the system appearance changes, instead of staying in the old palette until the document is reopened.
 - Printing and exporting to PDF from dark mode now produce light pages, so paper no longer inherits the dark theme (Mermaid diagrams especially, whose colors are baked into the diagram).
 - Ordered lists starting at a number other than 1 (such as `2.`) now keep that start number instead of renumbering from 1 (issue #16).
