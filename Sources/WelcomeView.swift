@@ -277,6 +277,10 @@ struct WelcomeView: View {
             Link("readdown.app", destination: URL(string: "https://readdown.app")!)
                 .font(.caption)
             Spacer()
+            Link(destination: URL(string: "https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC")!) {
+                Text("Buy me a coffee \u{2615}")
+                    .font(.caption)
+            }
         }
     }
 
