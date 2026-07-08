@@ -57,6 +57,32 @@ final class UsageMetricsTests: XCTestCase {
         XCTAssertTrue(UsageMetrics.wasPrompted)
     }
 
+    // MARK: - Developer opt-out
+
+    func testSuppressedMachineRecordsNothingDespiteConsent() {
+        UsageMetrics.setConsent(true)
+        testStore.set(true, forKey: "usageMetricsDevOptOut")
+        UsageMetrics.record(.copyFile)
+        UsageMetrics.record(.documentOpened)
+        XCTAssertNil(storedCounts, "an opted-out dev machine must contribute nothing, even with consent")
+    }
+
+    func testClearingOptOutResumesRecording() {
+        UsageMetrics.setConsent(true)
+        testStore.set(true, forKey: "usageMetricsDevOptOut")
+        UsageMetrics.record(.copyFile)
+        XCTAssertNil(storedCounts)
+        testStore.set(false, forKey: "usageMetricsDevOptOut")
+        UsageMetrics.record(.copyFile)
+        XCTAssertEqual(storedCounts?["copy_file"], 1, "recording resumes once the opt-out is cleared")
+    }
+
+    func testIsSuppressedReflectsDefault() {
+        XCTAssertFalse(UsageMetrics.isSuppressed)
+        testStore.set(true, forKey: "usageMetricsDevOptOut")
+        XCTAssertTrue(UsageMetrics.isSuppressed)
+    }
+
     // MARK: - Payload contract (what the consent prompt promises)
 
     func testPayloadCarriesOnlyVersionOsAndCounts() {

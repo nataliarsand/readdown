@@ -23,11 +23,19 @@ enum UsageMetrics {
     private static let promptedKey = "usageMetricsPrompted"
     private static let countsKey = "usageMetricsCounts"
     private static let lastSendKey = "usageMetricsLastSend"
+    // Hidden per-machine opt-out for developer/QA builds, so my own usage never
+    // pollutes the aggregate. Set once per Mac:
+    //   defaults write com.heya.readdown usageMetricsDevOptOut -bool YES
+    private static let devOptOutKey = "usageMetricsDevOptOut"
     private static let endpoint = URL(string: "https://readdown.app/api/track-usage")!
     private static let sendInterval: TimeInterval = 24 * 60 * 60
 
     static var hasConsent: Bool { store.bool(forKey: consentKey) }
     static var wasPrompted: Bool { store.bool(forKey: promptedKey) }
+    /// A machine that has opted out of contributing (developer QA). When set,
+    /// nothing is recorded or transmitted — consent semantics are unchanged for
+    /// everyone else.
+    static var isSuppressed: Bool { store.bool(forKey: devOptOutKey) }
 
     static func setConsent(_ granted: Bool) {
         store.set(granted, forKey: consentKey)
@@ -38,7 +46,7 @@ enum UsageMetrics {
     }
 
     static func record(_ feature: Feature) {
-        guard hasConsent else { return }
+        guard hasConsent, !isSuppressed else { return }
         var counts = store.dictionary(forKey: countsKey) as? [String: Int] ?? [:]
         counts[feature.rawValue, default: 0] += 1
         store.set(counts, forKey: countsKey)
@@ -46,7 +54,7 @@ enum UsageMetrics {
 
     /// Counts reset only after a confirmed send, so an offline day rolls forward.
     static func sendIfDue(now: Date = Date()) {
-        guard hasConsent else { return }
+        guard hasConsent, !isSuppressed else { return }
         let counts = store.dictionary(forKey: countsKey) as? [String: Int] ?? [:]
         guard !counts.isEmpty else { return }
         let last = store.object(forKey: lastSendKey) as? Date ?? .distantPast
