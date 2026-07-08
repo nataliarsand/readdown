@@ -355,30 +355,55 @@ struct WebView: NSViewRepresentable {
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             if navigationAction.navigationType == .linkActivated,
                let url = navigationAction.request.url {
-                // Same-document fragment links (`#heading-anchor`) — let WebKit
-                // handle the scroll natively. The earlier strict scheme/host/
-                // path triple-match against `webView.url` rejected real intra-
-                // doc clicks because `loadHTMLString(_:baseURL:)` reports
-                // `about:blank` for an untitled doc and a trailing-slash-
-                // mismatched directory URL for a saved one — that broke all
-                // heading anchors from 1.12 onward. `isSameDocumentFragment`
-                // accepts both shapes while still rejecting external links
-                // that happen to carry a fragment (e.g. `https://evil/#x`),
-                // which must still go through `NSWorkspace.open`.
-                if url.fragment != nil,
-                   isSameDocumentFragment(click: url, page: webView.url) {
+                switch Coordinator.linkDecision(for: url, page: webView.url) {
+                case .allowInWebView:
                     decisionHandler(.allow)
-                    return
-                }
-                guard isAllowedExternalURL(url) else {
+                case .openExternally:
+                    NSWorkspace.shared.open(url)
                     decisionHandler(.cancel)
-                    return
+                case .revealInFinder:
+                    LocalLinkOpener.revealInFinder(url)
+                    decisionHandler(.cancel)
+                case .ignore:
+                    decisionHandler(.cancel)
                 }
-                NSWorkspace.shared.open(url)
-                decisionHandler(.cancel)
                 return
             }
             decisionHandler(.allow)
+        }
+
+        /// What to do with an activated link. Pulled out as a pure function so
+        /// the policy is unit-testable without a live WebView.
+        enum LinkDecision: Equatable {
+            case allowInWebView   // same-document `#fragment` — let WebKit scroll
+            case openExternally   // http/https/mailto — hand to NSWorkspace
+            case revealInFinder   // file:// text/markdown — reveal in Finder
+            case ignore           // refuse — unknown scheme, or a local file
+                                  // that isn't a document worth revealing
+        }
+
+        static func linkDecision(for url: URL, page: URL?) -> LinkDecision {
+            // Same-document fragment links (`#heading-anchor`) — let WebKit
+            // handle the scroll natively. The earlier strict scheme/host/path
+            // triple-match against the page URL rejected real intra-doc clicks
+            // because `loadHTMLString(_:baseURL:)` reports `about:blank` for an
+            // untitled doc and a trailing-slash-mismatched directory URL for a
+            // saved one — that broke all heading anchors from 1.12 onward.
+            // `isSameDocumentFragment` accepts both shapes while still rejecting
+            // external links that happen to carry a fragment (e.g.
+            // `https://evil/#x`), which must still go through NSWorkspace.
+            if url.fragment != nil, isSameDocumentFragment(click: url, page: page) {
+                return .allowInWebView
+            }
+            // Relative links between documents (`[details](notes.md)`) resolve to
+            // a file:// URL against the doc's directory. Reveal the target in
+            // Finder when it's a text/markdown file. Anything else local — an app
+            // bundle, a binary, a disk image — is ignored so a rendered document
+            // can't trick the reader into surfacing or launching it.
+            if url.isFileURL {
+                return isOpenableLocalDocument(url) ? .revealInFinder : .ignore
+            }
+            return isAllowedExternalURL(url) ? .openExternally : .ignore
         }
 
         /// Returns `true` when `click` is a fragment URL pointing inside the
@@ -386,7 +411,7 @@ struct WebView: NSViewRepresentable {
         /// loader produces: an `about:blank` page URL (loaded with no baseURL),
         /// and a directory baseURL whose path differs from the click's only by
         /// a trailing slash.
-        private func isSameDocumentFragment(click: URL, page: URL?) -> Bool {
+        private static func isSameDocumentFragment(click: URL, page: URL?) -> Bool {
             // No real page URL yet, or page is `about:blank` — accept only when
             // the click URL is itself `about:`-scoped (which is what a bare
             // `#frag` resolves to in that document context).
@@ -405,7 +430,7 @@ struct WebView: NSViewRepresentable {
                 || clickPath == pagePath + "/"
         }
 
-        private func isAllowedExternalURL(_ url: URL) -> Bool {
+        private static func isAllowedExternalURL(_ url: URL) -> Bool {
             guard let scheme = url.scheme?.lowercased() else {
                 return false
             }
@@ -416,6 +441,19 @@ struct WebView: NSViewRepresentable {
             default:
                 return false
             }
+        }
+
+        /// Text/markdown document extensions a relative link may point at. Matches
+        /// the document types Readdown itself opens, so a cross-link lands the
+        /// reader on the target instead of doing nothing. Deliberately excludes
+        /// executables, app bundles, and other file types.
+        private static let openableLocalExtensions: Set<String> = [
+            "md", "markdown", "mdown", "mkd", "mdwn", "mdtxt", "mdtext",
+            "txt", "text"
+        ]
+
+        private static func isOpenableLocalDocument(_ url: URL) -> Bool {
+            openableLocalExtensions.contains(url.pathExtension.lowercased())
         }
     }
 }
