@@ -459,6 +459,13 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("<br>"))
     }
 
+    /// `<center>` is a safe presentational tag that worked before the allowlist
+    /// hardening; it must keep passing through so centered documents still render.
+    func testCenterTagPassesThrough() {
+        let result = MarkdownRenderer.render("<center>middle</center>").html
+        XCTAssertTrue(result.contains("<center>middle</center>"))
+    }
+
     func testUnsafeAttributesDroppedSafeKept() {
         let result = MarkdownRenderer.render("<div class=\"ok\" style=\"x\" onmouseover=\"y\">z</div>").html
         XCTAssertTrue(result.contains("class=\"ok\""))

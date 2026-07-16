@@ -67,8 +67,8 @@ private typealias RefDefs = [String: (url: String, title: String?)]
 /// everything else is escaped to text. Fail-safe — unknowns are neutralized, not emitted.
 private let safeTags: Set<String> = [
     "a", "abbr", "address", "article", "aside", "b", "bdi", "bdo", "blockquote",
-    "br", "caption", "cite", "code", "col", "colgroup", "dd", "del", "details",
-    "dfn", "div", "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2",
+    "br", "caption", "center", "cite", "code", "col", "colgroup", "dd", "del",
+    "details", "dfn", "div", "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2",
     "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "i", "img", "ins", "kbd",
     "li", "main", "mark", "nav", "ol", "p", "pre", "q", "rp", "rt", "ruby", "s",
     "samp", "section", "small", "span", "strong", "sub", "summary", "sup",
