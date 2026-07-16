@@ -13,6 +13,9 @@ private let linkPattern = try! NSRegularExpression(pattern: "\\[([^\\]]*)\\]\\((
 private let autolinkURLPattern = try! NSRegularExpression(pattern: "<(https?://[^\\s<>]+)>")
 private let autolinkEmailPattern = try! NSRegularExpression(pattern: "<([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})>")
 private let codePattern = try! NSRegularExpression(pattern: "`([^`]+)`")
+// Backslash escape: `\` + ASCII punctuation → literal (CommonMark §2.4). `$` excluded
+// (escaped dollars are handled by the math pass).
+private let backslashEscapePattern = try! NSRegularExpression(pattern: "\\\\([!-#%-/:-@\\[-`{-~])")
 private let boldItalicStarPattern = try! NSRegularExpression(pattern: "\\*\\*\\*(.+?)\\*\\*\\*", options: .dotMatchesLineSeparators)
 private let boldStarPattern = try! NSRegularExpression(pattern: "\\*\\*(.+?)\\*\\*", options: .dotMatchesLineSeparators)
 private let italicStarPattern = try! NSRegularExpression(pattern: "\\*(.+?)\\*", options: .dotMatchesLineSeparators)
@@ -39,19 +42,13 @@ private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~", optio
 private let inlineMathDollarPattern = try! NSRegularExpression(pattern: "(?<![\\\\$])\\$(?!\\d)(?=\\S)([^\\n$]*?[^\\s$])\\$(?![0-9$])")
 private let inlineMathParenPattern = try! NSRegularExpression(pattern: "\\\\\\((.+?)\\\\\\)")
 private let htmlTagPattern = try! NSRegularExpression(pattern: "<!--[\\s\\S]*?-->|</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
-// Scans one HTML tag's attributes as (name, optional value) tokens so only
-// allowlisted attribute names survive. Because filtering is an allowlist, any
-// unknown attribute — including every `on*` handler, with or without leading
-// whitespace (e.g. `<img src="x"onerror=…>`) — is dropped, not passed.
-private let attrScanPattern = try! NSRegularExpression(pattern: "([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s\"'`=<>]+))?")
+// Scans a tag's attributes as (name, value?) tokens; only allowlisted names survive,
+// so any `on*` handler (with or without leading space) is dropped.
+private let attrScanPattern = try! NSRegularExpression(pattern: "([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\\s*=\\s*(\"[^\"]*\"|'[^']*'|[^\\s\"'`=<>]+))?")
 private let htmlEntityPattern = try! NSRegularExpression(pattern: "&(?:[a-zA-Z][a-zA-Z0-9]{0,31}|#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6});")
 
-/// HTML sanitization is an allowlist. Raw tags in `safeTags` pass through (with
-/// only `safeAttributes` kept); every other tag — script, style, iframe, object,
-/// embed, base, link, meta, form controls, svg, math, media, … — is escaped to
-/// text. Fail-safe by construction: anything unrecognized is neutralized rather
-/// than emitted, so an active tag or attribute we didn't foresee can't slip
-/// through (the failure mode of the old denylist).
+/// HTML sanitization is an allowlist: `safeTags` pass (keeping only `safeAttributes`),
+/// everything else is escaped to text. Fail-safe — unknowns are neutralized, not emitted.
 private let safeTags: Set<String> = [
     "a", "abbr", "address", "article", "aside", "b", "bdi", "bdo", "blockquote",
     "br", "caption", "cite", "code", "col", "colgroup", "dd", "del", "details",
@@ -67,9 +64,7 @@ private let safeAttributes: Set<String> = [
     "align", "valign", "colspan", "rowspan", "start", "reversed", "type",
     "datetime", "cite", "dir", "lang", "span", "scope",
 ]
-/// Elements whose content the HTML parser treats as opaque text up to the
-/// matching close tag. When we escape one of these (none are in `safeTags`),
-/// we also escape everything inside it, so nested tags can't leak out as markup.
+/// Raw-text elements: their content is escaped wholesale so nested tags can't leak out.
 private let rawTextTags: Set<String> = [
     "script", "style", "textarea", "title", "xmp", "noscript", "noembed",
     "iframe", "noframes",
@@ -316,10 +311,7 @@ enum MarkdownRenderer {
         if matches.isEmpty { return escapeHTMLKeepingEntities(text) }
         var result = ""
         var lastEnd = 0
-        // Name of an open raw-text element (`<script>`, `<style>`, …). While set,
-        // the browser treats everything up to the matching close tag as opaque
-        // text, so we escape it wholesale — including any nested tags — rather
-        // than letting a `<h2>` inside a script leak out as real markup.
+        // Inside a raw-text element (script/style/…), escape everything up to its close tag.
         var rawText: String?
         for match in matches {
             let r = match.range
@@ -352,9 +344,7 @@ enum MarkdownRenderer {
         return (String(s.prefix(while: { $0.isLetter || $0.isNumber })).lowercased(), isClosing)
     }
 
-    /// Allowlist sanitizer for a single matched HTML tag (or comment). A safe tag
-    /// is re-emitted keeping only allowlisted attributes; any other tag is escaped
-    /// to text so it renders literally and can't become active content.
+    /// Re-emits a safe tag keeping only allowlisted attributes; escapes any other tag.
     private static func sanitizeHTMLTag(_ tag: String) -> String {
         // Comments matched the full `<!-- … -->` pattern already; they're inert.
         if tag.hasPrefix("<!--") { return tag }
@@ -376,9 +366,17 @@ enum MarkdownRenderer {
         let bns = body as NSString
         for m in attrScanPattern.matches(in: body, range: NSRange(location: 0, length: bns.length)) {
             let attrName = bns.substring(with: m.range(at: 1)).lowercased()
-            if safeAttributes.contains(attrName) {
-                out += " " + bns.substring(with: m.range)
+            guard safeAttributes.contains(attrName) else { continue }
+            // Drop href/src carrying a dangerous scheme (defense in depth; the
+            // WebView also refuses the navigation on click).
+            if (attrName == "href" || attrName == "src"), m.range(at: 2).location != NSNotFound {
+                var value = bns.substring(with: m.range(at: 2))
+                if value.count >= 2, let q = value.first, q == "\"" || q == "'", value.last == q {
+                    value = String(value.dropFirst().dropLast())
+                }
+                if !isSafeURL(value) { continue }
             }
+            out += " " + bns.substring(with: m.range)
         }
         return out + (selfClosing ? " />" : ">")
     }
@@ -425,6 +423,14 @@ enum MarkdownRenderer {
         }
         s = s.replacing(inlineMathParenPattern) { stashMath($0[1]) }
         s = s.replacing(inlineMathDollarPattern) { stashMath($0[1]) }
+
+        // Backslash escapes: code/math already stashed, so `\<punct>` is now a literal
+        // no later pass can treat as syntax. Restored, HTML-escaped, at the end.
+        var escapedChars: [String] = []
+        s = s.replacing(backslashEscapePattern) { match in
+            escapedChars.append(match[1])
+            return "\u{E005}\(escapedChars.count - 1)\u{E006}"
+        }
 
         // Autolinks: <https://…> and <user@example.com>. Rewrite to <a> tags before escaping
         // so the rest of the pipeline treats them like any other HTML link.
@@ -496,6 +502,11 @@ enum MarkdownRenderer {
         // Restore code spans now that all delimiter-based passes are done.
         for (idx, span) in codeSpans.enumerated() {
             s = s.replacingOccurrences(of: "\u{E000}\(idx)\u{E001}", with: span)
+        }
+
+        // Restore backslash-escaped literals last, HTML-escaping so `\<` → &lt;.
+        for (idx, ch) in escapedChars.enumerated() {
+            s = s.replacingOccurrences(of: "\u{E005}\(idx)\u{E006}", with: escapeHTML(ch))
         }
 
         return s

@@ -122,10 +122,8 @@ enum HTMLTemplate {
             scroll-margin-top: 56px;
             position: relative;
         }
-        /* Collapsible sections — deliberately quiet. A small chevron sits in the
-           left gutter, invisible until the heading is hovered; clicking it folds
-           the section down to the next same-or-higher heading. Absolutely
-           positioned, so it never shifts the text. */
+        /* Collapsible sections: a quiet left-gutter chevron (hover to reveal) folds the
+           section down to the next same-or-higher heading. Absolutely positioned. */
         .rd-fold {
             position: absolute;
             left: -1.15rem;
@@ -627,10 +625,8 @@ enum HTMLTemplate {
         </script>
         \(compact ? "" : """
         <script>
-        // Collapsible headings — a quiet left-gutter chevron folds a section down
-        // to the next heading of the same or higher level. Headings are flat
-        // siblings in <body>, so the fold walks `nextElementSibling`. Main-app
-        // only; Quick Look previews stay static.
+        // Collapsible headings: fold the section down to the next same-or-higher
+        // heading. Headings are flat siblings, so the fold walks nextElementSibling.
         (function() {
             var CH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
             function level(el) {

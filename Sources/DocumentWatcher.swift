@@ -71,11 +71,13 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
             decoded = try? TextFileDecoder.decode(data)
         }
 
-        guard let text = decoded else { return }
-        let result = MarkdownRenderer.render(text)
+        guard let decodedText = decoded else { return }
+        // Keep `text` in sync with disk even when the rendered HTML is unchanged
+        // (e.g. trailing whitespace), so Copy reflects the file, not a stale source.
+        if decodedText != text { text = decodedText }
+        let result = MarkdownRenderer.render(decodedText)
         let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
         if next != html {
-            self.text = text
             lastChangeSource = .disk
             html = next
         }

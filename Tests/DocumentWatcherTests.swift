@@ -62,4 +62,27 @@ final class DocumentWatcherTests: XCTestCase {
         XCTAssertTrue(watcher.html.contains("Second"))
         XCTAssertEqual(watcher.lastChangeSource, .disk)
     }
+
+    func testDiskChangeSyncsTextEvenWhenHtmlUnchanged() throws {
+        // Trailing whitespace changes the source but not the rendered HTML; Copy
+        // must still reflect what's on disk.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("doc.md")
+        try "# Title".write(to: file, atomically: true, encoding: .utf8)
+
+        let watcher = DocumentWatcher(initialText: "# Title", fileURL: file, isDark: false)
+        try "# Title   ".write(to: file, atomically: true, encoding: .utf8)
+
+        let updated = expectation(description: "text republished after whitespace-only change")
+        let observation = watcher.$text.dropFirst().sink { _ in updated.fulfill() }
+        defer { observation.cancel() }
+
+        watcher.presentedItemDidChange()
+        wait(for: [updated], timeout: 5)
+
+        XCTAssertEqual(watcher.text, "# Title   ")
+    }
 }

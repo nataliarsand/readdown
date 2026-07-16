@@ -450,6 +450,57 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("&lt;h2&gt;"))
     }
 
+    // MARK: - Backslash escapes
+
+    func testBackslashEscapesEmphasis() {
+        XCTAssertEqual(MarkdownRenderer.render("\\*not italic\\*").html, "<p>*not italic*</p>")
+        XCTAssertEqual(MarkdownRenderer.render("a\\_b\\_c").html, "<p>a_b_c</p>")
+    }
+
+    func testBackslashEscapesBlockStarters() {
+        XCTAssertEqual(MarkdownRenderer.render("\\# not a heading").html, "<p># not a heading</p>")
+        XCTAssertEqual(MarkdownRenderer.render("\\- not a list").html, "<p>- not a list</p>")
+    }
+
+    func testBackslashEscapesBracketsAndAngle() {
+        // Inline escaped brackets. (A whole line of `\[…\]` is display math by
+        // design — see the math tests — so this uses mid-line brackets.)
+        XCTAssertEqual(MarkdownRenderer.render("see \\[1\\] here").html, "<p>see [1] here</p>")
+        XCTAssertEqual(MarkdownRenderer.render("less than \\< here").html, "<p>less than &lt; here</p>")
+    }
+
+    func testBackslashInsideCodeSpanIsLiteral() {
+        // CommonMark: backslash escapes don't apply inside code spans.
+        XCTAssertEqual(MarkdownRenderer.render("`a\\*b`").html, "<p><code>a\\*b</code></p>")
+    }
+
+    func testBackslashBeforeNonPunctuationIsLiteral() {
+        // `\n` (backslash + letter) is a literal backslash, not an escape.
+        XCTAssertEqual(MarkdownRenderer.render("path C:\\next").html, "<p>path C:\\next</p>")
+    }
+
+    func testEscapedDollarStillNotMath() {
+        // The `$`-specific escape path must keep working alongside general escapes.
+        XCTAssertEqual(MarkdownRenderer.render("costs \\$5 today").html, "<p>costs $5 today</p>")
+    }
+
+    func testRawHTMLDangerousURLSchemesDropped() {
+        let a = MarkdownRenderer.render("<a href=\"javascript:alert(1)\">x</a>").html
+        XCTAssertFalse(a.lowercased().contains("javascript:"))
+        XCTAssertTrue(a.contains("<a"))
+        let img = MarkdownRenderer.render("<img src=\"javascript:alert(1)\">").html
+        XCTAssertFalse(img.lowercased().contains("javascript:"))
+        let safe = MarkdownRenderer.render("<a href=\"https://example.com\">x</a>").html
+        XCTAssertTrue(safe.contains("href=\"https://example.com\""))
+    }
+
+    func testTableSwallowsAdjacentPipeLine() {
+        // GitHub-style leniency: a pipe line right after a table (no blank line) is
+        // another row. Pinned to match GitHub — separate with a blank line to end it.
+        let md = "| A | B |\n|---|---|\n| 1 | 2 |\nprose | with pipe"
+        XCTAssertTrue(MarkdownRenderer.render(md).html.contains("<td align=\"left\">prose</td>"))
+    }
+
     // MARK: - Links
 
     func testLinkURLWithParens() {
