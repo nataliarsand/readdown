@@ -215,25 +215,11 @@ enum MarkdownRenderer {
                 continue
             }
 
-            // Unordered list (including task lists)
-            if line.matchesPattern(ulPattern) {
-                html.append(parseUnorderedList(&i, lines: lines))
-                continue
-            }
-
-            // Ordered list. The first item's number sets `start` (issue #16).
-            if line.matchesPattern(olPattern) {
-                let startNumber = Int(line.trimmingCharacters(in: .whitespaces)
-                    .prefix(while: { $0.isNumber })) ?? 1
-                var items: [String] = []
-                while i < lines.count && lines[i].matchesPattern(olPattern) {
-                    let text = lines[i].removingMatch(of: olPattern)
-                    i += 1
-                    let body = collectListItemBody(&i, lines: lines, ownPattern: olPattern, firstText: text)
-                    items.append("<li>\(body)</li>")
-                }
-                let startAttr = startNumber == 1 ? "" : " start=\"\(startNumber)\""
-                html.append("<ol\(startAttr)>\(items.joined())</ol>")
+            // Lists — ordered, unordered, and task lists all go through one
+            // indented parser so nesting, mixed marker types, and loose items
+            // behave uniformly.
+            if line.matchesPattern(ulPattern) || line.matchesPattern(olPattern) {
+                html.append(parseList(&i, lines: lines, baseIndent: listItemIndent(line), hasMermaid: &hasMermaid))
                 continue
             }
 
@@ -529,140 +515,221 @@ enum MarkdownRenderer {
 
     // MARK: - List Helpers
 
+    /// One block inside a list item: a prose paragraph (raw, pre-inline) or a
+    /// finished HTML block (fenced code or a nested list).
+    private enum ListPiece { case para(String); case block(String) }
+
     private static func listItemIndent(_ line: String) -> Int {
         line.prefix(while: { $0 == " " || $0 == "\t" }).reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }
     }
 
-    /// Renders a list item's text plus its continuation lines, advancing `i`.
-    /// Prose is joined before inline processing so emphasis can span a soft wrap
-    /// (issue #15). An indented fenced code block renders as a block (issue #9).
-    private static func collectListItemBody(_ i: inout Int, lines: [String], ownPattern: NSRegularExpression, firstText: String) -> String {
-        var output = ""
-        var paragraph: [String] = firstText.isEmpty ? [] : [firstText]
+    private static func nextNonBlank(after index: Int, in lines: [String]) -> Int? {
+        var j = index
+        while j < lines.count {
+            if !lines[j].trimmingCharacters(in: .whitespaces).isEmpty { return j }
+            j += 1
+        }
+        return nil
+    }
 
-        // Flush prose as one run; code fences flush first so they sit between runs.
-        func flushParagraph() {
-            guard !paragraph.isEmpty else { return }
-            if !output.isEmpty { output += " " }
-            output += inlineMarkdown(paragraph.joined(separator: " "))
-            paragraph.removeAll()
+    /// A line that, when it appears under-indented, ends a list item's lazy
+    /// continuation: another marker, a heading, a blockquote, or a code fence.
+    private static func endsItemContinuation(_ line: String) -> Bool {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        return line.matchesPattern(ulPattern) || line.matchesPattern(olPattern)
+            || line.matchesPattern(headingPattern) || line.hasPrefix(">")
+            || t.hasPrefix("```") || t.hasPrefix("~~~")
+    }
+
+    private static func dropIndent(_ line: String, _ columns: Int) -> String {
+        var s = Substring(line)
+        var c = 0
+        while c < columns, let f = s.first, f == " " || f == "\t" {
+            s = s.dropFirst()
+            c += (f == "\t" ? 4 : 1)
+        }
+        return String(s)
+    }
+
+    /// Unified ordered/unordered/task list parser, advancing `i`. Handles
+    /// arbitrary nesting by indentation, mixed marker types (a `-` sublist under
+    /// a `1.` item and vice versa), tight vs loose items, ordered `start`
+    /// numbers (issue #16), and task checkboxes. Every path advances `i` or
+    /// breaks, preserving the no-hang invariant (issue #8).
+    private static func parseList(_ i: inout Int, lines: [String], baseIndent: Int, hasMermaid: inout Bool) -> String {
+        let ordered = lines[i].matchesPattern(olPattern)
+        var startNumber = 1
+        var firstItem = true
+        var items: [(pieces: [ListPiece], task: Int)] = []  // task: 0 none, 1 open, 2 done
+        var loose = false
+        var hasTask = false
+
+        while i < lines.count {
+            // A blank line only continues the list when a same-type sibling
+            // follows at this indent; otherwise the list ends here.
+            if lines[i].trimmingCharacters(in: .whitespaces).isEmpty {
+                guard let peek = nextNonBlank(after: i, in: lines),
+                      listItemIndent(lines[peek]) == baseIndent,
+                      (ordered ? lines[peek].matchesPattern(olPattern)
+                               : lines[peek].matchesPattern(ulPattern))
+                else { break }
+                loose = true
+                i = peek
+            }
+
+            let line = lines[i]
+            if listItemIndent(line) != baseIndent { break }
+            guard ordered ? line.matchesPattern(olPattern) : line.matchesPattern(ulPattern) else { break }
+
+            // Marker geometry: everything after the "-, *, +" or "N." plus one space.
+            let afterLead = line.drop(while: { $0 == " " || $0 == "\t" })
+            let markerBodyLen: Int
+            if ordered {
+                let digits = afterLead.prefix(while: { $0.isNumber })
+                if firstItem { startNumber = Int(digits) ?? 1 }
+                markerBodyLen = digits.count + 2   // "." + " "
+            } else {
+                markerBodyLen = 2                  // bullet + " "
+            }
+            firstItem = false
+            let contentIndent = baseIndent + markerBodyLen
+            var text = String(afterLead.dropFirst(markerBodyLen))
+            i += 1
+
+            // Task checkbox (unordered only) — split the marker off the label.
+            var task = 0
+            if !ordered {
+                if text == "[ ]" || text.hasPrefix("[ ] ") { task = 1 }
+                else if text == "[x]" || text == "[X]" || text.hasPrefix("[x] ") || text.hasPrefix("[X] ") { task = 2 }
+                if task != 0 {
+                    hasTask = true
+                    text = text.count > 4 ? String(text.dropFirst(4)) : ""
+                }
+            }
+
+            let pieces = collectItem(&i, lines: lines, baseIndent: baseIndent,
+                                     contentIndent: contentIndent, firstText: text,
+                                     loose: &loose, hasMermaid: &hasMermaid)
+            items.append((pieces, task))
+        }
+
+        var body = ""
+        for item in items {
+            var inner = ""
+            for piece in item.pieces {
+                switch piece {
+                case .para(let raw): inner += loose ? "<p>\(inlineMarkdown(raw))</p>" : inlineMarkdown(raw)
+                case .block(let h): inner += h
+                }
+            }
+            switch item.task {
+            case 1: body += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(inner)</li>"
+            case 2: body += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(inner)</li>"
+            default: body += "<li>\(inner)</li>"
+            }
+        }
+
+        if ordered {
+            let startAttr = startNumber == 1 ? "" : " start=\"\(startNumber)\""
+            return "<ol\(startAttr)>\(body)</ol>"
+        }
+        return "<ul\(hasTask ? " class=\"task-list\"" : "")>\(body)</ul>"
+    }
+
+    /// Collects one list item's blocks, advancing `i`. Prose runs are joined
+    /// before inline processing so emphasis spans a soft wrap (issue #15).
+    /// Indented content that still belongs to the item — nested lists, fenced
+    /// code (issue #9), and continuation paragraphs — stays inside the item; a
+    /// blank line before such content makes the list loose.
+    private static func collectItem(_ i: inout Int, lines: [String], baseIndent: Int, contentIndent: Int,
+                                    firstText: String, loose: inout Bool, hasMermaid: inout Bool) -> [ListPiece] {
+        var pieces: [ListPiece] = []
+        var prose: [String] = firstText.isEmpty ? [] : [firstText]
+        func flush() {
+            guard !prose.isEmpty else { return }
+            pieces.append(.para(prose.joined(separator: " ")))
+            prose.removeAll()
         }
 
         while i < lines.count {
-            let next = lines[i]
-            let nextTrimmed = next.trimmingCharacters(in: .whitespaces)
-            if nextTrimmed.isEmpty {
-                var peek = i + 1
-                while peek < lines.count && lines[peek].trimmingCharacters(in: .whitespaces).isEmpty { peek += 1 }
-                if peek < lines.count && lines[peek].matchesPattern(ownPattern) {
-                    i = peek
-                }
-                break
-            }
+            let line = lines[i]
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-            // Fenced code block inside the item — recognize the fence on the
-            // *trimmed* line so list indentation can't hide it. CommonMark §6.7
-            // strips the opener's leading-space count from each content line so
-            // the code renders flush against `<pre>` rather than carrying the
-            // list-item indent into the rendered output.
-            if nextTrimmed.matchesPattern(fencePattern) {
-                flushParagraph()
-                let openerIndent = next.prefix(while: { $0 == " " || $0 == "\t" }).count
-                let fenceChar: Character = nextTrimmed.first == "~" ? "~" : "`"
-                let fenceLen = nextTrimmed.prefix(while: { $0 == fenceChar }).count
-                let lang = String(nextTrimmed.dropFirst(fenceLen)).trimmingCharacters(in: .whitespaces)
-                var code: [String] = []
-                i += 1
-                while i < lines.count {
-                    let l = lines[i]
-                    let closeTrimmed = l.drop(while: { $0 == " " || $0 == "\t" })
-                    let closeLen = closeTrimmed.prefix(while: { $0 == fenceChar }).count
-                    if closeLen >= fenceLen
-                        && closeTrimmed.dropFirst(closeLen).allSatisfy({ $0.isWhitespace }) {
-                        i += 1
-                        break
-                    }
-                    // Strip up to `openerIndent` leading whitespace chars.
-                    var content = Substring(l)
-                    var stripped = 0
-                    while stripped < openerIndent, let first = content.first, first == " " || first == "\t" {
-                        content = content.dropFirst()
-                        stripped += 1
-                    }
-                    code.append(escapeHTML(String(content)))
-                    i += 1
-                }
-                let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
-                output += "<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>"
+            if trimmed.isEmpty {
+                // Keep the item open only if the following content is indented
+                // into it; a multi-block item makes the list loose.
+                guard let peek = nextNonBlank(after: i, in: lines),
+                      listItemIndent(lines[peek]) >= contentIndent else { break }
+                loose = true
+                flush()
+                i = peek
                 continue
             }
 
-            // Anything that starts a new block at the parent level ends the
-            // continuation. The heading check mirrors `headingPattern` (same
-            // reason as the paragraph collector — see issue #8).
-            if next.matchesPattern(ulPattern) || next.matchesPattern(olPattern)
-                || next.matchesPattern(headingPattern) || next.hasPrefix(">") {
-                break
+            let indent = listItemIndent(line)
+
+            if indent >= contentIndent {
+                // Fenced code block inside the item (issue #9).
+                if trimmed.matchesPattern(fencePattern) {
+                    flush()
+                    let openerIndent = line.prefix(while: { $0 == " " || $0 == "\t" }).count
+                    pieces.append(.block(consumeFence(&i, lines: lines, openerIndent: openerIndent, hasMermaid: &hasMermaid)))
+                    continue
+                }
+                // Nested list of either type — de-indent to test the marker.
+                let deindented = dropIndent(line, contentIndent)
+                if deindented.matchesPattern(ulPattern) || deindented.matchesPattern(olPattern) {
+                    flush()
+                    pieces.append(.block(parseList(&i, lines: lines, baseIndent: indent, hasMermaid: &hasMermaid)))
+                    continue
+                }
+                prose.append(trimmed)
+                i += 1
+                continue
             }
-            paragraph.append(nextTrimmed)
+
+            // Under-indented: a dedent, a sibling marker, or a new block ends the
+            // item; a plain line is a lazy paragraph continuation.
+            if indent < baseIndent { break }
+            if endsItemContinuation(line) { break }
+            prose.append(trimmed)
             i += 1
         }
 
-        flushParagraph()
-        return output
+        flush()
+        return pieces
     }
 
-    private static func parseUnorderedList(_ i: inout Int, lines: [String]) -> String {
-        let baseIndent = listItemIndent(lines[i])
-        var hasTaskItem = false
-        var result = ""
-
-        while i < lines.count && lines[i].matchesPattern(ulPattern) {
-            let currentIndent = listItemIndent(lines[i])
-            if currentIndent < baseIndent { break }
-
-            // A more-indented line with no item yet at this level — parse it as
-            // a standalone nested list (defensive; well-formed input won't hit
-            // this, since nested runs are consumed per-item below).
-            if currentIndent > baseIndent {
-                result += parseUnorderedList(&i, lines: lines)
-                continue
+    /// Consumes a fenced code block, advancing `i` past the closing fence (or to
+    /// EOF if unclosed). Each content line is de-indented by up to `openerIndent`
+    /// columns (CommonMark §6.7) so list-item indentation doesn't leak into the
+    /// rendered code.
+    private static func consumeFence(_ i: inout Int, lines: [String], openerIndent: Int, hasMermaid: inout Bool) -> String {
+        let stripped = lines[i].drop(while: { $0 == " " || $0 == "\t" })
+        let fenceChar: Character = stripped.first == "~" ? "~" : "`"
+        let fenceLen = stripped.prefix(while: { $0 == fenceChar }).count
+        let lang = String(stripped.dropFirst(fenceLen)).trimmingCharacters(in: .whitespaces)
+        let isMermaid = lang.lowercased() == "mermaid"
+        var code: [String] = []
+        i += 1
+        while i < lines.count {
+            let l = lines[i]
+            let closeTrimmed = l.drop(while: { $0 == " " || $0 == "\t" })
+            let closeLen = closeTrimmed.prefix(while: { $0 == fenceChar }).count
+            if closeLen >= fenceLen && closeTrimmed.dropFirst(closeLen).allSatisfy({ $0.isWhitespace }) {
+                i += 1
+                break
             }
-
-            let text = lines[i].removingMatch(of: ulPattern)
+            let content = dropIndent(l, openerIndent)
+            code.append(isMermaid ? content : escapeHTML(content))
             i += 1
-
-            // Split the checkbox marker off so only the label is inline-processed.
-            let isOpenTask = text == "[ ]" || text.hasPrefix("[ ] ")
-            let isDoneTask = text == "[x]" || text == "[X]" || text.hasPrefix("[x] ") || text.hasPrefix("[X] ")
-            let label = (isOpenTask || isDoneTask)
-                ? (text.count > 4 ? String(text.dropFirst(4)) : "")
-                : text
-            let body = collectListItemBody(&i, lines: lines, ownPattern: ulPattern, firstText: label)
-
-            // A run of more-indented items immediately after this one is this
-            // item's nested list — it must render *inside* the <li>. Appending
-            // it as a sibling would emit a <ul> as a direct child of <ul>,
-            // which is invalid HTML.
-            var nestedHTML = ""
-            while i < lines.count && lines[i].matchesPattern(ulPattern)
-                && listItemIndent(lines[i]) > baseIndent {
-                nestedHTML += parseUnorderedList(&i, lines: lines)
-            }
-
-            if isOpenTask {
-                result += "<li class=\"task-item\"><input type=\"checkbox\" disabled> \(body)\(nestedHTML)</li>"
-                hasTaskItem = true
-            } else if isDoneTask {
-                result += "<li class=\"task-item\"><input type=\"checkbox\" checked disabled> \(body)\(nestedHTML)</li>"
-                hasTaskItem = true
-            } else {
-                result += "<li>\(body)\(nestedHTML)</li>"
-            }
         }
-
-        let cls = hasTaskItem ? " class=\"task-list\"" : ""
-        return "<ul\(cls)>\(result)</ul>"
+        if isMermaid {
+            hasMermaid = true
+            return "<pre class=\"mermaid\">\(code.joined(separator: "\n"))</pre>"
+        }
+        let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
+        return "<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>"
     }
 
     // MARK: - Block Helpers
@@ -864,11 +931,6 @@ private extension String {
     func matchesPattern(_ regex: NSRegularExpression) -> Bool {
         let range = NSRange(startIndex..., in: self)
         return regex.firstMatch(in: self, range: range) != nil
-    }
-
-    func removingMatch(of regex: NSRegularExpression) -> String {
-        let range = NSRange(startIndex..., in: self)
-        return regex.stringByReplacingMatches(in: self, range: range, withTemplate: "")
     }
 
     func replacing(_ regex: NSRegularExpression, using transform: ([String]) -> String) -> String {

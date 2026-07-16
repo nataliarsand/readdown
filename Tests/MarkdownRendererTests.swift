@@ -978,4 +978,72 @@ final class MarkdownRendererTests: XCTestCase {
         let html = MarkdownRenderer.render(md).html
         XCTAssertTrue(html.contains("<code>some code</code>"))
     }
+
+    // MARK: - Nested & mixed lists
+
+    /// A nested ordered list must render inside its parent <li>, not flatten to
+    /// two top-level siblings.
+    func testNestedOrderedList() {
+        let html = MarkdownRenderer.render("1. a\n   1. b").html
+        XCTAssertEqual(html, "<ol><li>a<ol><li>b</li></ol></li></ol>")
+    }
+
+    /// A deeper ordered list keeps its own `start` number.
+    func testNestedOrderedListKeepsStart() {
+        let html = MarkdownRenderer.render("1. a\n   3. b\n   4. c").html
+        XCTAssertEqual(html, "<ol><li>a<ol start=\"3\"><li>b</li><li>c</li></ol></li></ol>")
+    }
+
+    /// A `-` sublist inside a `1.` item nests inside the ordered <li> and does
+    /// not split the parent list.
+    func testUnorderedSublistInsideOrderedItem() {
+        let html = MarkdownRenderer.render("1. a\n   - b\n2. c").html
+        XCTAssertEqual(html, "<ol><li>a<ul><li>b</li></ul></li><li>c</li></ol>")
+    }
+
+    /// An ordered sublist inside a `-` item nests inside the unordered <li>.
+    func testOrderedSublistInsideUnorderedItem() {
+        let html = MarkdownRenderer.render("- a\n  1. b\n- c").html
+        XCTAssertEqual(html, "<ul><li>a<ol><li>b</li></ol></li><li>c</li></ul>")
+    }
+
+    /// Three levels of alternating types nest correctly.
+    func testDeeplyNestedMixedList() {
+        let md = """
+        1. a
+           - b
+             1. c
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertEqual(html, "<ol><li>a<ul><li>b<ol><li>c</li></ol></li></ul></li></ol>")
+    }
+
+    // MARK: - Loose lists
+
+    /// A blank line between items makes the list loose: each item's text is
+    /// wrapped in <p>.
+    func testLooseUnorderedListWrapsItemsInParagraphs() {
+        let html = MarkdownRenderer.render("- a\n\n- b").html
+        XCTAssertEqual(html, "<ul><li><p>a</p></li><li><p>b</p></li></ul>")
+    }
+
+    /// A blank line between ordered items makes the ordered list loose.
+    func testLooseOrderedListWrapsItemsInParagraphs() {
+        let html = MarkdownRenderer.render("1. a\n\n2. b").html
+        XCTAssertEqual(html, "<ol><li><p>a</p></li><li><p>b</p></li></ol>")
+    }
+
+    /// A multi-paragraph item keeps its continuation paragraph inside the <li>
+    /// (it used to eject to top level and restart the list) and makes the list
+    /// loose.
+    func testMultiParagraphItemStaysInList() {
+        let md = """
+        - first
+
+          second paragraph
+        - third
+        """
+        let html = MarkdownRenderer.render(md).html
+        XCTAssertEqual(html, "<ul><li><p>first</p><p>second paragraph</p></li><li><p>third</p></li></ul>")
+    }
 }
