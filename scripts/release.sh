@@ -198,6 +198,21 @@ create-dmg \
 echo "==> Signing DMG..."
 codesign --sign "Developer ID Application" "$DMG_PATH"
 
+# ── Step 9b: Notarize & staple the DMG ──
+# The app inside is already notarized+stapled, but Gatekeeper checks the DMG
+# itself on a manual download, so it must be notarized and stapled too — an
+# unnotarized DMG trips "Apple cannot verify this app." Sparkle uses the zip.
+
+if [ "$SKIP_NOTARIZE" = false ]; then
+    echo "==> Notarizing DMG..."
+    xcrun notarytool submit "$DMG_PATH" \
+        --keychain-profile "$KEYCHAIN_PROFILE" \
+        --wait
+
+    echo "==> Stapling DMG..."
+    xcrun stapler staple "$DMG_PATH"
+fi
+
 # ── Step 10: Create Sparkle zip ──
 # Sparkle auto-updates require a zip (not DMG). DMG is for manual downloads.
 
