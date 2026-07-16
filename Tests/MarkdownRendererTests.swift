@@ -190,7 +190,7 @@ final class MarkdownRendererTests: XCTestCase {
     }
 
     func testBoldDoesNotLeakAcrossListItemsWhenCodeSpansContainHTMLTags() {
-        //  regression: a bullet whose code spans contained `<strong>`
+        // Code-span regression: a bullet whose code spans contained `<strong>`
         // and `<em>` (real HTML tag names) used to leak those tags through and
         // turn every following <li> bold via the parser's active-formatting list.
         let md = """

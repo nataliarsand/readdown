@@ -20,21 +20,9 @@ release/
 *.key
 *.mobileprovision
 
-
 # Test fixtures
 testfiles/
 
-
-
-
-
-
-
-
-
-
-# Planning docs
+# Local notes and planning
 docs/
-
-# Download metrics (snapshot-downloads.sh)
 metrics/
