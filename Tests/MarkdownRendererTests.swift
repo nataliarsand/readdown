@@ -1144,6 +1144,70 @@ final class MarkdownRendererTests: XCTestCase {
         )
     }
 
+    // MARK: - Reference images
+
+    func testFullReferenceImage() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![alt][img]\n\n[img]: https://a.com/i.png").html,
+            "<p><img src=\"https://a.com/i.png\" alt=\"alt\"></p>"
+        )
+    }
+
+    func testCollapsedReferenceImage() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![alt][]\n\n[alt]: https://a.com/i.png").html,
+            "<p><img src=\"https://a.com/i.png\" alt=\"alt\"></p>"
+        )
+    }
+
+    func testShortcutReferenceImage() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![alt]\n\n[alt]: https://a.com/i.png").html,
+            "<p><img src=\"https://a.com/i.png\" alt=\"alt\"></p>"
+        )
+    }
+
+    func testReferenceImageWithTitle() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![alt][img]\n\n[img]: https://a.com/i.png \"cap\"").html,
+            "<p><img src=\"https://a.com/i.png\" alt=\"alt\" title=\"cap\"></p>"
+        )
+    }
+
+    /// An undefined reference image renders as its literal source text.
+    func testUndefinedReferenceImageRendersLiteral() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![alt][nope]\n\n[real]: https://a.com/i.png").html,
+            "<p>![alt][nope]</p>"
+        )
+    }
+
+    /// A reference image resolving to an unsafe URL is dropped to literal text.
+    func testReferenceImageUnsafeURLDropped() {
+        let html = MarkdownRenderer.render("![x][bad]\n\n[bad]: javascript:alert(1)").html
+        XCTAssertFalse(html.contains("<img"))
+        XCTAssertFalse(html.contains("javascript"))
+    }
+
+    /// Reference images resolve inside a list item too (refs are threaded through).
+    func testReferenceImageInsideListItem() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("- ![alt][img]\n\n[img]: https://a.com/i.png").html,
+            "<ul><li><img src=\"https://a.com/i.png\" alt=\"alt\"></li></ul>"
+        )
+    }
+
+    // MARK: - Thematic break after a list
+
+    /// A thematic break directly under a list item (no blank line) closes the
+    /// list and renders as `<hr>`, rather than being swallowed as lazy text.
+    func testThematicBreakClosesListWithoutBlankLine() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("- a\n***").html,
+            "<ul><li>a</li></ul>\n<hr>"
+        )
+    }
+
     // MARK: - GFM bare-URL autolinking
 
     func testBareURLAutolinked() {

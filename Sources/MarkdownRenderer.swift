@@ -53,6 +53,10 @@ private let refDefPattern = try! NSRegularExpression(pattern: "^\\s{0,3}\\[([^\\
 private let fullRefPattern = try! NSRegularExpression(pattern: "(?<!!)\\[([^\\]]*)\\]\\[([^\\]]*)\\]")
 // Shortcut reference link: `[ref]`, not preceded by `!`/`]` nor followed by `[`/`(`.
 private let shortcutRefPattern = try! NSRegularExpression(pattern: "(?<![!\\]])\\[([^\\]]+)\\](?![\\[(])")
+// Full / collapsed reference image: `![alt][ref]` / `![alt][]`.
+private let fullRefImagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\[([^\\]]*)\\]")
+// Shortcut reference image: `![alt]`, not followed by `[`/`(` (an inline image or full ref).
+private let shortcutRefImagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]+)\\](?![\\[(])")
 // GFM bare-URL autolink candidate. Trailing sentence punctuation is trimmed in code.
 private let bareURLPattern = try! NSRegularExpression(pattern: "https?://[^\\s<>]+")
 
@@ -480,10 +484,18 @@ enum MarkdownRenderer {
             return "<a href=\"\(escapeURLForAttribute(url))\"\(titleAttr)>\(match[1])</a>"
         }
 
-        // Reference links — full/collapsed `[text][ref]` then shortcut `[ref]`,
-        // resolved against the definitions collected in `render`. Inline links
-        // above are already consumed, so only reference brackets remain.
+        // Reference images then reference links, resolved against the definitions
+        // collected in `render`. Inline images/links above are already consumed.
+        // Images run first so `![alt][ref]` becomes an `<img>` before the link
+        // passes (whose patterns exclude `!`-prefixed brackets anyway) see it.
         if !refs.isEmpty {
+            s = s.replacing(fullRefImagePattern) { match in
+                let label = match[2].isEmpty ? match[1] : match[2]
+                return referenceImage(alt: match[1], label: label, refs: refs) ?? match[0]
+            }
+            s = s.replacing(shortcutRefImagePattern) { match in
+                referenceImage(alt: match[1], label: match[1], refs: refs) ?? match[0]
+            }
             s = s.replacing(fullRefPattern) { match in
                 let label = match[2].isEmpty ? match[1] : match[2]
                 return referenceAnchor(text: match[1], label: label, refs: refs) ?? match[0]
@@ -614,6 +626,16 @@ enum MarkdownRenderer {
         return "<a href=\"\(escapeURLForAttribute(url))\"\(titleAttr)>\(text)</a>"
     }
 
+    /// Builds an `<img>` for a reference image, or `nil` when the label is
+    /// undefined or resolves to an unsafe URL (caller falls back to literal text).
+    private static func referenceImage(alt: String, label: String, refs: RefDefs) -> String? {
+        guard let def = refs[label.lowercased()] else { return nil }
+        let url = sanitizedMarkdownURL(def.url)
+        guard isSafeURL(url) else { return nil }
+        let titleAttr = def.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+        return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(escapeHTML(alt))\"\(titleAttr)>"
+    }
+
     /// Splits a link/image destination `url "title"` into its URL and optional
     /// title. Title delimiters (`"…"`, `'…'`, `(…)`) must be preceded by
     /// whitespace, so a URL like `Foo_(bar)` keeps its trailing parens.
@@ -713,12 +735,14 @@ enum MarkdownRenderer {
     }
 
     /// A line that, when it appears under-indented, ends a list item's lazy
-    /// continuation: another marker, a heading, a blockquote, or a code fence.
+    /// continuation: another marker, a heading, a blockquote, a code fence, or a
+    /// thematic break (so `- a` then `***` closes the list and emits an `<hr>`).
     private static func endsItemContinuation(_ line: String) -> Bool {
         let t = line.trimmingCharacters(in: .whitespaces)
         return line.matchesPattern(ulPattern) || line.matchesPattern(olPattern)
             || line.matchesPattern(headingPattern) || line.hasPrefix(">")
             || t.hasPrefix("```") || t.hasPrefix("~~~")
+            || isHorizontalRule(t)
     }
 
     private static func dropIndent(_ line: String, _ columns: Int) -> String {
