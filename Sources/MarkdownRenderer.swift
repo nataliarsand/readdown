@@ -47,6 +47,18 @@ private let htmlTagPattern = try! NSRegularExpression(pattern: "<!--[\\s\\S]*?--
 private let attrScanPattern = try! NSRegularExpression(pattern: "([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\\s*=\\s*(\"[^\"]*\"|'[^']*'|[^\\s\"'`=<>]+))?")
 private let htmlEntityPattern = try! NSRegularExpression(pattern: "&(?:[a-zA-Z][a-zA-Z0-9]{0,31}|#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6});")
 
+// Reference-link definition: `[label]: url "title"` (title optional; `"…"`, `'…'`, or `(…)`).
+private let refDefPattern = try! NSRegularExpression(pattern: "^\\s{0,3}\\[([^\\]]+)\\]:\\s*(\\S+)(?:\\s+(?:\"([^\"]*)\"|'([^']*)'|\\(([^)]*)\\)))?\\s*$")
+// Full / collapsed reference link: `[text][ref]` / `[text][]`, but not an image (`![…]`).
+private let fullRefPattern = try! NSRegularExpression(pattern: "(?<!!)\\[([^\\]]*)\\]\\[([^\\]]*)\\]")
+// Shortcut reference link: `[ref]`, not preceded by `!`/`]` nor followed by `[`/`(`.
+private let shortcutRefPattern = try! NSRegularExpression(pattern: "(?<![!\\]])\\[([^\\]]+)\\](?![\\[(])")
+// GFM bare-URL autolink candidate. Trailing sentence punctuation is trimmed in code.
+private let bareURLPattern = try! NSRegularExpression(pattern: "https?://[^\\s<>]+")
+
+/// Reference-link definitions, keyed by lowercased label.
+private typealias RefDefs = [String: (url: String, title: String?)]
+
 /// HTML sanitization is an allowlist: `safeTags` pass (keeping only `safeAttributes`),
 /// everything else is escaped to text. Fail-safe — unknowns are neutralized, not emitted.
 private let safeTags: Set<String> = [
@@ -79,7 +91,10 @@ enum MarkdownRenderer {
     }
 
     static func render(_ markdown: String) -> Result {
-        let lines = markdown.components(separatedBy: "\n")
+        var lines = markdown.components(separatedBy: "\n")
+        // Harvest `[label]: url` definitions (fence-aware) and blank those lines
+        // before block parsing, so a reference can be defined anywhere.
+        let refs = collectReferenceDefinitions(&lines)
         var html: [String] = []
         var hasMermaid = false
         var i = 0
@@ -151,7 +166,7 @@ enum MarkdownRenderer {
                 let level = min(trimmedLine.prefix(while: { $0 == "#" }).count, 6)
                 let text = String(trimmedLine.dropFirst(level)).trimmingCharacters(in: .whitespaces)
                 let slug = uniqueSlug(for: text, existing: &headingSlugs)
-                html.append("<h\(level) id=\"\(slug)\">\(inlineMarkdown(text))</h\(level)>")
+                html.append("<h\(level) id=\"\(slug)\">\(inlineMarkdown(text, refs: refs))</h\(level)>")
                 i += 1
                 continue
             }
@@ -179,7 +194,7 @@ enum MarkdownRenderer {
                 var tableHTML = "<table><thead><tr>"
                 for (ci, cell) in headerCells.enumerated() {
                     let align = ci < alignments.count ? alignments[ci] : "left"
-                    tableHTML += "<th align=\"\(align)\">\(inlineMarkdown(cell.trimmingCharacters(in: .whitespaces)))</th>"
+                    tableHTML += "<th align=\"\(align)\">\(inlineMarkdown(cell.trimmingCharacters(in: .whitespaces), refs: refs))</th>"
                 }
                 tableHTML += "</tr></thead><tbody>"
 
@@ -190,7 +205,7 @@ enum MarkdownRenderer {
                     for ci in 0..<headerCells.count {
                         let align = ci < alignments.count ? alignments[ci] : "left"
                         let content = ci < cells.count ? cells[ci].trimmingCharacters(in: .whitespaces) : ""
-                        tableHTML += "<td align=\"\(align)\">\(inlineMarkdown(content))</td>"
+                        tableHTML += "<td align=\"\(align)\">\(inlineMarkdown(content, refs: refs))</td>"
                     }
                     tableHTML += "</tr>"
                     i += 1
@@ -219,7 +234,7 @@ enum MarkdownRenderer {
             // indented parser so nesting, mixed marker types, and loose items
             // behave uniformly.
             if line.matchesPattern(ulPattern) || line.matchesPattern(olPattern) {
-                html.append(parseList(&i, lines: lines, baseIndent: listItemIndent(line), hasMermaid: &hasMermaid))
+                html.append(parseList(&i, lines: lines, baseIndent: listItemIndent(line), hasMermaid: &hasMermaid, refs: refs))
                 continue
             }
 
@@ -271,11 +286,11 @@ enum MarkdownRenderer {
                 // the branch above), so reaching here means a real heading.
                 if i + 1 < lines.count, let level = setextUnderline(lines[i + 1]) {
                     if !para.isEmpty {
-                        html.append("<p>\(inlineMarkdown(para.joined(separator: "\n")))</p>")
+                        html.append("<p>\(inlineMarkdown(para.joined(separator: "\n"), refs: refs))</p>")
                         para.removeAll()
                     }
                     let slug = uniqueSlug(for: t, existing: &headingSlugs)
-                    html.append("<h\(level) id=\"\(slug)\">\(inlineMarkdown(t))</h\(level)>")
+                    html.append("<h\(level) id=\"\(slug)\">\(inlineMarkdown(t, refs: refs))</h\(level)>")
                     i += 2
                     break
                 }
@@ -283,7 +298,7 @@ enum MarkdownRenderer {
                 i += 1
             }
             if !para.isEmpty {
-                html.append("<p>\(inlineMarkdown(para.joined(separator: "\n")))</p>")
+                html.append("<p>\(inlineMarkdown(para.joined(separator: "\n"), refs: refs))</p>")
             }
 
             // Belt-and-braces: if every branch above somehow declined this line
@@ -400,7 +415,7 @@ enum MarkdownRenderer {
         return result
     }
 
-    private static func inlineMarkdown(_ text: String) -> String {
+    private static func inlineMarkdown(_ text: String, refs: RefDefs = [:]) -> String {
         // Inline code — pulled out *first* so no later inline pass (autolink,
         // escape, link, emphasis, …) can reach inside a code span. CommonMark:
         // code span content is literal. The U+E000/U+E001 Private Use
@@ -444,21 +459,46 @@ enum MarkdownRenderer {
             let email = match[1]
             return "<a href=\"mailto:\(escapeURLForAttribute(email))\">\(escapeURLForAttribute(email))</a>"
         }
-        s = escapeHTMLPreservingTags(s)
 
-        // Images: ![alt](url)
+        // Images: ![alt](url "title"). Alt/title are HTML-escaped here because the
+        // later `escapeHTMLPreservingTags` pass re-emits attribute values verbatim.
         s = s.replacing(imagePattern) { match in
-            let url = sanitizedMarkdownURL(match[2])
+            let (rawURL, title) = splitLinkDestination(match[2])
+            let url = sanitizedMarkdownURL(rawURL)
             guard isSafeURL(url) else { return match[0] }
-            return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(match[1])\">"
+            let titleAttr = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+            return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(escapeHTML(match[1]))\"\(titleAttr)>"
         }
 
-        // Links: [text](url)
+        // Links: [text](url "title"). The link text stays raw — the trailing
+        // `escapeHTMLPreservingTags` escapes it (and later passes give it emphasis).
         s = s.replacing(linkPattern) { match in
-            let url = sanitizedMarkdownURL(match[2])
+            let (rawURL, title) = splitLinkDestination(match[2])
+            let url = sanitizedMarkdownURL(rawURL)
             guard isSafeURL(url) else { return "\(match[1])" }
-            return "<a href=\"\(escapeURLForAttribute(url))\">\(match[1])</a>"
+            let titleAttr = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+            return "<a href=\"\(escapeURLForAttribute(url))\"\(titleAttr)>\(match[1])</a>"
         }
+
+        // Reference links — full/collapsed `[text][ref]` then shortcut `[ref]`,
+        // resolved against the definitions collected in `render`. Inline links
+        // above are already consumed, so only reference brackets remain.
+        if !refs.isEmpty {
+            s = s.replacing(fullRefPattern) { match in
+                let label = match[2].isEmpty ? match[1] : match[2]
+                return referenceAnchor(text: match[1], label: label, refs: refs) ?? match[0]
+            }
+            s = s.replacing(shortcutRefPattern) { match in
+                referenceAnchor(text: match[1], label: match[1], refs: refs) ?? match[0]
+            }
+        }
+
+        // GFM bare-URL autolinking — only in plain-text spans (never inside an
+        // existing tag or anchor). Runs while code/math are stashed.
+        s = autolinkBareURLs(s)
+
+        // Escape now that every link/image/autolink tag is emitted; real tags survive.
+        s = escapeHTMLPreservingTags(s)
 
         // Bold + italic
         s = s.replacing(boldItalicStarPattern) { match in
@@ -513,6 +553,146 @@ enum MarkdownRenderer {
         return s
     }
 
+    // MARK: - Reference Links & Autolinking
+
+    /// Fence-aware first pass: harvests `[label]: url "title"` definitions
+    /// (case-insensitive labels, first wins) and blanks those lines so they don't
+    /// render. Lines inside a fenced code block are skipped.
+    private static func collectReferenceDefinitions(_ lines: inout [String]) -> RefDefs {
+        var refs: RefDefs = [:]
+        var inFence = false
+        var fenceChar: Character = "`"
+        var fenceLen = 0
+        for idx in lines.indices {
+            let line = lines[idx]
+            let stripped = line.drop(while: { $0 == " " || $0 == "\t" })
+            if inFence {
+                let closeLen = stripped.prefix(while: { $0 == fenceChar }).count
+                if closeLen >= fenceLen && stripped.dropFirst(closeLen).allSatisfy({ $0.isWhitespace }) {
+                    inFence = false
+                }
+                continue
+            }
+            if line.matchesPattern(fencePattern) {
+                fenceChar = stripped.first == "~" ? "~" : "`"
+                fenceLen = stripped.prefix(while: { $0 == fenceChar }).count
+                inFence = true
+                continue
+            }
+            if let def = parseRefDef(line) {
+                let key = def.label.lowercased()
+                if refs[key] == nil { refs[key] = (def.url, def.title) }
+                lines[idx] = ""
+            }
+        }
+        return refs
+    }
+
+    /// Parses one `[label]: url "title"` definition line, or `nil` if it isn't one.
+    private static func parseRefDef(_ line: String) -> (label: String, url: String, title: String?)? {
+        let ns = line as NSString
+        guard let m = refDefPattern.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else {
+            return nil
+        }
+        let label = ns.substring(with: m.range(at: 1))
+        let url = ns.substring(with: m.range(at: 2))
+        var title: String?
+        for g in [3, 4, 5] where m.range(at: g).location != NSNotFound {
+            title = ns.substring(with: m.range(at: g))
+            break
+        }
+        return (label, url, title)
+    }
+
+    /// Builds an anchor for a reference link, or `nil` when the label is undefined
+    /// or resolves to an unsafe URL (caller falls back to the literal text).
+    private static func referenceAnchor(text: String, label: String, refs: RefDefs) -> String? {
+        guard let def = refs[label.lowercased()] else { return nil }
+        let url = sanitizedMarkdownURL(def.url)
+        guard isSafeURL(url) else { return nil }
+        let titleAttr = def.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+        return "<a href=\"\(escapeURLForAttribute(url))\"\(titleAttr)>\(text)</a>"
+    }
+
+    /// Splits a link/image destination `url "title"` into its URL and optional
+    /// title. Title delimiters (`"…"`, `'…'`, `(…)`) must be preceded by
+    /// whitespace, so a URL like `Foo_(bar)` keeps its trailing parens.
+    private static func splitLinkDestination(_ dest: String) -> (url: String, title: String?) {
+        let trimmed = dest.trimmingCharacters(in: .whitespaces)
+        guard let closer = trimmed.last else { return (trimmed, nil) }
+        let opener: Character
+        switch closer {
+        case "\"": opener = "\""
+        case "'": opener = "'"
+        case ")": opener = "("
+        default: return (trimmed, nil)
+        }
+        let body = trimmed.dropLast()  // without the closing delimiter
+        guard let openIdx = body.lastIndex(of: opener), openIdx > body.startIndex,
+              body[body.index(before: openIdx)].isWhitespace else {
+            return (trimmed, nil)
+        }
+        let title = String(body[body.index(after: openIdx)...])
+        let url = String(body[..<openIdx]).trimmingCharacters(in: .whitespaces)
+        return (url, title)
+    }
+
+    /// Wraps bare `http(s)://` URLs in anchors, but only inside plain-text spans:
+    /// it walks tags like `escapeHTMLPreservingTags` and skips both tag interiors
+    /// (attribute values) and the text of an already-open `<a>` element.
+    private static func autolinkBareURLs(_ text: String) -> String {
+        let ns = text as NSString
+        let matches = htmlTagPattern.matches(in: text, range: NSRange(location: 0, length: ns.length))
+        if matches.isEmpty { return linkifyBareURLs(text) }
+        var result = ""
+        var lastEnd = 0
+        var anchorDepth = 0
+        for m in matches {
+            let r = m.range
+            let between = ns.substring(with: NSRange(location: lastEnd, length: r.location - lastEnd))
+            result += anchorDepth > 0 ? between : linkifyBareURLs(between)
+            let tag = ns.substring(with: r)
+            result += tag
+            let (name, isClosing) = htmlTagName(tag)
+            if name == "a" {
+                if isClosing { anchorDepth = max(0, anchorDepth - 1) }
+                else if !tag.hasSuffix("/>") { anchorDepth += 1 }
+            }
+            lastEnd = r.location + r.length
+        }
+        let tail = ns.substring(from: lastEnd)
+        result += anchorDepth > 0 ? tail : linkifyBareURLs(tail)
+        return result
+    }
+
+    /// Linkifies bare URLs in a plain-text segment, trimming trailing sentence
+    /// punctuation and unbalanced closing parens (GFM autolink extension).
+    private static func linkifyBareURLs(_ text: String) -> String {
+        text.replacing(bareURLPattern) { match in
+            var url = Substring(match[0])
+            var trailing = ""
+            loop: while let last = url.last {
+                switch last {
+                case "?", "!", ".", ",", ":", ";", "*", "_", "~", "'", "\"":
+                    trailing = String(last) + trailing
+                    url = url.dropLast()
+                case ")":
+                    // Drop a closing paren only when it isn't balanced by an opener
+                    // in the URL, so `…/Foo_(bar)` keeps its paren.
+                    guard url.filter({ $0 == ")" }).count > url.filter({ $0 == "(" }).count else { break loop }
+                    trailing = String(last) + trailing
+                    url = url.dropLast()
+                default:
+                    break loop
+                }
+            }
+            let u = String(url)
+            guard !u.isEmpty, isSafeURL(u) else { return match[0] }
+            let safe = escapeURLForAttribute(u)
+            return "<a href=\"\(safe)\">\(safe)</a>\(trailing)"
+        }
+    }
+
     // MARK: - List Helpers
 
     /// One block inside a list item: a prose paragraph (raw, pre-inline) or a
@@ -556,7 +736,7 @@ enum MarkdownRenderer {
     /// a `1.` item and vice versa), tight vs loose items, ordered `start`
     /// numbers (issue #16), and task checkboxes. Every path advances `i` or
     /// breaks, preserving the no-hang invariant (issue #8).
-    private static func parseList(_ i: inout Int, lines: [String], baseIndent: Int, hasMermaid: inout Bool) -> String {
+    private static func parseList(_ i: inout Int, lines: [String], baseIndent: Int, hasMermaid: inout Bool, refs: RefDefs = [:]) -> String {
         let ordered = lines[i].matchesPattern(olPattern)
         var startNumber = 1
         var firstItem = true
@@ -609,7 +789,7 @@ enum MarkdownRenderer {
 
             let pieces = collectItem(&i, lines: lines, baseIndent: baseIndent,
                                      contentIndent: contentIndent, firstText: text,
-                                     loose: &loose, hasMermaid: &hasMermaid)
+                                     loose: &loose, hasMermaid: &hasMermaid, refs: refs)
             items.append((pieces, task))
         }
 
@@ -618,7 +798,7 @@ enum MarkdownRenderer {
             var inner = ""
             for piece in item.pieces {
                 switch piece {
-                case .para(let raw): inner += loose ? "<p>\(inlineMarkdown(raw))</p>" : inlineMarkdown(raw)
+                case .para(let raw): inner += loose ? "<p>\(inlineMarkdown(raw, refs: refs))</p>" : inlineMarkdown(raw, refs: refs)
                 case .block(let h): inner += h
                 }
             }
@@ -642,7 +822,8 @@ enum MarkdownRenderer {
     /// code (issue #9), and continuation paragraphs — stays inside the item; a
     /// blank line before such content makes the list loose.
     private static func collectItem(_ i: inout Int, lines: [String], baseIndent: Int, contentIndent: Int,
-                                    firstText: String, loose: inout Bool, hasMermaid: inout Bool) -> [ListPiece] {
+                                    firstText: String, loose: inout Bool, hasMermaid: inout Bool,
+                                    refs: RefDefs = [:]) -> [ListPiece] {
         var pieces: [ListPiece] = []
         var prose: [String] = firstText.isEmpty ? [] : [firstText]
         func flush() {
@@ -680,7 +861,7 @@ enum MarkdownRenderer {
                 let deindented = dropIndent(line, contentIndent)
                 if deindented.matchesPattern(ulPattern) || deindented.matchesPattern(olPattern) {
                     flush()
-                    pieces.append(.block(parseList(&i, lines: lines, baseIndent: indent, hasMermaid: &hasMermaid)))
+                    pieces.append(.block(parseList(&i, lines: lines, baseIndent: indent, hasMermaid: &hasMermaid, refs: refs)))
                     continue
                 }
                 prose.append(trimmed)

@@ -1046,4 +1046,126 @@ final class MarkdownRendererTests: XCTestCase {
         let html = MarkdownRenderer.render(md).html
         XCTAssertEqual(html, "<ul><li><p>first</p><p>second paragraph</p></li><li><p>third</p></li></ul>")
     }
+
+    // MARK: - Link & image titles
+
+    func testLinkWithTitle() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[x](https://a.com \"hi\")").html,
+            "<p><a href=\"https://a.com\" title=\"hi\">x</a></p>"
+        )
+    }
+
+    func testImageWithTitle() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![a](https://a.com/i.png \"hi\")").html,
+            "<p><img src=\"https://a.com/i.png\" alt=\"a\" title=\"hi\"></p>"
+        )
+    }
+
+    func testLinkWithSingleQuotedTitle() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[x](https://a.com 'hi')").html,
+            "<p><a href=\"https://a.com\" title=\"hi\">x</a></p>"
+        )
+    }
+
+    /// A destination with no title behaves exactly as before (no title attribute).
+    func testLinkWithoutTitleUnchanged() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[Click](https://example.com)").html,
+            "<p><a href=\"https://example.com\">Click</a></p>"
+        )
+    }
+
+    func testLinkTitleIsHTMLEscaped() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[x](https://a.com \"a<b&c\")").html,
+            "<p><a href=\"https://a.com\" title=\"a&lt;b&amp;c\">x</a></p>"
+        )
+    }
+
+    // MARK: - Reference links
+
+    func testFullReferenceLink() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[text][ref]\n\n[ref]: https://a.com").html,
+            "<p><a href=\"https://a.com\">text</a></p>"
+        )
+    }
+
+    func testCollapsedReferenceLink() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[text][]\n\n[text]: https://a.com").html,
+            "<p><a href=\"https://a.com\">text</a></p>"
+        )
+    }
+
+    func testShortcutReferenceLink() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[ref]\n\n[ref]: https://a.com").html,
+            "<p><a href=\"https://a.com\">ref</a></p>"
+        )
+    }
+
+    func testReferenceLinkLabelIsCaseInsensitive() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[Text][REF]\n\n[ref]: https://a.com").html,
+            "<p><a href=\"https://a.com\">Text</a></p>"
+        )
+    }
+
+    func testReferenceLinkWithTitle() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[text][ref]\n\n[ref]: https://a.com \"hi\"").html,
+            "<p><a href=\"https://a.com\" title=\"hi\">text</a></p>"
+        )
+    }
+
+    /// An undefined reference renders as its literal source text.
+    func testUndefinedReferenceRendersLiteral() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("[text][nope]\n\n[real]: https://a.com").html,
+            "<p>[text][nope]</p>"
+        )
+    }
+
+    /// A definition line produces no output of its own.
+    func testReferenceDefinitionLineDoesNotRender() {
+        XCTAssertEqual(MarkdownRenderer.render("[ref]: https://a.com").html, "")
+    }
+
+    /// Definitions are threaded through the list parser, so a reference link
+    /// inside a list item resolves.
+    func testReferenceLinkInsideListItem() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("- see [text][ref]\n\n[ref]: https://a.com").html,
+            "<ul><li>see <a href=\"https://a.com\">text</a></li></ul>"
+        )
+    }
+
+    // MARK: - GFM bare-URL autolinking
+
+    func testBareURLAutolinked() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("Visit https://x.com now").html,
+            "<p>Visit <a href=\"https://x.com\">https://x.com</a> now</p>"
+        )
+    }
+
+    /// A bare URL inside a code span stays literal (code is stashed first).
+    func testBareURLInCodeSpanNotAutolinked() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("`https://x.com`").html,
+            "<p><code>https://x.com</code></p>"
+        )
+    }
+
+    /// Trailing sentence punctuation is left outside the link.
+    func testBareURLTrailingPunctuationTrimmed() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("(see https://x.com).").html,
+            "<p>(see <a href=\"https://x.com\">https://x.com</a>).</p>"
+        )
+    }
 }
