@@ -62,4 +62,4 @@ If you find Readdown useful, you can [buy me a coffee](https://www.paypal.com/do
 
 ## Sponsor a release
 
-Each Readdown release can be sponsored, with a credit on the website, in the GitHub release notes, and here. To become a release sponsor, reach out at nataliarsand@gmail.com.
+Each Readdown release can be sponsored, with a credit on the website, in the GitHub release notes, and here. To become a release sponsor, reach out at hello@readdown.app.
