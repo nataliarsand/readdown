@@ -397,6 +397,59 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("&lt;!--"))
     }
 
+    // MARK: - HTML sanitization (allowlist)
+
+    func testBlockLevelScriptIsEscaped() {
+        // Regression: a <script> nested in a block-level tag used to bypass the
+        // inline escaper (block path only stripped attributes) and execute.
+        let result = MarkdownRenderer.render("<div><script>alert(1)</script></div>").html
+        XCTAssertTrue(result.contains("&lt;script&gt;"))
+        XCTAssertFalse(result.contains("<script>"))
+    }
+
+    func testEventHandlerWithoutLeadingSpaceIsStripped() {
+        // `"x"onerror=` has no whitespace before the handler; the old regex missed it.
+        let result = MarkdownRenderer.render("<img src=\"x\"onerror=\"alert(1)\">").html
+        XCTAssertFalse(result.lowercased().contains("onerror"))
+        XCTAssertTrue(result.contains("<img"))
+    }
+
+    func testEventHandlerWithSpaceIsStripped() {
+        let result = MarkdownRenderer.render("<a href=\"#\" onclick=\"steal()\">x</a>").html
+        XCTAssertFalse(result.lowercased().contains("onclick"))
+        XCTAssertTrue(result.contains("href=\"#\""))
+    }
+
+    func testDangerousTagsAreEscaped() {
+        for tag in ["<iframe src=\"x\">", "<style>body{}</style>", "<base href=\"//evil\">",
+                    "<meta http-equiv=\"refresh\">", "<link rel=\"x\">", "<svg onload=\"alert(1)\">",
+                    "<object data=\"x\">", "<form action=\"x\">"] {
+            let result = MarkdownRenderer.render(tag).html
+            XCTAssertTrue(result.contains("&lt;"), "\(tag) should be escaped to text")
+        }
+    }
+
+    func testSafeInlineHTMLStillPasses() {
+        let result = MarkdownRenderer.render("A <span class=\"hl\">x</span>, <kbd>Cmd</kbd>, <br> end").html
+        XCTAssertTrue(result.contains("<span class=\"hl\">"))
+        XCTAssertTrue(result.contains("<kbd>"))
+        XCTAssertTrue(result.contains("<br>"))
+    }
+
+    func testUnsafeAttributesDroppedSafeKept() {
+        let result = MarkdownRenderer.render("<div class=\"ok\" style=\"x\" onmouseover=\"y\">z</div>").html
+        XCTAssertTrue(result.contains("class=\"ok\""))
+        XCTAssertFalse(result.lowercased().contains("onmouseover"))
+        XCTAssertFalse(result.contains("style="))
+    }
+
+    func testScriptContentIsOpaque() {
+        // A tag nested inside an (escaped) <script> must not leak as real markup.
+        let result = MarkdownRenderer.render("<div><script>x=1;<h2>LEAK</h2></script></div>").html
+        XCTAssertFalse(result.contains("<h2>"), "script content must be opaque, not rendered")
+        XCTAssertTrue(result.contains("&lt;h2&gt;"))
+    }
+
     // MARK: - Links
 
     func testLinkURLWithParens() {

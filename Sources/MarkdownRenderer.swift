@@ -39,15 +39,40 @@ private let strikePattern = try! NSRegularExpression(pattern: "~~(.+?)~~", optio
 private let inlineMathDollarPattern = try! NSRegularExpression(pattern: "(?<![\\\\$])\\$(?!\\d)(?=\\S)([^\\n$]*?[^\\s$])\\$(?![0-9$])")
 private let inlineMathParenPattern = try! NSRegularExpression(pattern: "\\\\\\((.+?)\\\\\\)")
 private let htmlTagPattern = try! NSRegularExpression(pattern: "<!--[\\s\\S]*?-->|</?[a-zA-Z][a-zA-Z0-9]*(?:\\s+[^>]*)?\\/?>")
-private let dangerousAttrPattern = try! NSRegularExpression(pattern: "\\s+(?:on\\w+|srcdoc|formaction)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)", options: .caseInsensitive)
+// Scans one HTML tag's attributes as (name, optional value) tokens so only
+// allowlisted attribute names survive. Because filtering is an allowlist, any
+// unknown attribute — including every `on*` handler, with or without leading
+// whitespace (e.g. `<img src="x"onerror=…>`) — is dropped, not passed.
+private let attrScanPattern = try! NSRegularExpression(pattern: "([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s\"'`=<>]+))?")
 private let htmlEntityPattern = try! NSRegularExpression(pattern: "&(?:[a-zA-Z][a-zA-Z0-9]{0,31}|#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6});")
 
-/// Tags whose content the browser treats as opaque until their closing tag. If we passed these
-/// through unescaped, a user's literal `<script>` (even inside an inline code span) would open a
-/// real script element and swallow the rest of the document. Always escape them.
-private let alwaysEscapedTags: Set<String> = [
-    "script", "style", "iframe", "object", "embed",
-    "textarea", "noscript", "noembed", "frame", "frameset"
+/// HTML sanitization is an allowlist. Raw tags in `safeTags` pass through (with
+/// only `safeAttributes` kept); every other tag — script, style, iframe, object,
+/// embed, base, link, meta, form controls, svg, math, media, … — is escaped to
+/// text. Fail-safe by construction: anything unrecognized is neutralized rather
+/// than emitted, so an active tag or attribute we didn't foresee can't slip
+/// through (the failure mode of the old denylist).
+private let safeTags: Set<String> = [
+    "a", "abbr", "address", "article", "aside", "b", "bdi", "bdo", "blockquote",
+    "br", "caption", "cite", "code", "col", "colgroup", "dd", "del", "details",
+    "dfn", "div", "dl", "dt", "em", "figcaption", "figure", "footer", "h1", "h2",
+    "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "i", "img", "ins", "kbd",
+    "li", "main", "mark", "nav", "ol", "p", "pre", "q", "rp", "rt", "ruby", "s",
+    "samp", "section", "small", "span", "strong", "sub", "summary", "sup",
+    "table", "tbody", "td", "tfoot", "th", "thead", "time", "tr", "u", "ul",
+    "var", "wbr",
+]
+private let safeAttributes: Set<String> = [
+    "href", "src", "alt", "title", "class", "id", "name", "width", "height",
+    "align", "valign", "colspan", "rowspan", "start", "reversed", "type",
+    "datetime", "cite", "dir", "lang", "span", "scope",
+]
+/// Elements whose content the HTML parser treats as opaque text up to the
+/// matching close tag. When we escape one of these (none are in `safeTags`),
+/// we also escape everything inside it, so nested tags can't leak out as markup.
+private let rawTextTags: Set<String> = [
+    "script", "style", "textarea", "title", "xmp", "noscript", "noembed",
+    "iframe", "noframes",
 ]
 
 enum MarkdownRenderer {
@@ -229,7 +254,9 @@ enum MarkdownRenderer {
                     blockLines.append(l)
                     i += 1
                 }
-                html.append(blockLines.map { stripDangerousAttributes($0) }.joined(separator: "\n"))
+                // Sanitize the whole block as one string so raw-text opacity
+                // (e.g. a multi-line `<script>…</script>`) is tracked across lines.
+                html.append(escapeHTMLPreservingTags(blockLines.joined(separator: "\n")))
                 continue
             }
 
@@ -289,27 +316,71 @@ enum MarkdownRenderer {
         if matches.isEmpty { return escapeHTMLKeepingEntities(text) }
         var result = ""
         var lastEnd = 0
+        // Name of an open raw-text element (`<script>`, `<style>`, …). While set,
+        // the browser treats everything up to the matching close tag as opaque
+        // text, so we escape it wholesale — including any nested tags — rather
+        // than letting a `<h2>` inside a script leak out as real markup.
+        var rawText: String?
         for match in matches {
             let r = match.range
-            result += escapeHTMLKeepingEntities(ns.substring(with: NSRange(location: lastEnd, length: r.location - lastEnd)))
+            let between = ns.substring(with: NSRange(location: lastEnd, length: r.location - lastEnd))
+            result += rawText != nil ? escapeHTML(between) : escapeHTMLKeepingEntities(between)
             let tag = ns.substring(with: r)
-            if isAlwaysEscapedTag(tag) {
+            let (name, isClosing) = htmlTagName(tag)
+            if let open = rawText {
                 result += escapeHTML(tag)
+                if isClosing && name == open { rawText = nil }
             } else {
-                result += stripDangerousAttributes(tag)
+                result += sanitizeHTMLTag(tag)
+                if !isClosing && rawTextTags.contains(name) { rawText = name }
             }
             lastEnd = r.location + r.length
         }
-        result += escapeHTMLKeepingEntities(ns.substring(from: lastEnd))
+        let tail = ns.substring(from: lastEnd)
+        result += rawText != nil ? escapeHTML(tail) : escapeHTMLKeepingEntities(tail)
         return result
     }
 
-    private static func isAlwaysEscapedTag(_ tag: String) -> Bool {
-        var s = tag
-        if s.hasPrefix("<") { s = String(s.dropFirst()) }
-        if s.hasPrefix("/") { s = String(s.dropFirst()) }
-        let name = s.prefix(while: { $0.isLetter || $0.isNumber }).lowercased()
-        return alwaysEscapedTags.contains(name)
+    /// The lowercased tag name and whether it's a closing tag. `("", false)` for
+    /// comments and anything that isn't a well-formed tag.
+    private static func htmlTagName(_ tag: String) -> (name: String, isClosing: Bool) {
+        var s = Substring(tag)
+        guard s.first == "<" else { return ("", false) }
+        s = s.dropFirst()
+        let isClosing = s.first == "/"
+        if isClosing { s = s.dropFirst() }
+        return (String(s.prefix(while: { $0.isLetter || $0.isNumber })).lowercased(), isClosing)
+    }
+
+    /// Allowlist sanitizer for a single matched HTML tag (or comment). A safe tag
+    /// is re-emitted keeping only allowlisted attributes; any other tag is escaped
+    /// to text so it renders literally and can't become active content.
+    private static func sanitizeHTMLTag(_ tag: String) -> String {
+        // Comments matched the full `<!-- … -->` pattern already; they're inert.
+        if tag.hasPrefix("<!--") { return tag }
+        var s = Substring(tag)
+        guard s.first == "<" else { return escapeHTML(tag) }
+        s = s.dropFirst()
+        let isClosing = s.first == "/"
+        if isClosing { s = s.dropFirst() }
+        let name = String(s.prefix(while: { $0.isLetter || $0.isNumber })).lowercased()
+        guard !name.isEmpty, safeTags.contains(name) else { return escapeHTML(tag) }
+        if isClosing { return "</\(name)>" }
+
+        // Opening / self-closing tag: keep only allowlisted attributes.
+        let selfClosing = tag.hasSuffix("/>")
+        var body = String(s.dropFirst(name.count))
+        if body.hasSuffix(">") { body.removeLast() }
+        if body.hasSuffix("/") { body.removeLast() }
+        var out = "<" + name
+        let bns = body as NSString
+        for m in attrScanPattern.matches(in: body, range: NSRange(location: 0, length: bns.length)) {
+            let attrName = bns.substring(with: m.range(at: 1)).lowercased()
+            if safeAttributes.contains(attrName) {
+                out += " " + bns.substring(with: m.range)
+            }
+        }
+        return out + (selfClosing ? " />" : ">")
     }
 
     /// Like `escapeHTML`, but passes valid HTML entity references (`&copy;`, `&#169;`, `&#xA9;`)
@@ -666,11 +737,6 @@ enum MarkdownRenderer {
             .replacingOccurrences(of: "*", with: "&#42;")
             .replacingOccurrences(of: "~", with: "&#126;")
             .replacingOccurrences(of: "`", with: "&#96;")
-    }
-
-    private static func stripDangerousAttributes(_ tag: String) -> String {
-        let range = NSRange(location: 0, length: (tag as NSString).length)
-        return dangerousAttrPattern.stringByReplacingMatches(in: tag, range: range, withTemplate: "")
     }
 
     private static let htmlBlockTags: Set<String> = [
