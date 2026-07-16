@@ -120,6 +120,35 @@ enum HTMLTemplate {
             /* When an anchor link scrolls to a heading, leave room for the
                toolbar (which extends over the top of the content area). */
             scroll-margin-top: 56px;
+            position: relative;
+        }
+        /* Collapsible sections — deliberately quiet. A small chevron sits in the
+           left gutter, invisible until the heading is hovered; clicking it folds
+           the section down to the next same-or-higher heading. Absolutely
+           positioned, so it never shifts the text. */
+        .rd-fold {
+            position: absolute;
+            left: -1.15rem;
+            top: 0.42em;
+            width: 14px;
+            height: 14px;
+            color: var(--muted);
+            opacity: 0;
+            cursor: default;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .rd-fold svg { width: 100%; height: 100%; display: block; }
+        h1:hover > .rd-fold, h2:hover > .rd-fold, h3:hover > .rd-fold,
+        h4:hover > .rd-fold, h5:hover > .rd-fold, h6:hover > .rd-fold { opacity: 0.3; }
+        .rd-fold:hover { opacity: 0.7; }
+        /* Collapsed: chevron points right and stays faintly visible as a hint. */
+        .rd-collapsed > .rd-fold { transform: rotate(-90deg); opacity: 0.28; }
+        .rd-fold-hidden { display: none !important; }
+        @media print {
+            .rd-fold { display: none; }
+            .rd-fold-hidden { display: revert !important; }
         }
         h1 { font-size: 1.95em; letter-spacing: -0.015em; }
         h2 { font-size: 1.56em; letter-spacing: -0.01em; }
@@ -596,6 +625,42 @@ enum HTMLTemplate {
             }, { passive: true });
         })();
         </script>
+        \(compact ? "" : """
+        <script>
+        // Collapsible headings — a quiet left-gutter chevron folds a section down
+        // to the next heading of the same or higher level. Headings are flat
+        // siblings in <body>, so the fold walks `nextElementSibling`. Main-app
+        // only; Quick Look previews stay static.
+        (function() {
+            var CH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+            function level(el) {
+                return el && el.tagName && /^H[1-6]$/.test(el.tagName) ? +el.tagName.charAt(1) : 0;
+            }
+            document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h) {
+                var lvl = level(h);
+                var btn = document.createElement('span');
+                btn.className = 'rd-fold';
+                btn.innerHTML = CH;
+                btn.setAttribute('role', 'button');
+                btn.setAttribute('aria-label', 'Collapse section');
+                h.insertBefore(btn, h.firstChild);
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var collapsed = h.classList.toggle('rd-collapsed');
+                    btn.setAttribute('aria-label', collapsed ? 'Expand section' : 'Collapse section');
+                    var el = h.nextElementSibling;
+                    while (el) {
+                        var l = level(el);
+                        if (l > 0 && l <= lvl) break;
+                        el.classList.toggle('rd-fold-hidden', collapsed);
+                        el = el.nextElementSibling;
+                    }
+                });
+            });
+        })();
+        </script>
+        """)
         \(hasMath && katexJS != nil && katexCSS != nil ? """
         <style>\(katexCSS!)</style>
         <script>\(katexJS!)</script>
