@@ -16,6 +16,8 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 
 ### Details
 
+_Readdown 1.16 is sponsored by [Eixo](https://eixo.design). Make better product decisions and build with confidence in the age of AI._
+
 **New**
 
 - TeX math rendering via a bundled KaTeX (fonts embedded, fully offline). Math is detected and stashed before Markdown processing begins, so underscores and asterisks inside expressions are never treated as emphasis delimiters. Dollar amounts in prose (`$5` and `$10`) are not mistaken for math.

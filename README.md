@@ -59,3 +59,7 @@ Source-available. You may view, study, and contribute, but redistribution is not
 ## Support
 
 If you find Readdown useful, you can [buy me a coffee](https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC).
+
+## Sponsor a release
+
+Each Readdown release can be sponsored, with a credit on the website, in the GitHub release notes, and here. To become a release sponsor, reach out at nataliarsand@gmail.com.
