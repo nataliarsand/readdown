@@ -6,10 +6,13 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 
 ### New
 - **Math rendering** — inline (`$x^2$` or `\(x^2\)`) and display-block (`$$...$$` or `\[...\]`) TeX equations, fully offline
+- Collapsible headings: fold a section away with the chevron in the margin
 - Links to another local Markdown file now reveal the target in Finder
 
 ### Fixed
+- Sharper Markdown: nested and mixed lists, setext headings, reference links and images, and clickable bare URLs
 - Display math on the line right after a paragraph now renders as its own block
+- Stronger handling of raw HTML inside documents
 
 ### Details
 
@@ -20,11 +23,20 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
   - Display (block) syntax: `$$\int_0^1 f(x)\,dx$$` (on its own line) or a `\[...\]` block
   - Renders correctly inside blockquotes
   - Graceful fallback: if a TeX expression fails to parse, the raw source is shown in a monospace font rather than crashing
+- Collapsible headings (issue #11). Every heading gets a small chevron in the left margin; click it (or the heading) to fold the section beneath it. Subtle by default and out of the way until you reach for it.
 - Following a relative link to another local `.md` or text file reveals it in Finder, so you can open it from there. (Readdown is sandboxed and can't open a sibling file you never selected, so it surfaces the target instead.)
 
 **Fixed**
 
+- Lists are more faithful: nested ordered lists, mixed bullet-and-number nesting, and loose items (blank line between them) all render with the right structure.
+- Setext headings: a line underlined with `===` becomes an H1 and one underlined with `---` becomes an H2.
+- Reference-style links and images (`[text][ref]`, `![alt][ref]`, and the collapsed/shortcut forms) now resolve, and links and images accept an optional title.
+- Bare URLs in text (`https://example.com`) become clickable links, with trailing sentence punctuation left outside the link.
+- Backslash escapes (`\*`, `\_`, `\[`, and the rest) render as literal characters instead of formatting.
 - A display-math block (`$$...$$`) on the line immediately after a paragraph, with no blank line between them, now splits into its own centered equation instead of being pulled into the paragraph.
+- A thematic break (`***` or `---`) directly under a list, with no blank line, now closes the list and draws a rule instead of being folded into the last item.
+- Copying the document reflects the file on disk even after a whitespace-only change.
+- Raw HTML passed through from a document is now governed by an allowlist of safe tags and attributes, so ordinary formatting still works while scripts and inline event handlers are neutralized.
 
 **Thanks**
 
