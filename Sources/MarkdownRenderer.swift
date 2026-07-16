@@ -278,6 +278,21 @@ enum MarkdownRenderer {
                 if isHorizontalRule(t) {
                     break
                 }
+                // Setext heading: this paragraph line is underlined by `===`
+                // (h1) or `---` (h2). The underline converts only this one line,
+                // so flush any earlier collected lines as their own paragraph
+                // first. A `---` with no preceding text is an <hr> (handled by
+                // the branch above), so reaching here means a real heading.
+                if i + 1 < lines.count, let level = setextUnderline(lines[i + 1]) {
+                    if !para.isEmpty {
+                        html.append("<p>\(inlineMarkdown(para.joined(separator: "\n")))</p>")
+                        para.removeAll()
+                    }
+                    let slug = uniqueSlug(for: t, existing: &headingSlugs)
+                    html.append("<h\(level) id=\"\(slug)\">\(inlineMarkdown(t))</h\(level)>")
+                    i += 2
+                    break
+                }
                 para.append(l)
                 i += 1
             }
@@ -709,6 +724,18 @@ enum MarkdownRenderer {
         }
         let tex = content.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         return tex.isEmpty ? "" : "<div class=\"rd-math rd-math-display\">\(escapeHTML(tex))</div>"
+    }
+
+    /// Setext underline level: 1 for a line of only `=`, 2 for a line of only
+    /// `-`, `nil` otherwise. The caller applies it to the immediately-preceding
+    /// paragraph line. Precedence with `<hr>` is resolved by the caller: a bare
+    /// `-` run only reaches here when it follows a paragraph line.
+    private static func setextUnderline(_ line: String) -> Int? {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return nil }
+        if t.allSatisfy({ $0 == "=" }) { return 1 }
+        if t.allSatisfy({ $0 == "-" }) { return 2 }
+        return nil
     }
 
     private static func isHorizontalRule(_ trimmed: String) -> Bool {

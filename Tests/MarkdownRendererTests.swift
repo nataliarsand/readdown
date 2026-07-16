@@ -333,6 +333,29 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("<hr>"))
     }
 
+    // MARK: - Setext Headings
+
+    func testSetextH1() {
+        XCTAssertEqual(MarkdownRenderer.render("Title\n===").html, "<h1 id=\"title\">Title</h1>")
+    }
+
+    func testSetextH2() {
+        XCTAssertEqual(MarkdownRenderer.render("Title\n---").html, "<h2 id=\"title\">Title</h2>")
+    }
+
+    // A `---` with no preceding paragraph line stays a thematic break.
+    func testDashesAloneAreHorizontalRule() {
+        XCTAssertEqual(MarkdownRenderer.render("---").html, "<hr>")
+        XCTAssertEqual(MarkdownRenderer.render("\n---").html, "<hr>")
+    }
+
+    func testSetextWithInlineFormatting() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("**Bold** title\n===").html,
+            "<h1 id=\"bold-title\"><strong>Bold</strong> title</h1>"
+        )
+    }
+
     // MARK: - Tables
 
     func testTable() {
