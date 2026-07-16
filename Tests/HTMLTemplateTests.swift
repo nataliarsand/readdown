@@ -70,4 +70,27 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(result.contains("rd-copy-btn"))
         XCTAssertTrue(result.contains("rd-codeblock"))
     }
+
+    // MARK: - Math (KaTeX)
+
+    func testInjectsKaTeXWhenHasMath() {
+        let result = HTMLTemplate.wrap(
+            body: "<span class=\"rd-math rd-math-inline\">x^2</span>", hasMath: true)
+        // Our explicit per-element conversion call, and the fonts-allowing CSP.
+        XCTAssertTrue(result.contains("katex.render("))
+        XCTAssertTrue(result.contains("throwOnError: false"))
+        XCTAssertTrue(result.contains("font-src data:"))
+    }
+
+    func testNoKaTeXWhenNoMath() {
+        let result = HTMLTemplate.wrap(body: "<p>no math here</p>", hasMath: false)
+        XCTAssertFalse(result.contains("katex.render("))
+        // No math means the strict default font policy stays in place.
+        XCTAssertTrue(result.contains("font-src 'none'"))
+    }
+
+    func testMathStylesAlwaysPresent() {
+        let result = HTMLTemplate.wrap(body: "")
+        XCTAssertTrue(result.contains("rd-math-display"))
+    }
 }

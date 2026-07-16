@@ -2,6 +2,34 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.16
+
+### New
+- **Math rendering** — inline (`$x^2$` or `\(x^2\)`) and display-block (`$$...$$` or `\[...\]`) TeX equations, fully offline
+- Links to another local Markdown file now reveal the target in Finder
+
+### Fixed
+- Display math on the line right after a paragraph now renders as its own block
+
+### Details
+
+**New**
+
+- TeX math rendering via a bundled KaTeX (fonts embedded, fully offline). Math is detected and stashed before Markdown processing begins, so underscores and asterisks inside expressions are never treated as emphasis delimiters. Dollar amounts in prose (`$5` and `$10`) are not mistaken for math.
+  - Inline syntax: `$x^2$` or `\(x^2\)`
+  - Display (block) syntax: `$$\int_0^1 f(x)\,dx$$` (on its own line) or a `\[...\]` block
+  - Renders correctly inside blockquotes
+  - Graceful fallback: if a TeX expression fails to parse, the raw source is shown in a monospace font rather than crashing
+- Following a relative link to another local `.md` or text file reveals it in Finder, so you can open it from there. (Readdown is sandboxed and can't open a sibling file you never selected, so it surfaces the target instead.)
+
+**Fixed**
+
+- A display-math block (`$$...$$`) on the line immediately after a paragraph, with no blank line between them, now splits into its own centered equation instead of being pulled into the paragraph.
+
+**Thanks**
+
+- @adivijaykumar for the math rendering contribution (issue #13, PR #14).
+
 ## 1.15
 
 ### New

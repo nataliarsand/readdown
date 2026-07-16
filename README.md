@@ -23,6 +23,7 @@
 - **Quick Look** — Spacebar on any .md in Finder. Rendered, not raw.
 - **Lightweight** — Native Swift. Opens in under a second, stays out of your way.
 - **Syntax highlighting** — 19 languages auto-detected, or specify the language on your code fence.
+- **Math rendering** — Inline (`$x^2$`) and display (`$$\int f\,dx$$`) TeX equations via KaTeX, fully offline.
 - **Mermaid diagrams** — Flowcharts, sequence diagrams, pie charts, and more.
 - **Dark mode** — Follows your system appearance automatically.
 - **Default reader** — One click to replace Xcode or TextEdit as your .md handler.

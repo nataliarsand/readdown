@@ -29,7 +29,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     init(initialText: String, fileURL: URL?, isDark: Bool) {
         let result = MarkdownRenderer.render(initialText)
         self.isDark = isDark
-        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: isDark)
+        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
         self.text = initialText
         self.fileURL = fileURL
         super.init()
@@ -73,7 +73,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
 
         guard let text = decoded else { return }
         let result = MarkdownRenderer.render(text)
-        let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: isDark)
+        let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
         if next != html {
             self.text = text
             lastChangeSource = .disk
@@ -87,6 +87,6 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         isDark = dark
         let result = MarkdownRenderer.render(text)
         lastChangeSource = .appearance
-        html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: dark)
+        html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: dark)
     }
 }

@@ -8,7 +8,24 @@ enum HTMLTemplate {
         return js
     }()
 
-    static func wrap(body: String, hasMermaid: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
+    // KaTeX: fast HTML+CSS math rendering. Its stylesheet has the woff2 math
+    // fonts embedded as `data:` URIs, so nothing loads over the network — it
+    // renders under the page's strict CSP (with `font-src data:`) like the
+    // bundled Mermaid. Lighter than MathJax and covers the math the vast
+    // majority of documents use. Both are injected only when a doc has math.
+    private static let katexJS: String? = {
+        guard let url = Bundle.main.url(forResource: "katex.min", withExtension: "js"),
+              let js = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        return js
+    }()
+
+    private static let katexCSS: String? = {
+        guard let url = Bundle.main.url(forResource: "katex.min", withExtension: "css"),
+              let css = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        return css
+    }()
+
+    static func wrap(body: String, hasMermaid: Bool = false, hasMath: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
         let fontSize = compact ? "14px" : "16px"
         // Extra clearance for the floating header; Quick Look (compact) has none.
         let topPadding = compact ? "32px" : "64px"
@@ -33,7 +50,7 @@ enum HTMLTemplate {
         <html>
         <head>
         <meta charset="utf-8">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src file: data: https: http:; font-src 'none'; connect-src 'none'; form-action 'none';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src file: data: https: http:; font-src \(hasMath ? "data:" : "'none'"); connect-src 'none'; form-action 'none';">
         <meta name="color-scheme" content="light dark">
         <style>
         :root {
@@ -328,6 +345,33 @@ enum HTMLTemplate {
             max-width: 100%;
             height: auto;
         }
+        /* Math (KaTeX). Display blocks center and scroll horizontally so a wide
+           equation never forces the page wider. KaTeX renders with the current
+           text color, so math inherits `--text` and adapts to dark mode for free.
+           KaTeX's own stylesheet — with the math fonts embedded as data: URIs —
+           is injected only for documents that contain math. A failed expression
+           renders its raw source via KaTeX's `.katex-error` styling. */
+        .rd-math-display {
+            display: block;
+            margin: 1.25em 0;
+            text-align: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        .rd-math-inline { display: inline; }
+        /* .rd-math-display already supplies the vertical rhythm; drop KaTeX's own. */
+        .katex-display { margin: 0 !important; }
+        .rd-math-error,
+        .katex-error {
+            color: #cf222e;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.875em;
+            white-space: pre-wrap;
+        }
+        @media screen and (prefers-color-scheme: dark) {
+            .rd-math-error,
+            .katex-error { color: #ff7b72; }
+        }
         /* Autohide scrollbar: invisible by default, fades in while scrolling.
            Thin Bear-style: ~6px visible thumb (10px track, 2px transparent border). */
         ::-webkit-scrollbar {
@@ -552,6 +596,32 @@ enum HTMLTemplate {
             }, { passive: true });
         })();
         </script>
+        \(hasMath && katexJS != nil && katexCSS != nil ? """
+        <style>\(katexCSS!)</style>
+        <script>\(katexJS!)</script>
+        <script>
+        // Render only the `.rd-math` elements the renderer emitted — never a
+        // document-wide scan — so a stray `$` in prose and any `<pre>`/`<code>`
+        // stay literal. KaTeX renders synchronously; `throwOnError: false` shows
+        // the raw TeX in its own error styling instead of throwing, matching the
+        // graceful fallback the renderer set up.
+        (function() {
+            var nodes = document.querySelectorAll('.rd-math');
+            for (var i = 0; i < nodes.length; i++) {
+                var el = nodes[i];
+                var display = el.classList.contains('rd-math-display');
+                try {
+                    // textContent gives the raw TeX back (the browser decodes the
+                    // HTML-escaped `<`, `&`, … the renderer wrote).
+                    katex.render(el.textContent, el, { displayMode: display, throwOnError: false });
+                } catch (e) {
+                    // Leave the source text in place; just flag it.
+                    el.classList.add('rd-math-error');
+                }
+            }
+        })();
+        </script>
+        """ : "")
         \(hasMermaid && mermaidJS != nil ? """
         <script>\(mermaidJS!)</script>
         <script>
