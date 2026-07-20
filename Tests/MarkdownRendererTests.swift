@@ -166,6 +166,37 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(relativeResult.contains("href"))
     }
 
+    // MARK: - Data-URI images (issue #18)
+
+    /// Base64-embedded images (`![alt](data:image/png;base64,…)`) must render as
+    /// an <img>, not fall back to showing the raw base64 as text.
+    func testDataURIImageRenders() {
+        let uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+        let result = MarkdownRenderer.render("![red dot](\(uri))").html
+        XCTAssertTrue(result.contains("<img src=\"\(uri)\" alt=\"red dot\">"), result)
+    }
+
+    func testDataURIReferenceImageRenders() {
+        let uri = "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA="
+        let result = MarkdownRenderer.render("![dot][d]\n\n[d]: \(uri)").html
+        XCTAssertTrue(result.contains("<img src=\"\(uri)\" alt=\"dot\">"), result)
+    }
+
+    func testRawImgDataURIPassesThrough() {
+        let uri = "data:image/jpeg;base64,/9j/4AAQSkZJRg=="
+        let result = MarkdownRenderer.render("<img src=\"\(uri)\" alt=\"x\">").html
+        XCTAssertTrue(result.contains("src=\"\(uri)\""), result)
+    }
+
+    /// Only `data:image/…` is allowed as a source. `data:text/html` and friends
+    /// must NOT become an image (XSS vector), and `data:` links stay blocked.
+    func testNonImageDataURIStillBlocked() {
+        let htmlImg = MarkdownRenderer.render("![x](data:text/html,<script>alert(1)</script>)").html
+        XCTAssertFalse(htmlImg.contains("<img"))
+        let dataLink = MarkdownRenderer.render("[x](data:image/png;base64,AAAA)").html
+        XCTAssertFalse(dataLink.contains("href"), "data: URIs stay blocked for links")
+    }
+
     // MARK: - Lists
 
     func testUnorderedList() {

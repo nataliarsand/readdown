@@ -394,7 +394,9 @@ enum MarkdownRenderer {
                 if value.count >= 2, let q = value.first, q == "\"" || q == "'", value.last == q {
                     value = String(value.dropFirst().dropLast())
                 }
-                if !isSafeURL(value) { continue }
+                // `src` may carry a `data:image/…` URI (embedded images); `href` may not.
+                let allowed = attrName == "src" ? isSafeImageSource(value) : isSafeURL(value)
+                if !allowed { continue }
             }
             out += " " + bns.substring(with: m.range)
         }
@@ -469,7 +471,7 @@ enum MarkdownRenderer {
         s = s.replacing(imagePattern) { match in
             let (rawURL, title) = splitLinkDestination(match[2])
             let url = sanitizedMarkdownURL(rawURL)
-            guard isSafeURL(url) else { return match[0] }
+            guard isSafeImageSource(url) else { return match[0] }
             let titleAttr = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
             return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(escapeHTML(match[1]))\"\(titleAttr)>"
         }
@@ -631,7 +633,7 @@ enum MarkdownRenderer {
     private static func referenceImage(alt: String, label: String, refs: RefDefs) -> String? {
         guard let def = refs[label.lowercased()] else { return nil }
         let url = sanitizedMarkdownURL(def.url)
-        guard isSafeURL(url) else { return nil }
+        guard isSafeImageSource(url) else { return nil }
         let titleAttr = def.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
         return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(escapeHTML(alt))\"\(titleAttr)>"
     }
@@ -1094,6 +1096,16 @@ enum MarkdownRenderer {
         }
 
         return true
+    }
+
+    /// A `data:image/…` URI is safe as an image *source*: an `<img>` renders it
+    /// statically so SVG scripts never execute, and the template CSP allows
+    /// `img-src data:`. Kept separate from `isSafeURL` so a `data:` link/href
+    /// stays blocked — only image sources may carry a data URI.
+    private static func isSafeImageSource(_ url: String) -> Bool {
+        if isSafeURL(url) { return true }
+        return url.trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased().hasPrefix("data:image/")
     }
 
     private static func sanitizedMarkdownURL(_ url: String) -> String {
