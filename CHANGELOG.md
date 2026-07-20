@@ -2,6 +2,19 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.16.1
+
+### Fixed
+- Base64-embedded images (`data:image/...`) now render, instead of showing as raw text
+
+### Details
+
+_Readdown 1.16.1 is sponsored by [Eixo](https://eixo.design). Make better product decisions and build with confidence in the age of AI._
+
+**Fixed**
+
+- Images embedded directly in a document as base64 data URIs (`![alt](data:image/png;base64,...)`, common in exports from Notion, Obsidian, and pandoc) now render as images. Previously the data URI was blocked and the base64 was shown as raw text. Data URIs stay blocked for links, and non-image data URIs (like `data:text/html`) still cannot render. (Issue #18, thanks @javafanboy.)
+
 ## 1.16
 
 ### New
