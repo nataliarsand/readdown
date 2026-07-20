@@ -22,7 +22,3 @@ release/
 
 # Test fixtures
 testfiles/
-
-# Local notes and planning
-docs/
-metrics/
