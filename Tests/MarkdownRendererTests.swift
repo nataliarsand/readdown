@@ -130,6 +130,95 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertEqual(result, "<p><img src=\"https://example.com/img.png\" alt=\"Alt\"></p>")
     }
 
+    func testObsidianImageEmbed() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![[image.png]]").html,
+            "<p><img src=\"image.png\" alt=\"image.png\"></p>"
+        )
+    }
+
+    func testObsidianImageEmbedWithRelativeSubdirectory() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![[assets/screenshots/image.webp]]").html,
+            "<p><img src=\"assets/screenshots/image.webp\" alt=\"image.webp\"></p>"
+        )
+    }
+
+    func testObsidianImageEmbedEncodesSpacesAndUnicode() {
+        let html = MarkdownRenderer.render("![[이미지 폴더/화면 캡처.png]]").html
+        XCTAssertEqual(
+            html,
+            "<p><img src=\"%EC%9D%B4%EB%AF%B8%EC%A7%80%20%ED%8F%B4%EB%8D%94/%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98.png\" alt=\"화면 캡처.png\"></p>"
+        )
+    }
+
+    func testObsidianImageEmbedWithWidth() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![[image.jpg|300]]").html,
+            "<p><img src=\"image.jpg\" alt=\"image.jpg\" width=\"300\"></p>"
+        )
+    }
+
+    func testObsidianImageEmbedWithWidthAndHeight() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("![[image.svg|300x200]]").html,
+            "<p><img src=\"image.svg\" alt=\"image.svg\" width=\"300\" height=\"200\"></p>"
+        )
+    }
+
+    func testObsidianImageEmbedAcceptsSupportedExtensionsCaseInsensitively() {
+        for ext in ["avif", "bmp", "gif", "jpeg", "jpg", "png", "svg", "webp", "PNG"] {
+            let html = MarkdownRenderer.render("![[image.\(ext)]]").html
+            XCTAssertTrue(html.contains("<img"), "expected .\(ext) to render as an image")
+        }
+    }
+
+    func testObsidianNonImageEmbedsRemainLiteral() {
+        for embed in ["![[note.md]]", "![[document.pdf]]", "![[audio.mp3]]"] {
+            XCTAssertEqual(MarkdownRenderer.render(embed).html, "<p>\(embed)</p>")
+        }
+    }
+
+    func testObsidianImageEmbedRejectsInvalidSizes() {
+        for embed in [
+            "![[image.png|]]", "![[image.png|0]]", "![[image.png|-1]]",
+            "![[image.png|300x]]", "![[image.png|x200]]", "![[image.png|300x0]]",
+            "![[image.png|300x200x100]]", "![[image.png|wide]]",
+        ] {
+            XCTAssertEqual(MarkdownRenderer.render(embed).html, "<p>\(embed)</p>")
+        }
+    }
+
+    func testObsidianImageEmbedRejectsUnsafePaths() {
+        for embed in [
+            "![[/image.png]]", "![[../image.png]]", "![[assets/../image.png]]",
+            "![[~/image.png]]", "![[https://example.com/image.png]]",
+            "![[//server/image.png]]", "![[assets\\image.png]]",
+        ] {
+            XCTAssertEqual(MarkdownRenderer.render(embed).html, "<p>\(embed)</p>")
+        }
+    }
+
+    func testObsidianImageEmbedInsideInlineCodeRemainsLiteral() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("`![[image.png]]`").html,
+            "<p><code>![[image.png]]</code></p>"
+        )
+    }
+
+    func testObsidianImageEmbedInsideFenceRemainsLiteral() {
+        let html = MarkdownRenderer.render("```md\n![[image.png]]\n```").html
+        XCTAssertTrue(html.contains("<pre><code class=\"language-md\">![[image.png]]</code></pre>"))
+        XCTAssertFalse(html.contains("<img"))
+    }
+
+    func testEscapedObsidianImageEmbedRemainsLiteral() {
+        XCTAssertEqual(
+            MarkdownRenderer.render("\\![[image.png]]").html,
+            "<p>![[image.png]]</p>"
+        )
+    }
+
     func testMailtoLink() {
         let result = MarkdownRenderer.render("[Email](mailto:test@example.com)").html
         XCTAssertTrue(result.contains("href=\"mailto:test@example.com\""))

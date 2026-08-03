@@ -127,6 +127,32 @@ final class FindInPageTests: XCTestCase {
         XCTAssertEqual(buttons, 0)
     }
 
+    // MARK: - Local images
+
+    func testObsidianImageEmbedLoadsFromDocumentDirectory() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("readdown-wiki-image-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let png = try XCTUnwrap(Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="))
+        try png.write(to: directory.appendingPathComponent("한글 image.png"))
+
+        let markdownURL = directory.appendingPathComponent("document.md")
+        try "![[한글 image.png|64]]".write(to: markdownURL, atomically: true, encoding: .utf8)
+        let markdown = try TextFileDecoder.decode(Data(contentsOf: markdownURL))
+        let result = MarkdownRenderer.render(markdown)
+        let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid)
+        let htmlURL = directory.appendingPathComponent("preview.html")
+        try html.write(to: htmlURL, atomically: true, encoding: .utf8)
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+        webView.loadFileURL(htmlURL, allowingReadAccessTo: directory)
+
+        waitUntilTrue(webView, "document.querySelector('img').complete && document.querySelector('img').naturalWidth === 1")
+        XCTAssertEqual(evaluate(webView, "document.querySelector('img').getAttribute('width')") as? String, "64")
+    }
+
     // MARK: - Print/PDF always renders light (Mermaid dark-on-paper fix)
 
     /// The print/PDF path renders with the light template so paper never

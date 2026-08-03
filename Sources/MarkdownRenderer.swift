@@ -8,6 +8,7 @@ private let ulPattern = try! NSRegularExpression(pattern: "^\\s*[-*+] ")
 private let olPattern = try! NSRegularExpression(pattern: "^\\s*\\d+\\. ")
 private let tableSepPattern = try! NSRegularExpression(pattern: "^\\s*\\|?[\\s:]*-+[\\s:]*\\|")
 
+private let wikiImagePattern = try! NSRegularExpression(pattern: "!\\[\\[([^\\]\\n]+)\\]\\]")
 private let imagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^()]+(?:\\([^()]*\\)[^()]*)*)\\)")
 private let linkPattern = try! NSRegularExpression(pattern: "\\[([^\\]]*)\\]\\(([^()]+(?:\\([^()]*\\)[^()]*)*)\\)")
 private let autolinkURLPattern = try! NSRegularExpression(pattern: "<(https?://[^\\s<>]+)>")
@@ -59,6 +60,13 @@ private let fullRefImagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]
 private let shortcutRefImagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]+)\\](?![\\[(])")
 // GFM bare-URL autolink candidate. Trailing sentence punctuation is trimmed in code.
 private let bareURLPattern = try! NSRegularExpression(pattern: "https?://[^\\s<>]+")
+
+private let wikiImageExtensions: Set<String> = [
+    "avif", "bmp", "gif", "jpeg", "jpg", "png", "svg", "webp",
+]
+private let wikiImagePathAllowed = CharacterSet(
+    charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~/"
+)
 
 /// Reference-link definitions, keyed by lowercased label.
 private typealias RefDefs = [String: (url: String, title: String?)]
@@ -452,6 +460,16 @@ enum MarkdownRenderer {
             return "\u{E005}\(escapedChars.count - 1)\u{E006}"
         }
 
+        // Obsidian image embeds: ![[path]], optionally with |width or
+        // |widthxheight. Stash both valid and invalid forms before autolinking:
+        // valid embeds become image tags, while unsupported or unsafe embeds
+        // are restored as literal text without an URL inside them being linked.
+        var wikiImages: [String] = []
+        s = s.replacing(wikiImagePattern) { match in
+            wikiImages.append(wikiImage(match[1]) ?? escapeHTML(match[0]))
+            return "\u{E007}\(wikiImages.count - 1)\u{E008}"
+        }
+
         // Autolinks: <https://…> and <user@example.com>. Rewrite to <a> tags before escaping
         // so the rest of the pipeline treats them like any other HTML link.
         s = s.replacing(autolinkURLPattern) { match in
@@ -464,14 +482,13 @@ enum MarkdownRenderer {
             return "<a href=\"mailto:\(escapeURLForAttribute(email))\">\(escapeURLForAttribute(email))</a>"
         }
 
-        // Images: ![alt](url "title"). Alt/title are HTML-escaped here because the
-        // later `escapeHTMLPreservingTags` pass re-emits attribute values verbatim.
+        // Images: ![alt](url "title"). Alt/title are HTML-escaped by `imageHTML`
+        // because the later tag-preserving pass re-emits attribute values verbatim.
         s = s.replacing(imagePattern) { match in
             let (rawURL, title) = splitLinkDestination(match[2])
             let url = sanitizedMarkdownURL(rawURL)
             guard isSafeURL(url) else { return match[0] }
-            let titleAttr = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
-            return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(escapeHTML(match[1]))\"\(titleAttr)>"
+            return imageHTML(url: url, alt: match[1], title: title)
         }
 
         // Links: [text](url "title"). The link text stays raw — the trailing
@@ -557,12 +574,88 @@ enum MarkdownRenderer {
             s = s.replacingOccurrences(of: "\u{E000}\(idx)\u{E001}", with: span)
         }
 
+        // Restore Wiki embeds after every delimiter-based pass so neither the
+        // generated tag nor a rejected literal form is parsed again.
+        for (idx, image) in wikiImages.enumerated() {
+            s = s.replacingOccurrences(of: "\u{E007}\(idx)\u{E008}", with: image)
+        }
+
         // Restore backslash-escaped literals last, HTML-escaping so `\<` → &lt;.
         for (idx, ch) in escapedChars.enumerated() {
             s = s.replacingOccurrences(of: "\u{E005}\(idx)\u{E006}", with: escapeHTML(ch))
         }
 
         return s
+    }
+
+    // MARK: - Images
+
+    /// Converts the body of an Obsidian image embed to a safe local image tag.
+    /// Readdown has no vault context, so paths are deliberately document-relative
+    /// and may only address the document directory or its descendants.
+    private static func wikiImage(_ body: String) -> String? {
+        let fields = body.split(separator: "|", omittingEmptySubsequences: false)
+        guard fields.count == 1 || fields.count == 2 else { return nil }
+
+        let path = String(fields[0]).trimmingCharacters(in: .whitespaces)
+        guard isSafeWikiImagePath(path) else { return nil }
+        let ext = (path as NSString).pathExtension.lowercased()
+        guard wikiImageExtensions.contains(ext),
+              let encodedPath = path.addingPercentEncoding(withAllowedCharacters: wikiImagePathAllowed)
+        else { return nil }
+
+        var width: Int?
+        var height: Int?
+        if fields.count == 2 {
+            let size = fields[1].trimmingCharacters(in: .whitespaces)
+            let dimensions = size.split(separator: "x", omittingEmptySubsequences: false)
+            guard dimensions.count == 1 || dimensions.count == 2,
+                  let parsedWidth = positivePixels(dimensions[0])
+            else { return nil }
+            width = parsedWidth
+            if dimensions.count == 2 {
+                guard let parsedHeight = positivePixels(dimensions[1]) else { return nil }
+                height = parsedHeight
+            }
+        }
+
+        return imageHTML(
+            url: encodedPath,
+            alt: (path as NSString).lastPathComponent,
+            width: width,
+            height: height
+        )
+    }
+
+    private static func positivePixels(_ value: Substring) -> Int? {
+        guard !value.isEmpty,
+              value.allSatisfy({ $0 >= "0" && $0 <= "9" }),
+              let pixels = Int(value), pixels > 0
+        else { return nil }
+        return pixels
+    }
+
+    private static func isSafeWikiImagePath(_ path: String) -> Bool {
+        guard !path.isEmpty,
+              !path.hasPrefix("/"),
+              !path.hasPrefix("~"),
+              !path.contains("\\"),
+              !path.contains(":"),
+              !path.contains("?"),
+              !path.contains("#"),
+              !path.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+        else { return false }
+
+        let components = path.split(separator: "/", omittingEmptySubsequences: false)
+        return components.allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." }
+    }
+
+    private static func imageHTML(url: String, alt: String, title: String? = nil,
+                                  width: Int? = nil, height: Int? = nil) -> String {
+        let titleAttr = title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
+        let widthAttr = width.map { " width=\"\($0)\"" } ?? ""
+        let heightAttr = height.map { " height=\"\($0)\"" } ?? ""
+        return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(escapeHTML(alt))\"\(titleAttr)\(widthAttr)\(heightAttr)>"
     }
 
     // MARK: - Reference Links & Autolinking
@@ -632,8 +725,7 @@ enum MarkdownRenderer {
         guard let def = refs[label.lowercased()] else { return nil }
         let url = sanitizedMarkdownURL(def.url)
         guard isSafeURL(url) else { return nil }
-        let titleAttr = def.title.map { " title=\"\(escapeHTML($0))\"" } ?? ""
-        return "<img src=\"\(escapeURLForAttribute(url))\" alt=\"\(escapeHTML(alt))\"\(titleAttr)>"
+        return imageHTML(url: url, alt: alt, title: def.title)
     }
 
     /// Splits a link/image destination `url "title"` into its URL and optional
