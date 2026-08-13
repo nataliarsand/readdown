@@ -48,6 +48,7 @@ final class FindState: ObservableObject {
     @Published var searchText = ""
     @Published var totalMatches = 0
     @Published var currentMatch = 0  // 1-indexed; 0 means no active match
+    @Published var focusRequest = 0
 }
 
 struct ContentView: View {
@@ -169,6 +170,7 @@ struct ContentView: View {
         withAnimation(.easeOut(duration: 0.15)) {
             findState.isVisible = true
         }
+        findState.focusRequest += 1
     }
 
     private func showPill(_ text: String) {
@@ -395,7 +397,10 @@ struct FindBar: View {
         .floatingSurface(RoundedRectangle(cornerRadius: 10, style: .continuous), fill: .regularMaterial)
         .frame(maxWidth: 380)
         .padding(.horizontal, 16)
-        .onAppear { searchFocused = true }
+        .onAppear(perform: focusAndSelectSearchText)
+        .onChange(of: state.focusRequest) { _ in
+            focusAndSelectSearchText()
+        }
     }
 
     private var matchStatus: String {
@@ -408,5 +413,12 @@ struct FindBar: View {
             state.isVisible = false
         }
         state.searchText = ""
+    }
+
+    private func focusAndSelectSearchText() {
+        searchFocused = true
+        DispatchQueue.main.async {
+            NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+        }
     }
 }
