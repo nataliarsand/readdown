@@ -418,7 +418,7 @@ struct FindBar: View {
     private func focusAndSelectSearchText() {
         searchFocused = true
         DispatchQueue.main.async {
-            NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+            (NSApp.keyWindow?.firstResponder as? NSTextView)?.selectAll(nil)
         }
     }
 }
