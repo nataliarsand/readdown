@@ -65,6 +65,12 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(result.contains("border-bottom: 1px solid var(--hairline)"))
     }
 
+    func testTableOfContentsMatchesReaderChromeGeometry() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("right: 2px"))
+        XCTAssertTrue(result.contains("border-radius: 17px"))
+    }
+
     func testTableOfContentsAbsentInQuickLook() {
         let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>", compact: true)
         XCTAssertFalse(result.contains("rd-table-of-contents"))

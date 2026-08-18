@@ -52,7 +52,9 @@ enum HTMLTemplate {
             position: fixed;
             z-index: 20;
             top: 58px;
-            right: 12px;
+            /* The page viewport ends before its 10px scrollbar gutter. Together,
+               2px here and that gutter match the native header's 12pt edge inset. */
+            right: 2px;
             bottom: 12px;
             width: 260px;
             display: flex;
@@ -60,7 +62,8 @@ enum HTMLTemplate {
             color: var(--text);
             background: var(--bg);
             border: 1px solid var(--hairline);
-            border-radius: 12px;
+            /* The native action panel is a 34pt-high Capsule: 34 / 2 = 17. */
+            border-radius: 17px;
             box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
             opacity: 0;
             visibility: hidden;
