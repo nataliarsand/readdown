@@ -13,6 +13,7 @@ extension Notification.Name {
     static let findInDocument = Notification.Name("findInDocument")
     static let findNext = Notification.Name("findNext")
     static let findPrevious = Notification.Name("findPrevious")
+    static let toggleTableOfContents = Notification.Name("toggleTableOfContents")
 }
 
 /// `WKWebView` subclass that owns zoom for both Cmd-scroll and trackpad pinch.
@@ -49,17 +50,21 @@ final class ZoomableWebView: WKWebView {
 struct WebView: NSViewRepresentable {
     let baseURL: URL?
     @ObservedObject var findState: FindState
+    @ObservedObject var tableOfContentsState: TableOfContentsState
     @ObservedObject var watcher: DocumentWatcher
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(baseURL: baseURL, findState: findState, watcher: watcher)
+        Coordinator(baseURL: baseURL, findState: findState,
+                    tableOfContentsState: tableOfContentsState, watcher: watcher)
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         // Weak proxy: the content controller retains its handlers.
-        config.userContentController.add(WeakScriptMessageHandler(context.coordinator), name: "rdUsage")
+        let messageHandler = WeakScriptMessageHandler(context.coordinator)
+        config.userContentController.add(messageHandler, name: "rdUsage")
+        config.userContentController.add(messageHandler, name: "rdTableOfContents")
 
         let webView = ZoomableWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -97,23 +102,56 @@ struct WebView: NSViewRepresentable {
                                    didReceive message: WKScriptMessage) {
             if message.name == "rdUsage", message.body as? String == "copy_code" {
                 UsageMetrics.record(.copyCodeBlock)
+            } else if message.name == "rdTableOfContents",
+                      let state = message.body as? [String: Any],
+                      let available = state["available"] as? Bool,
+                      let visible = state["visible"] as? Bool {
+                tableOfContentsState.isAvailable = available
+                tableOfContentsState.isVisible = visible
             }
         }
 
         var baseURL: URL?
         weak var webView: WKWebView?
         let findState: FindState
+        let tableOfContentsState: TableOfContentsState
         let watcher: DocumentWatcher
         private var observers: [Any] = []
         private var findStateObserver: AnyCancellable?
         private var watcherObserver: AnyCancellable?
         private var activePrintOp: NSPrintOperation?
-        private var pendingScrollY: Double?
+        private var pendingPageState: PageState?
         private var printRenderer: PrintRenderer?
 
-        init(baseURL: URL?, findState: FindState, watcher: DocumentWatcher) {
+        private struct PageState {
+            let scrollY: Double
+            let anchorID: String?
+            let anchorOffset: Double?
+            let tableOfContentsVisible: Bool?
+
+            init(_ dictionary: [String: Any]) {
+                scrollY = (dictionary["scrollY"] as? NSNumber)?.doubleValue ?? 0
+                anchorID = dictionary["anchorID"] as? String
+                anchorOffset = (dictionary["anchorOffset"] as? NSNumber)?.doubleValue
+                tableOfContentsVisible = dictionary["tableOfContentsVisible"] as? Bool
+            }
+
+            var jsonObject: [String: Any] {
+                var result: [String: Any] = ["scrollY": scrollY]
+                if let anchorID { result["anchorID"] = anchorID }
+                if let anchorOffset { result["anchorOffset"] = anchorOffset }
+                if let tableOfContentsVisible {
+                    result["tableOfContentsVisible"] = tableOfContentsVisible
+                }
+                return result
+            }
+        }
+
+        init(baseURL: URL?, findState: FindState,
+             tableOfContentsState: TableOfContentsState, watcher: DocumentWatcher) {
             self.baseURL = baseURL
             self.findState = findState
+            self.tableOfContentsState = tableOfContentsState
             self.watcher = watcher
             super.init()
             observe(.printDocument) { $0.handlePrint() }
@@ -123,6 +161,7 @@ struct WebView: NSViewRepresentable {
             observe(.zoomReset) { $0.resetZoom() }
             observe(.findNext) { $0.findCurrent(backwards: false) }
             observe(.findPrevious) { $0.findCurrent(backwards: true) }
+            observe(.toggleTableOfContents) { $0.toggleTableOfContents() }
         }
 
         deinit {
@@ -152,21 +191,34 @@ struct WebView: NSViewRepresentable {
 
         private func reload(_ html: String) {
             guard let webView else { return }
-            // Capture current scroll so the reader doesn't lose their place when an
-            // external editor saves. Sequencing matters: read scrollY *before*
-            // loadHTMLString, since evaluateJavaScript is async and the reload would
-            // otherwise reset position before we read it. Restored in didFinish.
-            webView.evaluateJavaScript("window.scrollY") { [weak self] result, _ in
+            // Capture the visible heading and its viewport offset before reload.
+            // Unlike a raw scrollY, this keeps the same passage in view when an
+            // external edit inserts or removes content above it. The script also
+            // carries the table-of-contents visibility across the full-page reload.
+            let capture = "window.__rdTableOfContents ? "
+                + "window.__rdTableOfContents.capture() : { scrollY: window.scrollY }"
+            webView.evaluateJavaScript(capture) { [weak self] result, _ in
                 guard let self, let webView = self.webView else { return }
-                self.pendingScrollY = result as? Double
+                if let dictionary = result as? [String: Any] {
+                    self.pendingPageState = PageState(dictionary)
+                }
                 webView.loadHTMLString(html, baseURL: self.baseURL)
             }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            guard let y = pendingScrollY else { return }
-            pendingScrollY = nil
-            webView.evaluateJavaScript("window.scrollTo(0, \(y))", completionHandler: nil)
+            guard let state = pendingPageState else { return }
+            pendingPageState = nil
+            guard let data = try? JSONSerialization.data(withJSONObject: state.jsonObject),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            webView.evaluateJavaScript(
+                "window.__rdTableOfContents.restore(\(json))", completionHandler: nil)
+        }
+
+        private func toggleTableOfContents() {
+            guard let webView, webView.window == NSApp.keyWindow else { return }
+            webView.evaluateJavaScript(
+                "window.__rdTableOfContents.toggle()", completionHandler: nil)
         }
 
         private func findCurrent(backwards: Bool) {
