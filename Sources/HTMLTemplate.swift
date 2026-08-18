@@ -59,7 +59,7 @@ enum HTMLTemplate {
             flex-direction: column;
             color: var(--text);
             background: var(--bg);
-            border: 1px solid var(--border);
+            border: 1px solid var(--hairline);
             border-radius: 12px;
             box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
             opacity: 0;
@@ -82,7 +82,7 @@ enum HTMLTemplate {
             flex: 0 0 auto;
             min-height: 42px;
             padding: 6px 8px 6px 14px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--hairline);
             font-size: 12px;
             font-weight: 600;
             letter-spacing: 0.02em;
@@ -172,6 +172,7 @@ enum HTMLTemplate {
             --muted: #57606a;           /* secondary text — blockquotes, h6, captions */
             --code-bg: #f6f8fa;
             --border: #d0d7de;
+            --hairline: rgba(31, 35, 40, 0.08); /* matches ReaderTheme.hairline */
             --link: #0969da;
             --link-underline: rgba(9, 105, 218, 0.35);
             --blockquote-border: #d0d7de;
@@ -187,6 +188,7 @@ enum HTMLTemplate {
                 --muted: #9198a1;       /* lifted from #8b949e for WCAG AA contrast */
                 --code-bg: #161b22;
                 --border: #3d444d;
+                --hairline: rgba(230, 237, 243, 0.08);
                 --link: #58a6ff;
                 --link-underline: rgba(88, 166, 255, 0.40);
                 --blockquote-border: #30363d;

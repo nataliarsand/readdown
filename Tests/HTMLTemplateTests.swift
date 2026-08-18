@@ -57,6 +57,14 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(result.contains("data-rd-search-exclude"))
     }
 
+    func testTableOfContentsUsesReaderHairlineBorder() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("--hairline: rgba(31, 35, 40, 0.08)"))
+        XCTAssertTrue(result.contains("--hairline: rgba(230, 237, 243, 0.08)"))
+        XCTAssertTrue(result.contains("border: 1px solid var(--hairline)"))
+        XCTAssertTrue(result.contains("border-bottom: 1px solid var(--hairline)"))
+    }
+
     func testTableOfContentsAbsentInQuickLook() {
         let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>", compact: true)
         XCTAssertFalse(result.contains("rd-table-of-contents"))
