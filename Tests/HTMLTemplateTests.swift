@@ -48,6 +48,40 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertFalse(result.contains("backdrop-filter"))
     }
 
+    // MARK: - Table of contents (main app only)
+
+    func testTableOfContentsAssetsPresentInMainApp() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("rd-table-of-contents"))
+        XCTAssertTrue(result.contains("window.__rdTableOfContents"))
+        XCTAssertTrue(result.contains("data-rd-search-exclude"))
+    }
+
+    func testTableOfContentsUsesReaderHairlineBorder() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("--hairline: rgba(31, 35, 40, 0.08)"))
+        XCTAssertTrue(result.contains("--hairline: rgba(230, 237, 243, 0.08)"))
+        XCTAssertTrue(result.contains("border: 1px solid var(--hairline)"))
+        XCTAssertTrue(result.contains("border-bottom: 1px solid var(--hairline)"))
+    }
+
+    func testTableOfContentsMatchesReaderChromeGeometry() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("right: 2px"))
+        XCTAssertTrue(result.contains("border-radius: 17px"))
+    }
+
+    func testTableOfContentsAbsentInQuickLook() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>", compact: true)
+        XCTAssertFalse(result.contains("rd-table-of-contents"))
+        XCTAssertFalse(result.contains("window.__rdTableOfContents"))
+    }
+
+    func testPrintHidesTableOfContents() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("#rd-table-of-contents { display: none !important; }"))
+    }
+
     // MARK: - Print / Export as PDF contract
 
     func testPrintDisablesHeaderBlur() {

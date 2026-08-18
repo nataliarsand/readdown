@@ -94,6 +94,84 @@ final class FindInPageTests: XCTestCase {
         XCTAssertEqual(marks, 0)
     }
 
+    func testSearchExcludesTableOfContentsCopies() {
+        let webView = loadDocument("# Unique Heading")
+        waitUntilTrue(webView, "typeof window.__rdTableOfContents === 'object'")
+        // The title exists once in the document and once in the generated outline,
+        // but Find in Document must count only the readable document occurrence.
+        XCTAssertEqual(findCounts(webView, "search('Unique Heading')").total, 1)
+    }
+
+    // MARK: - Table of contents
+
+    func testTableOfContentsUsesFinalRenderedHeadings() {
+        let webView = loadDocument("""
+        # Intro
+
+        ## Setup *now*
+
+        Intro
+        =====
+        """)
+        waitUntilTrue(webView, "document.querySelectorAll('.rd-toc-link').length === 3")
+
+        let titles = evaluate(
+            webView,
+            "Array.from(document.querySelectorAll('.rd-toc-link')).map(a => a.textContent)"
+        ) as? [String]
+        XCTAssertEqual(titles, ["Intro", "Setup now", "Intro"])
+
+        let hrefs = evaluate(
+            webView,
+            "Array.from(document.querySelectorAll('.rd-toc-link')).map(a => a.getAttribute('href'))"
+        ) as? [String]
+        XCTAssertEqual(hrefs, ["#intro", "#setup-now", "#intro-1"])
+    }
+
+    func testTableOfContentsToggleAndCapture() {
+        let webView = loadDocument("# Intro\n\n## Details")
+        waitUntilTrue(webView, "typeof window.__rdTableOfContents === 'object'")
+
+        XCTAssertEqual(evaluate(webView, "window.__rdTableOfContents.toggle()") as? Bool, true)
+        XCTAssertEqual(
+            evaluate(webView, "window.__rdTableOfContents.capture().tableOfContentsVisible") as? Bool,
+            true
+        )
+        XCTAssertEqual(evaluate(webView, "window.__rdTableOfContents.toggle()") as? Bool, false)
+    }
+
+    func testLiveReloadRebuildsTableOfContentsAndKeepsItOpen() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("live.md")
+        try "# Before".write(to: file, atomically: true, encoding: .utf8)
+
+        let watcher = DocumentWatcher(initialText: "# Before", fileURL: file, isDark: false)
+        let coordinator = WebView.Coordinator(
+            baseURL: dir,
+            findState: FindState(),
+            tableOfContentsState: TableOfContentsState(),
+            watcher: watcher
+        )
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+        coordinator.webView = webView
+        webView.navigationDelegate = coordinator
+        webView.loadHTMLString(watcher.html, baseURL: dir)
+        coordinator.observeWatcher()
+        waitUntilTrue(webView, "document.querySelector('.rd-toc-link').textContent === 'Before'")
+        _ = evaluate(webView, "window.__rdTableOfContents.toggle()")
+
+        try "# After\n\n## Added live".write(to: file, atomically: true, encoding: .utf8)
+        watcher.presentedItemDidChange()
+
+        waitUntilTrue(
+            webView,
+            "Array.from(document.querySelectorAll('.rd-toc-link')).map(a => a.textContent).join('|') === 'After|Added live'"
+        )
+        waitUntilTrue(webView, "document.body.classList.contains('rd-table-of-contents-open')")
+    }
+
     // MARK: - Code-block copy buttons
 
     func testCopyButtonInjectedPerFencedBlock() {
