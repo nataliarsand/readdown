@@ -23,9 +23,9 @@ struct VersionBadge: View {
 enum ShortcutsHelp {
     static func show() {
         let alert = NSAlert()
-        alert.messageText = "Keyboard Shortcuts"
+        alert.messageText = NSLocalizedString("Keyboard Shortcuts", comment: "Shortcuts help alert title")
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Got it")
+        alert.addButton(withTitle: NSLocalizedString("Got it", comment: "Dismiss button"))
 
         let host = NSHostingView(rootView: ShortcutsListView())
         host.frame = NSRect(x: 0, y: 0, width: 320, height: host.intrinsicContentSize.height)
@@ -98,15 +98,10 @@ enum DefaultAppHelp {
 
     static func show() {
         let alert = NSAlert()
-        alert.messageText = "Set Readdown as your default Markdown reader"
-        alert.informativeText = """
-        1. In Finder, find any .md file.
-        2. Right-click the file → Get Info.
-        3. Under "Open with:", choose Readdown.
-        4. Click "Change All…" to apply to every .md file.
-        """
+        alert.messageText = NSLocalizedString("Set Readdown as your default Markdown reader", comment: "Set-default alert title")
+        alert.informativeText = NSLocalizedString("1. In Finder, find any .md file.\n2. Right-click the file → Get Info.\n3. Under \"Open with:\", choose Readdown.\n4. Click \"Change All…\" to apply to every .md file.", comment: "Manual set-default steps")
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Got it")
+        alert.addButton(withTitle: NSLocalizedString("Got it", comment: "Dismiss button"))
         alert.runModal()
     }
 }

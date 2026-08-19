@@ -42,6 +42,8 @@
 		A200000000000000000102 /* katex.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000102 /* katex.min.js */; };
 		A100000000000000000103 /* katex.min.css in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000103 /* katex.min.css */; };
 		A200000000000000000103 /* katex.min.css in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000103 /* katex.min.css */; };
+		A100000000000000000200 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = V100000000000000000200 /* Localizable.strings */; };
+		A200000000000000000200 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = V100000000000000000200 /* Localizable.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -108,7 +110,19 @@
 		B300000000000000000005 /* FindInPageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindInPageTests.swift; sourceTree = "<group>"; };
 		B300000000000000000006 /* UsageMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMetricsTests.swift; sourceTree = "<group>"; };
 		B300000000000000000007 /* LinkPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPolicyTests.swift; sourceTree = "<group>"; };
+		B100000000000000000200 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh-Hans; path = zh-Hans.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXVariantGroup section */
+		V100000000000000000200 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B100000000000000000200 /* zh-Hans */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		E100000000000000000002 /* Frameworks */ = {
@@ -168,6 +182,7 @@
 				B100000000000000000007 /* Info.plist */,
 				B100000000000000000008 /* ReadDown.entitlements */,
 				B100000000000000000009 /* Assets.xcassets */,
+				V100000000000000000200 /* Localizable.strings */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -292,6 +307,7 @@
 			knownRegions = (
 				en,
 				Base,
+				zh-Hans,
 			);
 			mainGroup = C100000000000000000001;
 			packageReferences = (
@@ -317,6 +333,7 @@
 				A10000000000000000000E /* mermaid.min.js in Resources */,
 				A100000000000000000102 /* katex.min.js in Resources */,
 				A100000000000000000103 /* katex.min.css in Resources */,
+				A100000000000000000200 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -328,6 +345,7 @@
 				A200000000000000000008 /* mermaid.min.js in Resources */,
 				A200000000000000000102 /* katex.min.js in Resources */,
 				A200000000000000000103 /* katex.min.css in Resources */,
+				A200000000000000000200 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

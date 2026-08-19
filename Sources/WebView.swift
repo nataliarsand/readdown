@@ -283,9 +283,9 @@ struct WebView: NSViewRepresentable {
                 savePanel.nameFieldStringValue = self.suggestedPDFName()
 
                 let layoutPicker = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 220, height: 26), pullsDown: false)
-                layoutPicker.addItems(withTitles: ["Continuous (single page)", "Paginated"])
+                layoutPicker.addItems(withTitles: [NSLocalizedString("Continuous (single page)", comment: "PDF layout option"), NSLocalizedString("Paginated", comment: "PDF layout option")])
                 let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 36))
-                let label = NSTextField(labelWithString: "Layout:")
+                let label = NSTextField(labelWithString: NSLocalizedString("Layout:", comment: "PDF export layout picker label"))
                 label.font = .systemFont(ofSize: 13)
                 label.frame = NSRect(x: 0, y: 8, width: 50, height: 20)
                 layoutPicker.frame = NSRect(x: 54, y: 4, width: 220, height: 26)
@@ -336,7 +336,7 @@ struct WebView: NSViewRepresentable {
 
         private func showExportError(_ message: String, window: NSWindow) {
             let alert = NSAlert()
-            alert.messageText = "PDF Export Failed"
+            alert.messageText = NSLocalizedString("PDF Export Failed", comment: "PDF export error alert title")
             alert.informativeText = message
             alert.alertStyle = .warning
             alert.beginSheetModal(for: window)
@@ -347,7 +347,7 @@ struct WebView: NSViewRepresentable {
                 let name = (title as NSString).deletingPathExtension
                 return name + ".pdf"
             }
-            return "Untitled.pdf"
+            return NSLocalizedString("Untitled.pdf", comment: "Default PDF file name")
         }
 
         func webView(_ webView: WKWebView,
