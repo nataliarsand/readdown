@@ -1,0 +1,80 @@
+/* Readdown Simplified Chinese localization (zh-Hans) */
+/* Localizable.strings — generated for the zh-Hans localization */
+
+/* Menu bar */
+"About Readdown" = "关于 Readdown";
+"Check for Updates..." = "检查更新…";
+"Show in Finder" = "在「访达」中显示";
+"Export as PDF..." = "导出为 PDF…";
+"Print..." = "打印…";
+"Zoom In" = "放大";
+"Zoom Out" = "缩小";
+"Actual Size" = "实际大小";
+"Find..." = "查找…";
+"Find Next" = "查找下一个";
+"Find Previous" = "查找上一个";
+"Readdown Help" = "Readdown 帮助";
+"Keyboard Shortcuts…" = "键盘快捷键…";
+"Set as Default Markdown Reader…" = "设为默认 Markdown 阅读器…";
+"Send Feedback..." = "发送反馈…";
+"Share Anonymous Usage Data" = "共享匿名使用数据";
+
+/* About window */
+"Version %@" = "版本 %@";
+"A clean, fast Markdown reader for macOS. Just open or hit space on any .md file to read it." = "一款简洁快速的 macOS Markdown 阅读器。打开任意 .md 文件，或按空格键即可阅读。";
+"Built by Natalia at [Eixo.design](https://eixo.design/?utm_source=readdown&utm_medium=app&utm_campaign=about) with help from its [contributors](https://github.com/nataliarsand/readdown/graphs/contributors)." = "由 Natalia 在 [Eixo.design](https://eixo.design/?utm_source=readdown&utm_medium=app&utm_campaign=about) 开发，并得到各位[贡献者](https://github.com/nataliarsand/readdown/graphs/contributors)的帮助。";
+"Feedback" = "反馈";
+"Report a Bug" = "报告问题";
+"Buy a Coffee" = "请我喝杯咖啡";
+
+/* Welcome window */
+"Welcome to Readdown" = "欢迎使用 Readdown";
+"A clean, fast Markdown reader for macOS.\nJust open or hit space on any .md file to read it." = "一款简洁快速的 macOS Markdown 阅读器。\n打开任意 .md 文件，或按空格键即可阅读。";
+"Open a .md File" = "打开 .md 文件";
+"Set Readdown as default for .md files" = "将 Readdown 设为 .md 文件的默认打开方式";
+"Preview .md files with Space in Finder" = "在「访达」中按空格预览 .md 文件";
+"Enable Quick Look" = "启用快速查看";
+"See what's new →" = "查看新内容 →";
+"Found something off?" = "发现什么不对？";
+"Report an issue on GitHub" = "在 GitHub 上报告问题";
+"Buy me a coffee ☕" = "请我喝杯咖啡 ☕";
+
+/* Shortcuts help */
+"Keyboard Shortcuts" = "键盘快捷键";
+"Got it" = "知道了";
+"File" = "文件";
+"Find" = "查找";
+"Zoom" = "缩放";
+"Export" = "导出";
+"Open file" = "打开文件";
+"Close window" = "关闭窗口";
+"Find in document" = "在文稿中查找";
+"Find next" = "查找下一个";
+"Find previous" = "查找上一个";
+"Close find bar" = "关闭查找栏";
+"Zoom in" = "放大";
+"Zoom out" = "缩小";
+"Actual size" = "实际大小";
+"Zoom (pinch also works)" = "缩放（捏合手势也可以）";
+"Print" = "打印";
+"Export as PDF" = "导出为 PDF";
+
+/* Set-as-default help */
+"Set Readdown as your default Markdown reader" = "将 Readdown 设为默认 Markdown 阅读器";
+"1. In Finder, find any .md file.\n2. Right-click the file → Get Info.\n3. Under \"Open with:\", choose Readdown.\n4. Click \"Change All…\" to apply to every .md file." = "1. 在「访达」中找到任意 .md 文件。\n2. 右键点击该文件 → 「显示简介」。\n3. 在「打开方式」中选择 Readdown。\n4. 点击「全部更改…」，应用到所有 .md 文件。";
+
+/* Usage metrics consent */
+"Help make Readdown better" = "帮助 Readdown 变得更好";
+"Share anonymous usage stats so updates focus on what you actually use.\n\nJust feature counts, nothing else. No identifiers, and your documents never leave your Mac.\n\nChange your mind anytime in the Help menu." = "共享匿名使用统计，让更新更贴近你的实际使用。\n\n仅统计功能使用次数，不含任何标识信息，你的文档绝不会离开 Mac。\n\n随时可在「帮助」菜单中更改。";
+"Count Me In" = "好的，我同意";
+"No Thanks" = "不用了，谢谢";
+
+/* Thanks popover */
+"Thank you!" = "谢谢！";
+
+/* PDF export */
+"PDF Export Failed" = "PDF 导出失败";
+"Untitled.pdf" = "未命名.pdf";
+"Continuous (single page)" = "连续（单页滚动）";
+"Paginated" = "分页";
+"Layout:" = "布局：";

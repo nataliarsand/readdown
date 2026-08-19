@@ -90,17 +90,10 @@ enum UsageMetrics {
 
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = "Help make Readdown better"
-        alert.informativeText = """
-        Share anonymous usage stats so updates focus on what you actually use.
-
-        Just feature counts, nothing else. No identifiers, and your documents \
-        never leave your Mac.
-
-        Change your mind anytime in the Help menu.
-        """
-        alert.addButton(withTitle: "Count Me In")
-        alert.addButton(withTitle: "No Thanks")
+        alert.messageText = NSLocalizedString("Help make Readdown better", comment: "Usage metrics consent alert title")
+        alert.informativeText = NSLocalizedString("Share anonymous usage stats so updates focus on what you actually use.\n\nJust feature counts, nothing else. No identifiers, and your documents never leave your Mac.\n\nChange your mind anytime in the Help menu.", comment: "Usage metrics consent explanation")
+        alert.addButton(withTitle: NSLocalizedString("Count Me In", comment: "Consent button"))
+        alert.addButton(withTitle: NSLocalizedString("No Thanks", comment: "Decline button"))
         let dialogFrame = alert.window.frame
         let granted = alert.runModal() == .alertFirstButtonReturn
         setConsent(granted)
