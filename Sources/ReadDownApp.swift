@@ -100,6 +100,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
+        // The delegate keeps a strong reference; without this, closing via the
+        // red button over-releases the window and the next reopen crashes.
+        window.isReleasedWhenClosed = false
         window.center()
         window.contentView = NSHostingView(rootView: WelcomeView(dismissWindow: { [weak self] in
             self?.dismissWelcomeWindow()
