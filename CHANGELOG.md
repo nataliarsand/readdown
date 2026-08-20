@@ -2,18 +2,38 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
-## 1.16.1
+## 1.17
+
+### New
+- Copy keeps its formatting: paste into Docs, Word, or Mail and your headings, lists, and tables survive
 
 ### Fixed
 - Base64-embedded images (`data:image/...`) now render, instead of showing as raw text
+- Math renders when you print or export a PDF
+- Code blocks are easier to read, and long lines wrap instead of hiding off the edge
+- Cmd+F reopens the search box with your last search selected, ready to type over
 
 ### Details
 
-_Readdown 1.16.1 is sponsored by [Eixo](https://eixo.design). Make better product decisions and build with confidence in the age of AI._
+_Readdown 1.17 is sponsored by [Eixo](https://eixo.design). Make better product decisions and build with confidence in the age of AI._
+
+**New**
+
+- **Rich copy.** Copying a selection, or the whole document from the header pill, now puts clean formatted text on the clipboard alongside the plain Markdown. Pasting into Google Docs, Word, or Mail keeps your headings, lists, tables, and links, and lets the destination apply its own styles instead of carrying Readdown's page colours and fonts across with it. Equations paste as their TeX source, Mermaid diagrams as their diagram source, and task checkboxes as ☐ and ☑. Plain-text editors still receive the raw Markdown, so nothing changes there.
 
 **Fixed**
 
 - Images embedded directly in a document as base64 data URIs (`![alt](data:image/png;base64,...)`, common in exports from Notion, Obsidian, and pandoc) now render as images. Previously the data URI was blocked and the base64 was shown as raw text. Data URIs stay blocked for links, and non-image data URIs (like `data:text/html`) still cannot render. (Issue #18, thanks @javafanboy.)
+- Pressing Cmd+F while the find bar is already open now returns focus to it and selects the current search, so you can type straight over it. (Issue #23, thanks @Christopher-Crawford, who also sent the fix.)
+- Equations now render when printing and when exporting to PDF. They previously came out as raw TeX.
+- Code blocks sit on a slightly deeper background so they read as blocks on the off-white page, and long lines wrap instead of vanishing behind a horizontal scroll. Four syntax colours were adjusted to meet AA contrast on the new background.
+- Files saved as UTF-32 now open correctly instead of appearing full of gaps.
+- Closing a window with the red button no longer risks a crash the next time a window opens.
+- The "What's new" screen appears only after an actual update, rather than every time the welcome window is reopened.
+
+**Security**
+
+- Links that hid a `javascript:` scheme behind HTML character references or an embedded tab are now caught by the URL check. Both forms would previously have been passed through to the browser engine, which decodes them before navigating.
 
 ## 1.16
 
