@@ -57,12 +57,12 @@ enum HTMLTemplate {
             --text: #1f2328;            /* warmer than pure black, gentler on backlit screens */
             --bg: #fcfcfb;              /* a hair off-white to reduce glare; matches ReaderTheme.pageBackground */
             --muted: #57606a;           /* secondary text — blockquotes, h6, captions */
-            --code-bg: #f6f8fa;
+            --code-bg: #eef1f5;         /* a step below --bg so code blocks read as blocks on the off-white page */
             --border: #d0d7de;
             --link: #0969da;
             --link-underline: rgba(9, 105, 218, 0.35);
             --blockquote-border: #d0d7de;
-            --table-stripe: #f6f8fa;
+            --table-stripe: #f2f4f7;    /* shifted with --bg so striping stays visible, a step above --code-bg */
             --table-header: #eef1f5;
             --scrollbar-thumb: rgba(0, 0, 0, 0.32);
         }
@@ -195,6 +195,13 @@ enum HTMLTemplate {
             border-radius: 8px;
             margin: 1.25em 0;
             max-width: 100%;
+            /* Wrap long lines instead of clipping them behind a horizontal
+               scroll — a reader shouldn't hide content. Matches print. */
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            /* Wrapped continuations sit 2ch in; off the 4-space code grid so
+               a continuation can't be read as a new line of code. */
+            text-indent: 2ch hanging each-line;
         }
 
         pre code {
