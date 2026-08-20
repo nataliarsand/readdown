@@ -471,7 +471,7 @@ private final class PrintRenderer: NSObject, WKNavigationDelegate {
         let result = MarkdownRenderer.render(text)
         hasMermaid = result.hasMermaid
         self.completion = completion
-        let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, isDark: false)
+        let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: false)
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: max(width, 320), height: 10))
         // Force light appearance so the page CSS `prefers-color-scheme` also
         // resolves light — `isDark: false` only covers Mermaid and the theme
