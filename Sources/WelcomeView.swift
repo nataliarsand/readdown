@@ -151,7 +151,9 @@ struct WelcomeView: View {
 
     private func onAppear() {
         let isFreshInstall = lastLaunchedBuild.isEmpty && !hasPrompted
-        isPostUpdate = !isFreshInstall
+        // "What's new" only when the build actually changed since the last
+        // visit — a plain reopen on the same build gets the regular welcome.
+        isPostUpdate = !isFreshInstall && lastLaunchedBuild != currentBuild
         lastLaunchedBuild = currentBuild
         refreshSetupStatus()
 
