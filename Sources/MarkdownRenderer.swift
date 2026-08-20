@@ -60,6 +60,11 @@ private let shortcutRefImagePattern = try! NSRegularExpression(pattern: "!\\[([^
 // GFM bare-URL autolink candidate. Trailing sentence punctuation is trimmed in code.
 private let bareURLPattern = try! NSRegularExpression(pattern: "https?://[^\\s<>]+")
 
+// Heading-slug passes (see `uniqueSlug`): inline tags, disallowed chars, whitespace.
+private let slugTagPattern = try! NSRegularExpression(pattern: "<[^>]+>")
+private let slugStripPattern = try! NSRegularExpression(pattern: "[^\\p{L}\\p{N}\\-_\\s]")
+private let slugSpacePattern = try! NSRegularExpression(pattern: "\\s")
+
 /// Reference-link definitions, keyed by lowercased label.
 private typealias RefDefs = [String: (url: String, title: String?)]
 
@@ -114,31 +119,8 @@ enum MarkdownRenderer {
 
             // Fenced code block (allow up to 3 leading spaces)
             if line.matchesPattern(fencePattern) {
-                let stripped = line.drop(while: { $0 == " " || $0 == "\t" })
-                let fenceChar: Character = stripped.first == "~" ? "~" : "`"
-                let fenceLen = stripped.prefix(while: { $0 == fenceChar }).count
-                let lang = String(stripped.dropFirst(fenceLen)).trimmingCharacters(in: .whitespaces)
-                let isMermaid = lang.lowercased() == "mermaid"
-                var code: [String] = []
-                i += 1
-                while i < lines.count {
-                    let closeTrimmed = lines[i].drop(while: { $0 == " " || $0 == "\t" })
-                    let closeLen = closeTrimmed.prefix(while: { $0 == fenceChar }).count
-                    if closeLen >= fenceLen
-                        && closeTrimmed.dropFirst(closeLen).allSatisfy({ $0.isWhitespace }) {
-                        i += 1
-                        break
-                    }
-                    code.append(isMermaid ? lines[i] : escapeHTML(lines[i]))
-                    i += 1
-                }
-                if isMermaid {
-                    hasMermaid = true
-                    html.append("<pre class=\"mermaid\">\(code.joined(separator: "\n"))</pre>")
-                } else {
-                    let langAttr = lang.isEmpty ? "" : " class=\"language-\(escapeHTML(lang))\""
-                    html.append("<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>")
-                }
+                let openerIndent = line.prefix(while: { $0 == " " || $0 == "\t" }).count
+                html.append(consumeFence(&i, lines: lines, openerIndent: openerIndent, hasMermaid: &hasMermaid))
                 continue
             }
 
@@ -394,8 +376,11 @@ enum MarkdownRenderer {
                 if value.count >= 2, let q = value.first, q == "\"" || q == "'", value.last == q {
                     value = String(value.dropFirst().dropLast())
                 }
+                // The attribute is re-emitted verbatim, so `javascript&colon;…`
+                // slips past the allowlist unless decoded first.
+                let decoded = decodeEntitiesForURLCheck(value)
                 // `src` may carry a `data:image/…` URI (embedded images); `href` may not.
-                let allowed = attrName == "src" ? isSafeImageSource(value) : isSafeURL(value)
+                let allowed = attrName == "src" ? isSafeImageSource(decoded) : isSafeURL(decoded)
                 if !allowed { continue }
             }
             out += " " + bns.substring(with: m.range)
@@ -1069,8 +1054,59 @@ enum MarkdownRenderer {
         return htmlBlockTags.contains(tagName)
     }
 
+    /// Named references resolving to characters that affect scheme parsing.
+    private static let namedEntitiesForURLCheck: [String: Character] = [
+        "amp": "&", "AMP": "&", "lt": "<", "LT": "<", "gt": ">", "GT": ">",
+        "quot": "\"", "QUOT": "\"", "apos": "'", "colon": ":", "semi": ";",
+        "sol": "/", "bsol": "\\", "num": "#", "Tab": "\t", "NewLine": "\n",
+    ]
+
+    /// Mirrors browser attribute decoding: numeric references resolve with or
+    /// without the trailing `;`, and unknown references stay literal.
+    private static func decodeEntitiesForURLCheck(_ value: String) -> String {
+        guard value.contains("&") else { return value }
+        var result = ""
+        var s = Substring(value)
+        while let amp = s.firstIndex(of: "&") {
+            result += s[..<amp]
+            var rest = s[s.index(after: amp)...]
+            if rest.first == "#" {
+                rest = rest.dropFirst()
+                let isHex = rest.first == "x" || rest.first == "X"
+                if isHex { rest = rest.dropFirst() }
+                let digits = rest.prefix(while: { $0.isASCII && (isHex ? $0.isHexDigit : $0.isNumber) })
+                if !digits.isEmpty, digits.count <= 7,
+                   let code = UInt32(digits, radix: isHex ? 16 : 10),
+                   let scalar = Unicode.Scalar(code) {
+                    result.append(Character(scalar))
+                    rest = rest.dropFirst(digits.count)
+                    if rest.first == ";" { rest = rest.dropFirst() }
+                    s = rest
+                    continue
+                }
+            } else {
+                let name = rest.prefix(while: { $0.isLetter || $0.isNumber })
+                if !name.isEmpty, rest.dropFirst(name.count).first == ";",
+                   let ch = namedEntitiesForURLCheck[String(name)] {
+                    result.append(ch)
+                    s = rest.dropFirst(name.count + 1)
+                    continue
+                }
+            }
+            result.append("&")
+            s = s[s.index(after: amp)...]
+        }
+        result += s
+        return result
+    }
+
     private static func isSafeURL(_ url: String) -> Bool {
-        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Browsers strip tab/newline/CR before parsing, so `jav\tascript:`
+        // navigates as `javascript:`.
+        var trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.contains(where: { $0 == "\t" || $0 == "\n" || $0 == "\r" }) {
+            trimmed.removeAll(where: { $0 == "\t" || $0 == "\n" || $0 == "\r" })
+        }
         let lowercased = trimmed.lowercased()
         if trimmed.isEmpty || lowercased.hasPrefix("//") {
             return false
@@ -1103,9 +1139,11 @@ enum MarkdownRenderer {
     /// `img-src data:`. Kept separate from `isSafeURL` so a `data:` link/href
     /// stays blocked — only image sources may carry a data URI.
     private static func isSafeImageSource(_ url: String) -> Bool {
-        if isSafeURL(url) { return true }
-        return url.trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased().hasPrefix("data:image/")
+        // Prefix test first: data URIs can run to megabytes of base64.
+        if url.drop(while: \.isWhitespace).prefix(11).lowercased() == "data:image/" {
+            return true
+        }
+        return isSafeURL(url)
     }
 
     private static func sanitizedMarkdownURL(_ url: String) -> String {
@@ -1123,14 +1161,14 @@ enum MarkdownRenderer {
     private static func uniqueSlug(for text: String, existing: inout [String: Int]) -> String {
         var slug = text.lowercased()
         // Drop inline HTML tags so e.g. `## <code>foo</code>` slugs to `foo`.
-        slug = slug.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        slug = slug.replacingMatches(of: slugTagPattern, with: "")
         // Keep letters (Unicode), digits, hyphens, underscores, and whitespace; drop the rest.
-        slug = slug.replacingOccurrences(of: "[^\\p{L}\\p{N}\\-_\\s]", with: "", options: .regularExpression)
+        slug = slug.replacingMatches(of: slugStripPattern, with: "")
         // Each whitespace char becomes one hyphen — `\s+ -> -` would collapse
         // runs, but GitHub preserves them (e.g. `Foo — bar` strips the em dash
         // leaving two spaces, which become `foo--bar`, not `foo-bar`). TOCs
         // generated by GitHub-style tools depend on the preserved gap.
-        slug = slug.replacingOccurrences(of: "\\s", with: "-", options: .regularExpression)
+        slug = slug.replacingMatches(of: slugSpacePattern, with: "-")
         // Trim leading/trailing hyphens.
         slug = slug.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
         // Fallback if the heading was entirely punctuation.
@@ -1148,6 +1186,10 @@ private extension String {
     func matchesPattern(_ regex: NSRegularExpression) -> Bool {
         let range = NSRange(startIndex..., in: self)
         return regex.firstMatch(in: self, range: range) != nil
+    }
+
+    func replacingMatches(of regex: NSRegularExpression, with template: String) -> String {
+        regex.stringByReplacingMatches(in: self, range: NSRange(startIndex..., in: self), withTemplate: template)
     }
 
     func replacing(_ regex: NSRegularExpression, using transform: ([String]) -> String) -> String {

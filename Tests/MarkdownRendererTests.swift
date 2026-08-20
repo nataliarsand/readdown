@@ -555,6 +555,33 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(safe.contains("href=\"https://example.com\""))
     }
 
+    func testRawHTMLEntityEncodedSchemesDropped() {
+        // The attribute is re-emitted verbatim, so the scheme check must
+        // decode references the way the browser will.
+        let colon = MarkdownRenderer.render("<a href=\"javascript&colon;alert(1)\">x</a>").html
+        XCTAssertFalse(colon.contains("href"))
+        let hexTab = MarkdownRenderer.render("<a href=\"jav&#x09;ascript:alert(1)\">x</a>").html
+        XCTAssertFalse(hexTab.contains("href"))
+        let numeric = MarkdownRenderer.render("<a href=\"javascript&#58;alert(1)\">x</a>").html
+        XCTAssertFalse(numeric.contains("href"))
+        let noSemi = MarkdownRenderer.render("<a href=\"javascript&#58alert(1)\">x</a>").html
+        XCTAssertFalse(noSemi.contains("href"))
+        let safeAmp = MarkdownRenderer.render("<a href=\"https://example.com/?a=1&amp;b=2\">x</a>").html
+        XCTAssertTrue(safeAmp.contains("href=\"https://example.com/?a=1&amp;b=2\""))
+    }
+
+    func testLinkTabSmuggledSchemeDropped() {
+        // `jav<TAB>ascript:` navigates as `javascript:`.
+        let result = MarkdownRenderer.render("[x](jav\tascript:alert(1))").html
+        XCTAssertFalse(result.contains("href"))
+    }
+
+    func testIndentedTopLevelFenceDeindentsContent() {
+        // CommonMark §6.7: content is de-indented by up to the opener's indent.
+        let html = MarkdownRenderer.render("  ```\n  code\n  ```").html
+        XCTAssertTrue(html.contains("<pre><code>code</code></pre>"))
+    }
+
     func testTableSwallowsAdjacentPipeLine() {
         // GitHub-style leniency: a pipe line right after a table (no blank line) is
         // another row. Pinned to match GitHub — separate with a blank line to end it.
