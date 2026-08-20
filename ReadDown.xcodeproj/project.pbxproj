@@ -20,6 +20,7 @@
 		A10000000000000000000F /* DocumentWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000F /* DocumentWatcher.swift */; };
 		A100000000000000000010 /* UsageMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000010 /* UsageMetrics.swift */; };
 		A100000000000000000011 /* ThanksPop.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000011 /* ThanksPop.swift */; };
+		A100000000000000000012 /* ClipboardExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000012 /* ClipboardExport.swift */; };
 		A200000000000000000007 /* SyntaxHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C /* SyntaxHighlight.swift */; };
 		A100000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000009 /* Assets.xcassets */; };
 		A200000000000000000001 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000000000000000001 /* PreviewViewController.swift */; };
@@ -35,6 +36,7 @@
 		A300000000000000000005 /* FindInPageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000005 /* FindInPageTests.swift */; };
 		A300000000000000000006 /* UsageMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000006 /* UsageMetricsTests.swift */; };
 		A300000000000000000007 /* LinkPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000007 /* LinkPolicyTests.swift */; };
+		A300000000000000000008 /* ClipboardExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000008 /* ClipboardExportTests.swift */; };
 		A10000000000000000000D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P200000000000000000001 /* Sparkle */; };
 		A10000000000000000000E /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
 		A200000000000000000008 /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
@@ -89,6 +91,7 @@
 		B10000000000000000000F /* DocumentWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWatcher.swift; sourceTree = "<group>"; };
 		B100000000000000000010 /* UsageMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMetrics.swift; sourceTree = "<group>"; };
 		B100000000000000000011 /* ThanksPop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThanksPop.swift; sourceTree = "<group>"; };
+		B100000000000000000012 /* ClipboardExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardExport.swift; sourceTree = "<group>"; };
 		B100000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B100000000000000000008 /* ReadDown.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadDown.entitlements; sourceTree = "<group>"; };
 		B100000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -108,6 +111,7 @@
 		B300000000000000000005 /* FindInPageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindInPageTests.swift; sourceTree = "<group>"; };
 		B300000000000000000006 /* UsageMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMetricsTests.swift; sourceTree = "<group>"; };
 		B300000000000000000007 /* LinkPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPolicyTests.swift; sourceTree = "<group>"; };
+		B300000000000000000008 /* ClipboardExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardExportTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -162,6 +166,7 @@
 				B10000000000000000000F /* DocumentWatcher.swift */,
 				B100000000000000000010 /* UsageMetrics.swift */,
 				B100000000000000000011 /* ThanksPop.swift */,
+				B100000000000000000012 /* ClipboardExport.swift */,
 				B10000000000000000000D /* mermaid.min.js */,
 				B100000000000000000102 /* katex.min.js */,
 				B100000000000000000103 /* katex.min.css */,
@@ -192,6 +197,7 @@
 				B300000000000000000005 /* FindInPageTests.swift */,
 				B300000000000000000006 /* UsageMetricsTests.swift */,
 				B300000000000000000007 /* LinkPolicyTests.swift */,
+				B300000000000000000008 /* ClipboardExportTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -384,6 +390,7 @@
 				A10000000000000000000F /* DocumentWatcher.swift in Sources */,
 				A100000000000000000010 /* UsageMetrics.swift in Sources */,
 				A100000000000000000011 /* ThanksPop.swift in Sources */,
+				A100000000000000000012 /* ClipboardExport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -410,6 +417,7 @@
 				A300000000000000000005 /* FindInPageTests.swift in Sources */,
 				A300000000000000000006 /* UsageMetricsTests.swift in Sources */,
 				A300000000000000000007 /* LinkPolicyTests.swift in Sources */,
+				A300000000000000000008 /* ClipboardExportTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

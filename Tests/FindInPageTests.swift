@@ -3,16 +3,15 @@ import WebKit
 import XCTest
 @testable import ReadDown
 
-/// Drives the real in-page JavaScript (find, code-copy buttons) inside a
-/// WKWebView, loading the same HTML the app ships. Slower than pure string
-/// tests but exercises what actually runs on users' machines.
+/// Drives the real in-page JavaScript inside a WKWebView, loading the same
+/// HTML the app ships.
 final class FindInPageTests: XCTestCase {
 
     // MARK: - Harness
 
     private func loadDocument(_ markdown: String) -> WKWebView {
         let result = MarkdownRenderer.render(markdown)
-        let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid)
+        let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath)
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         webView.loadHTMLString(html, baseURL: nil)
         waitUntilTrue(webView, "typeof window.__rdFind === 'object'")
@@ -125,6 +124,183 @@ final class FindInPageTests: XCTestCase {
         """)
         let buttons = evaluate(webView, "document.querySelectorAll('.rd-copy-btn').length") as? Int
         XCTAssertEqual(buttons, 0)
+    }
+
+    // MARK: - Selection copy (clean HTML flavor)
+
+    private func selectAllAndExport(_ webView: WKWebView) -> String? {
+        evaluate(webView, """
+        (function() {
+            getSelection().selectAllChildren(document.body);
+            return window.__rdCopy.htmlForSelection();
+        })()
+        """) as? String
+    }
+
+    func testSelectionCopyStripsClassesAndChrome() {
+        let webView = loadDocument("""
+        # Title
+
+        | A | B |
+        |---|---|
+        | 1 | 2 |
+
+        - [ ] open
+        - [x] done
+        """)
+        let html = selectAllAndExport(webView) ?? ""
+        XCTAssertTrue(html.contains("<h1>"))
+        XCTAssertTrue(html.contains("<table>"))
+        XCTAssertFalse(html.contains("class="))
+        XCTAssertFalse(html.contains("rd-fold"))
+        XCTAssertFalse(html.contains("<svg"))
+        XCTAssertFalse(html.contains("<input"))
+        XCTAssertTrue(html.contains("☐"))
+        XCTAssertTrue(html.contains("☑"))
+    }
+
+    func testSelectionCopyKeepsLinksAndImages() {
+        let webView = loadDocument("[site](https://example.com) and ![alt text](pic.png)")
+        let html = selectAllAndExport(webView) ?? ""
+        XCTAssertTrue(html.contains("href=\"https://example.com\""))
+        XCTAssertTrue(html.contains("alt=\"alt text\""))
+    }
+
+    func testSelectionCopyStylesCodeMonospace() {
+        let webView = loadDocument("""
+        ```swift
+        let a = 1
+        ```
+        """)
+        let html = selectAllAndExport(webView) ?? ""
+        XCTAssertTrue(html.contains("Courier New"))
+        XCTAssertTrue(html.contains("let a = 1"), "got: \(html)")
+        XCTAssertFalse(html.contains("rd-copy-btn"))
+        XCTAssertFalse(html.contains("<button"))
+        XCTAssertFalse(html.contains("<span"))
+    }
+
+    /// cloneContents alone would return bare text.
+    func testSelectionInsideHeadingExportsHeadingTag() {
+        let webView = loadDocument("# Alphabet Soup")
+        let html = evaluate(webView, """
+        (function() {
+            var h = document.querySelector('h1');
+            var t = h.lastChild;
+            var r = document.createRange();
+            r.setStart(t, 0); r.setEnd(t, 8);
+            var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+            return window.__rdCopy.htmlForSelection();
+        })()
+        """) as? String ?? ""
+        XCTAssertTrue(html.contains("<h1>"), "got: \(html)")
+    }
+
+    func testSelectionCopyExportsMathAsTeX() {
+        let webView = loadDocument("Euler: $e^{i\\pi} = -1$")
+        waitUntilTrue(webView, "document.querySelectorAll('.katex').length >= 1")
+        let html = selectAllAndExport(webView) ?? ""
+        XCTAssertTrue(html.contains("$e^{i\\pi} = -1$"), "got: \(html)")
+        XCTAssertFalse(html.contains("katex"))
+    }
+
+    func testSelectionCopyExportsMermaidSource() {
+        let webView = loadDocument("""
+        ```mermaid
+        graph TD; A-->B;
+        ```
+        """)
+        waitUntilTrue(webView, "document.querySelectorAll('pre.mermaid svg').length >= 1")
+        let html = selectAllAndExport(webView) ?? ""
+        XCTAssertTrue(html.contains("graph TD"), "got: \(html)")
+        XCTAssertFalse(html.contains("<svg"))
+    }
+
+    /// Drives the real copy event, not just the exposed cleaner.
+    func testCopyEventRewritesClipboardData() {
+        let webView = loadDocument("# Title\n\nBody text.")
+        let json = evaluate(webView, """
+        (function() {
+            var captured = null;
+            document.addEventListener('copy', function(e) {
+                captured = { prevented: e.defaultPrevented, html: e.clipboardData.getData('text/html') };
+            });
+            getSelection().selectAllChildren(document.body);
+            document.execCommand('copy');
+            return JSON.stringify(captured);
+        })()
+        """) as? String ?? ""
+        XCTAssertTrue(json.contains("\"prevented\":true"), "got: \(json)")
+        XCTAssertTrue(json.contains("<h1>"), "got: \(json)")
+    }
+
+    func testSelectionInsideTableCellExportsPlainText() {
+        let webView = loadDocument("| Alpha | Beta |\n|---|---|\n| gamma | delta |")
+        let html = evaluate(webView, """
+        (function() {
+            var td = document.querySelector('td');
+            var r = document.createRange();
+            r.selectNodeContents(td);
+            var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+            return window.__rdCopy.htmlForSelection();
+        })()
+        """) as? String ?? ""
+        XCTAssertFalse(html.contains("<table"), "got: \(html)")
+        XCTAssertTrue(html.contains("gamma"))
+    }
+
+    func testSelectionInsideListItemExportsPlainText() {
+        let webView = loadDocument("- first bullet\n- second bullet")
+        let html = evaluate(webView, """
+        (function() {
+            var li = document.querySelector('li');
+            var r = document.createRange();
+            r.selectNodeContents(li);
+            var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+            return window.__rdCopy.htmlForSelection();
+        })()
+        """) as? String ?? ""
+        XCTAssertFalse(html.contains("<li"), "got: \(html)")
+        XCTAssertTrue(html.contains("first bullet"))
+    }
+
+    func testSelectionAcrossCellsKeepsTable() {
+        let webView = loadDocument("| Alpha | Beta |\n|---|---|\n| gamma | delta |")
+        let html = evaluate(webView, """
+        (function() {
+            var r = document.createRange();
+            r.selectNodeContents(document.querySelector('tbody tr'));
+            var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+            return window.__rdCopy.htmlForSelection();
+        })()
+        """) as? String ?? ""
+        XCTAssertTrue(html.contains("<table>"), "got: \(html)")
+        XCTAssertTrue(html.contains("<td>"))
+    }
+
+    func testCollapsedSectionExcludedFromExport() {
+        let webView = loadDocument("# One\n\nvisible text\n\n# Two\n\nhidden text")
+        let html = evaluate(webView, """
+        (function() {
+            var folds = document.querySelectorAll('.rd-fold');
+            folds[folds.length - 1].click();
+            getSelection().selectAllChildren(document.body);
+            return window.__rdCopy.htmlForSelection();
+        })()
+        """) as? String ?? ""
+        XCTAssertTrue(html.contains("visible text"), "got: \(html)")
+        XCTAssertFalse(html.contains("hidden text"), "got: \(html)")
+    }
+
+    func testCollapsedSelectionExportsNothing() {
+        let webView = loadDocument("Some text")
+        let result = evaluate(webView, """
+        (function() {
+            getSelection().removeAllRanges();
+            return window.__rdCopy.htmlForSelection() === null;
+        })()
+        """) as? Bool
+        XCTAssertEqual(result, true)
     }
 
     // MARK: - Print/PDF always renders light (Mermaid dark-on-paper fix)

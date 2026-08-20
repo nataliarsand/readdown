@@ -145,7 +145,8 @@ struct ContentView: View {
     /// header band, and non-working tooltips.
     private var actionPill: some View {
         HStack(spacing: 2) {
-            CopyButton(text: { watcher.text }) {
+            CopyButton(text: { watcher.text },
+                       html: { ClipboardExport.htmlFragment(fromRenderedBody: watcher.bodyHTML) }) {
                 UsageMetrics.record(.copyFile)
                 showPill("Full contents copied to clipboard")
             }
@@ -330,6 +331,8 @@ private struct CopyButton: View {
     private static let confirmationSeconds: TimeInterval = 1.6
 
     let text: () -> String
+    /// Rich-text flavor written alongside the plain string.
+    var html: () -> String? = { nil }
     var onCopied: () -> Void = {}
     @State private var confirmed = false
     @State private var resetWork: DispatchWorkItem?
@@ -343,6 +346,9 @@ private struct CopyButton: View {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(text(), forType: .string)
+            if let html = html() {
+                pasteboard.setString(html, forType: .html)
+            }
             confirmed = true
             resetWork?.cancel()
             let work = DispatchWorkItem { confirmed = false }

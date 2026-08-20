@@ -547,6 +547,110 @@ enum HTMLTemplate {
         })();
         </script>
         <script>
+        // Rewrites Cmd+C: WebKit's default serialization bakes computed styles
+        // into the paste as literal formatting.
+        (function() {
+            // Null prototype so inherited names can't pass the allowlist.
+            var KEEP_ATTRS = Object.assign(Object.create(null),
+                { href: 1, src: 1, alt: 1, title: 1, colspan: 1, rowspan: 1, start: 1 });
+            // cloneContents() drops ancestors that fully contain the range, so a
+            // selection inside one block would lose its block identity.
+            var WRAP = /^(H[1-6]|P|PRE|CODE|BLOCKQUOTE|EM|STRONG|B|I|DEL|A)$/;
+            var WRAP_TABLE = /^(TABLE|THEAD|TBODY|TR|TD|TH)$/;
+            var WRAP_LIST = /^(LI|UL|OL)$/;
+            var MONO = "font-family:'Courier New',monospace";
+
+            function shouldWrap(node, content) {
+                var tag = node.tagName;
+                if (WRAP_TABLE.test(tag)) return content.querySelector('td, th') !== null;
+                if (WRAP_LIST.test(tag)) return content.querySelector('li') !== null;
+                return WRAP.test(tag);
+            }
+
+            function clean(root) {
+                root.querySelectorAll('.rd-fold, .rd-fold-hidden, .rd-copy-btn, script, style, button').forEach(function(el) {
+                    el.remove();
+                });
+                root.querySelectorAll('mark.rd-find, mark.rd-find-current').forEach(function(el) {
+                    el.replaceWith(document.createTextNode(el.textContent));
+                });
+                // KaTeX's markup repeats the text across MathML and HTML layers.
+                root.querySelectorAll('.rd-math').forEach(function(el) {
+                    var display = el.classList.contains('rd-math-display');
+                    var ann = el.querySelector('annotation[encoding="application/x-tex"]');
+                    var tex = (ann ? ann.textContent : el.textContent).trim();
+                    var out = document.createElement(display ? 'pre' : 'code');
+                    out.textContent = display ? '$$' + tex + '$$' : '$' + tex + '$';
+                    el.replaceWith(out);
+                });
+                // The rendered SVG doesn't survive an HTML paste.
+                root.querySelectorAll('pre.mermaid').forEach(function(el) {
+                    var out = document.createElement('pre');
+                    out.textContent = el.getAttribute('data-rd-src') || el.textContent;
+                    el.replaceWith(out);
+                });
+                root.querySelectorAll('svg').forEach(function(el) { el.remove(); });
+                root.querySelectorAll('input[type="checkbox"]').forEach(function(el) {
+                    el.replaceWith(document.createTextNode(el.checked ? '☑' : '☐'));
+                });
+                root.querySelectorAll('.rd-codeblock').forEach(function(el) {
+                    var pre = el.querySelector('pre');
+                    if (pre) { el.replaceWith(pre); } else { el.remove(); }
+                });
+                root.querySelectorAll('code').forEach(function(el) {
+                    el.textContent = el.textContent;
+                });
+                root.querySelectorAll('*').forEach(function(el) {
+                    for (var i = el.attributes.length - 1; i >= 0; i--) {
+                        var name = el.attributes[i].name;
+                        if (!KEEP_ATTRS[name]) el.removeAttribute(name);
+                    }
+                });
+                root.querySelectorAll('pre, code').forEach(function(el) {
+                    el.setAttribute('style', MONO);
+                });
+                // Removed siblings leave blank text nodes that paste as empty lines.
+                Array.prototype.slice.call(root.childNodes).forEach(function(n) {
+                    if (n.nodeType === 3 && !n.textContent.trim()) n.remove();
+                });
+            }
+
+            window.__rdCopy = {
+                htmlForSelection: function() {
+                    var sel = window.getSelection();
+                    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
+                    var range = sel.getRangeAt(0);
+                    var content = document.createElement('div');
+                    content.appendChild(range.cloneContents());
+                    var node = range.commonAncestorContainer;
+                    if (node.nodeType !== 1) node = node.parentElement;
+                    while (node && node !== document.body) {
+                        if (shouldWrap(node, content)) {
+                            var w = node.cloneNode(false);
+                            while (content.firstChild) w.appendChild(content.firstChild);
+                            content.appendChild(w);
+                        }
+                        node = node.parentElement;
+                    }
+                    clean(content);
+                    return content.innerHTML;
+                }
+            };
+
+            document.addEventListener('copy', function(e) {
+                // The code-block button's execCommand fallback copies from a
+                // hidden textarea.
+                if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
+                if (!e.clipboardData) return;
+                var html = window.__rdCopy.htmlForSelection();
+                if (html === null) return;
+                e.clipboardData.setData('text/html', html);
+                e.clipboardData.setData('text/plain', window.getSelection().toString());
+                e.preventDefault();
+            });
+        })();
+        </script>
+        <script>
         (function() {
             const MATCH = 'rd-find';
             const CURRENT = 'rd-find-current';
@@ -744,6 +848,10 @@ enum HTMLTemplate {
             pieOuterStrokeColor: '#d0d7de',
             pieOpacity: '1'
         };
+        // Mermaid replaces the element's content with the rendered SVG.
+        document.querySelectorAll('pre.mermaid').forEach(function(el) {
+            el.setAttribute('data-rd-src', el.textContent);
+        });
         mermaid.initialize({
             startOnLoad: true,
             theme: dark ? 'dark' : 'default',

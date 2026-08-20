@@ -15,6 +15,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     @Published private(set) var html: String
     /// Raw source, kept in sync with `html` so a copy reflects what's on disk.
     @Published private(set) var text: String
+    var bodyHTML: String { lastResult.html }
     private(set) var lastChangeSource: ChangeSource = .disk
     let fileURL: URL?
 
@@ -25,10 +26,12 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     private var isRegistered = false
     private var reloadWorkItem: DispatchWorkItem?
     private var appearanceObservation: NSKeyValueObservation?
+    private var lastResult: MarkdownRenderer.Result
 
     init(initialText: String, fileURL: URL?, isDark: Bool) {
         let result = MarkdownRenderer.render(initialText)
         self.isDark = isDark
+        self.lastResult = result
         self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
         self.text = initialText
         self.fileURL = fileURL
@@ -76,6 +79,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         // (e.g. trailing whitespace), so Copy reflects the file, not a stale source.
         if decodedText != text { text = decodedText }
         let result = MarkdownRenderer.render(decodedText)
+        lastResult = result
         let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
         if next != html {
             lastChangeSource = .disk
@@ -87,8 +91,7 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     func appearanceDidChange(isDark dark: Bool) {
         guard dark != isDark else { return }
         isDark = dark
-        let result = MarkdownRenderer.render(text)
         lastChangeSource = .appearance
-        html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: dark)
+        html = HTMLTemplate.wrap(body: lastResult.html, hasMermaid: lastResult.hasMermaid, hasMath: lastResult.hasMath, isDark: dark)
     }
 }
