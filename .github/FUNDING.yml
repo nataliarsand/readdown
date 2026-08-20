@@ -1,0 +1,4 @@
+# Shows a "Sponsor" button on the repo. GitHub Sponsors is not enrolled yet;
+# this points at the existing support link (the "Buy me a coffee" PayPal button).
+custom:
+  - "https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC"
