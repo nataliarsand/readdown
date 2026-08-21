@@ -127,6 +127,67 @@ final class FindInPageTests: XCTestCase {
         XCTAssertEqual(buttons, 0)
     }
 
+    func testMermaidFlowchartDynamicallyWrapsLongLabels() {
+        let webView = loadDocument("""
+        ```mermaid
+        graph TB
+            subgraph L1["Presentation Layer"]
+                Preview["Synthetic document<br/>Preview surface"]
+            end
+
+            subgraph L2["Integration Layer"]
+                Adapter["SyntheticBridgePlugin<br/>+ SyntheticBridgeViewModel extension<br/>No additional domain model is created"]
+            end
+
+            Preview -->|"Synthetic event"| Adapter
+        ```
+        """)
+        waitUntilTrue(webView, "document.querySelector('pre.mermaid svg') !== null")
+
+        let geometry = evaluate(webView, """
+        (() => {
+            const svg = document.querySelector('pre.mermaid svg');
+            const node = Array.from(svg.querySelectorAll('g.node')).find(
+                candidate => candidate.textContent.includes('SyntheticBridgePlugin')
+            );
+            const label = node.querySelector('.nodeLabel');
+            const paragraph = label.querySelector('p');
+            const box = node.querySelector('foreignObject');
+            const boxRect = box.getBoundingClientRect();
+            const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+            const textRects = [];
+            while (walker.nextNode()) {
+                const range = document.createRange();
+                range.selectNodeContents(walker.currentNode);
+                textRects.push(...range.getClientRects());
+            }
+            const tolerance = 0.5;
+            const isClipped = textRects.some(rect =>
+                rect.left < boxRect.left - tolerance
+                    || rect.right > boxRect.right + tolerance
+                    || rect.top < boxRect.top - tolerance
+                    || rect.bottom > boxRect.bottom + tolerance
+            );
+            const paragraphStyle = getComputedStyle(paragraph);
+            return {
+                isClipped,
+                whiteSpace: paragraphStyle.whiteSpace,
+                overflowWrap: paragraphStyle.overflowWrap,
+                boxHeight: box.height.baseVal.value,
+                lineHeight: parseFloat(paragraphStyle.lineHeight)
+            };
+        })()
+        """) as? [String: Any]
+
+        XCTAssertEqual(geometry?["isClipped"] as? Bool, false, "Mermaid clipped a flowchart label")
+        XCTAssertEqual(geometry?["whiteSpace"] as? String, "normal")
+        XCTAssertEqual(geometry?["overflowWrap"] as? String, "anywhere")
+        let boxHeight = geometry?["boxHeight"] as? Double ?? 0
+        let lineHeight = geometry?["lineHeight"] as? Double ?? .infinity
+        XCTAssertGreaterThan(boxHeight, lineHeight * 3,
+            "Mermaid did not grow the node for dynamically wrapped lines")
+    }
+
     // MARK: - Print/PDF always renders light (Mermaid dark-on-paper fix)
 
     /// The print/PDF path renders with the light template so paper never

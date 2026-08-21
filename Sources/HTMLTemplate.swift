@@ -372,6 +372,13 @@ enum HTMLTemplate {
             max-width: 100%;
             height: auto;
         }
+        /* Mermaid constrains flowchart HTML labels to a 200px foreignObject.
+           Let long identifiers wrap inside that box so Mermaid can measure the
+           resulting lines and grow the node height instead of clipping text. */
+        pre.mermaid svg[aria-roledescription="flowchart-v2"] .nodeLabel p {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
         /* Math (KaTeX). Display blocks center and scroll horizontally so a wide
            equation never forces the page wider. KaTeX renders with the current
            text color, so math inherits `--text` and adapts to dark mode for free.
