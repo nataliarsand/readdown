@@ -617,9 +617,14 @@ private struct ThemePreviewPane: View {
             Text("Markdown heading")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(palette.text.color)
-            Text("Readable body text with a link")
+            (
+                Text("Readable body text with a ")
+                    .foregroundColor(palette.muted.color)
+                + Text("link")
+                    .foregroundColor(palette.link.color)
+                    .underline()
+            )
                 .font(.caption)
-                .foregroundStyle(palette.muted.color)
                 .lineLimit(1)
             HStack(spacing: 5) {
                 Text("let")
