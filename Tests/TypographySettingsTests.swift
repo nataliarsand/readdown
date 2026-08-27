@@ -83,9 +83,29 @@ final class TypographySettingsTests: XCTestCase {
         XCTAssertEqual(comboBoxes.count, 3)
         XCTAssertTrue(comboBoxes.allSatisfy { $0.numberOfItems > 2 })
         XCTAssertTrue(comboBoxes.allSatisfy { $0.numberOfVisibleItems == 12 })
+
+        let steppers = descendants(of: hostingView).compactMap { $0 as? NSStepper }
+        XCTAssertEqual(steppers.count, 3)
+
+        assertAligned(comboBoxes, edge: { $0.minX }, in: hostingView)
+        assertAligned(steppers, edge: { $0.maxX }, in: hostingView)
     }
 
     private func descendants(of view: NSView) -> [NSView] {
         view.subviews + view.subviews.flatMap(descendants(of:))
+    }
+
+    private func assertAligned<View: NSView>(
+        _ views: [View],
+        edge: (NSRect) -> CGFloat,
+        in hostingView: NSView,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let positions = views.map { edge(hostingView.convert($0.bounds, from: $0)) }
+        guard let minimumEdge = positions.min(), let maximumEdge = positions.max() else {
+            return XCTFail("Expected aligned controls", file: file, line: line)
+        }
+        XCTAssertEqual(maximumEdge, minimumEdge, accuracy: 1, file: file, line: line)
     }
 }

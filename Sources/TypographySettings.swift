@@ -25,6 +25,14 @@ enum ReaderFontRole: String, CaseIterable, Identifiable {
         }
     }
 
+    var settingsDescription: String {
+        switch self {
+        case .ui: return "Controls and navigation."
+        case .body: return "Markdown prose and headings."
+        case .code: return "Code blocks and inline code."
+        }
+    }
+
     var sizeRange: ClosedRange<Double> {
         switch self {
         case .ui: return 10...20
@@ -232,65 +240,77 @@ struct TypographySettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: ReaderSettingsLayout.sectionSpacing) {
+            ReaderSettingsSection(
+                "Text Styles",
+                detail: "Changes apply immediately to open documents."
+            ) {
                 ForEach(ReaderFontRole.allCases) { role in
-                    FontRoleSettingsCard(role: role, preferences: preferences)
+                    FontRoleSettingsRow(role: role, preferences: preferences)
+
+                    if role != .code {
+                        ReaderSettingsSeparator()
+                    }
                 }
-                Text("Font choices apply immediately to open documents and are saved across launches.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(20)
         }
+        .padding(ReaderSettingsLayout.pagePadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
-private struct FontRoleSettingsCard: View {
+private struct FontRoleSettingsRow: View {
     let role: ReaderFontRole
     @ObservedObject var preferences: TypographyPreferences
 
     private var selection: ReaderFontSelection { preferences.selection(for: role) }
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
+        ReaderSettingsRow(
+            title: role.displayName,
+            detail: role.settingsDescription,
+            minimumHeight: 92
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
                     FontFamilyComboBox(
                         selection: familyBinding,
                         options: preferences.availableFamilies(for: role)
                     )
-                    .frame(maxWidth: .infinity)
+                    .frame(width: 154)
 
                     Picker("Weight", selection: weightBinding) {
                         ForEach(ReaderFontWeight.allCases) { weight in
                             Text(weight.displayName).tag(weight)
                         }
                     }
-                    .frame(width: 120)
+                    .labelsHidden()
+                    .frame(width: 90)
+                    .accessibilityLabel("\(role.displayName) weight")
 
                     Stepper(value: sizeBinding, in: role.sizeRange, step: 1) {
                         Text("\(Int(selection.size.rounded())) pt")
                             .monospacedDigit()
-                            .frame(width: 42, alignment: .trailing)
+                            .frame(width: 38, alignment: .trailing)
                     }
-                    .frame(width: 112)
+                    .frame(width: 70)
+                    .accessibilityLabel("\(role.displayName) size")
                 }
 
                 Text(role.previewText)
                     .font(selection.swiftUIFont)
                     .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 7))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background(
+                        Color.primary.opacity(0.04),
+                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    )
             }
-            .padding(.top, 2)
-        } label: {
-            Text(role.displayName)
-                .font(.headline)
+            .frame(width: ReaderSettingsLayout.controlWidth, alignment: .trailing)
         }
     }
 

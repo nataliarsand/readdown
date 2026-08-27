@@ -377,6 +377,111 @@ final class ThemePreferences: ObservableObject {
     }
 }
 
+enum ReaderSettingsLayout {
+    static let pagePadding: CGFloat = 24
+    static let sectionSpacing: CGFloat = 18
+    static let rowHorizontalPadding: CGFloat = 14
+    static let rowVerticalPadding: CGFloat = 11
+    static let rowLabelWidth: CGFloat = 126
+    static let rowSpacing: CGFloat = 18
+    static let controlWidth: CGFloat = 330
+    static let cornerRadius: CGFloat = 10
+}
+
+struct ReaderSettingsSection<Content: View>: View {
+    let title: String
+    let detail: String?
+    private let content: Content
+
+    init(
+        _ title: String,
+        detail: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.detail = detail
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                if let detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 2)
+
+            VStack(spacing: 0) {
+                content
+            }
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: ReaderSettingsLayout.cornerRadius, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .clipShape(
+                RoundedRectangle(cornerRadius: ReaderSettingsLayout.cornerRadius, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: ReaderSettingsLayout.cornerRadius, style: .continuous)
+                    .stroke(Color.primary.opacity(0.09), lineWidth: 0.5)
+            )
+        }
+    }
+}
+
+struct ReaderSettingsRow<Control: View>: View {
+    let title: String
+    let detail: String
+    let minimumHeight: CGFloat
+    private let control: Control
+
+    init(
+        title: String,
+        detail: String,
+        minimumHeight: CGFloat = 58,
+        @ViewBuilder control: () -> Control
+    ) {
+        self.title = title
+        self.detail = detail
+        self.minimumHeight = minimumHeight
+        self.control = control()
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: ReaderSettingsLayout.rowSpacing) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(width: ReaderSettingsLayout.rowLabelWidth, alignment: .leading)
+
+            control
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(.horizontal, ReaderSettingsLayout.rowHorizontalPadding)
+        .padding(.vertical, ReaderSettingsLayout.rowVerticalPadding)
+        .frame(maxWidth: .infinity, minHeight: minimumHeight)
+    }
+}
+
+struct ReaderSettingsSeparator: View {
+    var body: some View {
+        Divider()
+            .padding(.leading, ReaderSettingsLayout.rowHorizontalPadding)
+    }
+}
+
 struct ThemeSettingsView: View {
     @ObservedObject var preferences: ThemePreferences
 
@@ -385,69 +490,81 @@ struct ThemeSettingsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Appearance")
-                    .font(.headline)
-                Picker("Appearance", selection: $preferences.appearanceMode) {
-                    ForEach(ReaderAppearanceMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
+        VStack(alignment: .leading, spacing: ReaderSettingsLayout.sectionSpacing) {
+            ReaderSettingsSection("Appearance") {
+                ReaderSettingsRow(
+                    title: "Mode",
+                    detail: "Automatic follows the macOS appearance."
+                ) {
+                    Picker("Appearance", selection: $preferences.appearanceMode) {
+                        ForEach(ReaderAppearanceMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 300)
                 }
-                .labelsHidden()
-                .pickerStyle(.segmented)
             }
 
-            Divider()
-
-            HStack(alignment: .top, spacing: 24) {
-                ThemePickerColumn(
+            ReaderSettingsSection(
+                "Theme Pair",
+                detail: "Light and dark selections are saved independently."
+            ) {
+                ReaderSettingsRow(
                     title: "Light Theme",
-                    scheme: .light,
-                    selection: $preferences.lightTheme
-                )
-                ThemePickerColumn(
+                    detail: "Used in light appearance."
+                ) {
+                    ThemeSelectionControl(
+                        scheme: .light,
+                        selection: $preferences.lightTheme
+                    )
+                }
+
+                ReaderSettingsSeparator()
+
+                ReaderSettingsRow(
                     title: "Dark Theme",
-                    scheme: .dark,
-                    selection: $preferences.darkTheme
+                    detail: "Used in dark appearance."
+                ) {
+                    ThemeSelectionControl(
+                        scheme: .dark,
+                        selection: $preferences.darkTheme
+                    )
+                }
+            }
+
+            ReaderSettingsSection("Preview") {
+                ThemePreviewPair(
+                    lightPalette: preferences.palette(for: .light),
+                    darkPalette: preferences.palette(for: .dark)
                 )
             }
-
-            HStack(spacing: 12) {
-                ThemePreviewCard(palette: preferences.palette(for: .light))
-                ThemePreviewCard(palette: preferences.palette(for: .dark))
-            }
-
-            Text("Automatic follows the macOS appearance. Light and dark theme choices are saved independently.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(22)
-        .frame(width: 520)
+        .padding(ReaderSettingsLayout.pagePadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
-private struct ThemePickerColumn: View {
-    let title: String
+private struct ThemeSelectionControl: View {
     let scheme: ReaderColorScheme
     @Binding var selection: ReaderThemeFamily
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-            Picker(title, selection: $selection) {
+        HStack(spacing: 12) {
+            PaletteSwatches(
+                palette: ReaderThemeCatalog.palette(for: selection, scheme: scheme)
+            )
+
+            Picker(scheme == .light ? "Light Theme" : "Dark Theme", selection: $selection) {
                 ForEach(ReaderThemeFamily.allCases) { family in
                     Text(family.variantName(for: scheme)).tag(family)
                 }
             }
             .labelsHidden()
-            .frame(maxWidth: .infinity)
-
-            PaletteSwatches(palette: ReaderThemeCatalog.palette(for: selection, scheme: scheme))
+            .frame(width: 208)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: 300, alignment: .trailing)
     }
 }
 
@@ -455,7 +572,7 @@ private struct PaletteSwatches: View {
     let palette: ReaderThemePalette
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             ForEach(
                 [palette.background, palette.text, palette.link,
                  palette.purple, palette.green, palette.orange],
@@ -463,7 +580,7 @@ private struct PaletteSwatches: View {
             ) { color in
                 Circle()
                     .fill(color.color)
-                    .frame(width: 12, height: 12)
+                    .frame(width: 10, height: 10)
                     .overlay(Circle().stroke(palette.border.color, lineWidth: 0.5))
             }
         }
@@ -471,20 +588,39 @@ private struct PaletteSwatches: View {
     }
 }
 
-private struct ThemePreviewCard: View {
+private struct ThemePreviewPair: View {
+    let lightPalette: ReaderThemePalette
+    let darkPalette: ReaderThemePalette
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ThemePreviewPane(palette: lightPalette)
+
+            Rectangle()
+                .fill(Color.primary.opacity(0.10))
+                .frame(width: 0.5)
+
+            ThemePreviewPane(palette: darkPalette)
+        }
+        .frame(height: 102)
+    }
+}
+
+private struct ThemePreviewPane: View {
     let palette: ReaderThemePalette
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(palette.displayName)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(palette.text.color)
             Text("Markdown heading")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(palette.text.color)
             Text("Readable body text with a link")
                 .font(.caption)
                 .foregroundStyle(palette.muted.color)
+                .lineLimit(1)
             HStack(spacing: 5) {
                 Text("let")
                     .foregroundStyle(palette.purple.color)
@@ -496,16 +632,10 @@ private struct ThemePreviewCard: View {
                     .foregroundStyle(palette.green.color)
             }
             .font(.system(size: 11, design: .monospaced))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 5)
-            .background(palette.codeBackground.color, in: RoundedRectangle(cornerRadius: 5))
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
-        .background(palette.background.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(palette.border.color, lineWidth: 1)
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(palette.background.color)
     }
 }

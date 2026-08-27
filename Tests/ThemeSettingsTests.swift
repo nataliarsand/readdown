@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import XCTest
 @testable import ReadDown
 
@@ -66,5 +68,15 @@ final class ThemeSettingsTests: XCTestCase {
                 "\(palette.displayName) primary text is below WCAG AA contrast"
             )
         }
+    }
+
+    func testSettingsViewFitsTheSettingsWindow() {
+        let preferences = ThemePreferences(store: store, appliesApplicationAppearance: false)
+        let hostingView = NSHostingView(rootView: ThemeSettingsView(preferences: preferences))
+        hostingView.frame = NSRect(x: 0, y: 0, width: 560, height: 460)
+        hostingView.layoutSubtreeIfNeeded()
+
+        XCTAssertLessThanOrEqual(hostingView.fittingSize.width, 560)
+        XCTAssertLessThanOrEqual(hostingView.fittingSize.height, 460)
     }
 }
