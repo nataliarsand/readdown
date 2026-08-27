@@ -53,6 +53,7 @@ final class FindState: ObservableObject {
 struct ContentView: View {
     @StateObject private var watcher: DocumentWatcher
     @ObservedObject private var themePreferences = ThemePreferences.shared
+    @ObservedObject private var typographyPreferences = TypographyPreferences.shared
     @Environment(\.colorScheme) private var colorScheme
     let baseURL: URL?
     let fileURL: URL?
@@ -68,11 +69,16 @@ struct ContentView: View {
         let provider: (Bool) -> ReaderThemePalette = { systemIsDark in
             ThemePreferences.shared.palette(systemIsDark: systemIsDark)
         }
+        let typographyProvider: () -> ReaderTypography = {
+            TypographyPreferences.shared.typography
+        }
         _watcher = StateObject(wrappedValue: DocumentWatcher(
             initialText: document.text,
             fileURL: fileURL,
             initialPalette: provider(isDark),
-            themeProvider: provider
+            themeProvider: provider,
+            initialTypography: typographyProvider(),
+            typographyProvider: typographyProvider
         ))
         self.baseURL = baseURL
         self.fileURL = fileURL
@@ -113,6 +119,7 @@ struct ContentView: View {
                     configureWindowChrome(window)
                 })
         }
+        .font(typographyPreferences.typography.ui.swiftUIFont)
         .onReceive(NotificationCenter.default.publisher(for: .findInDocument)) { _ in
             // `isKeyWindow`, not `NSApp.keyWindow`: SwiftUI re-wraps windows.
             guard window?.isKeyWindow == true else { return }
@@ -147,7 +154,7 @@ struct ContentView: View {
     /// Non-interactive so clicks reach the drag strip.
     private var titlePill: some View {
         Text(fileURL?.lastPathComponent ?? "Untitled")
-            .font(.system(size: 13, weight: .semibold))
+            .font(typographyPreferences.typography.ui.swiftUIFont)
             .lineLimit(1)
             .truncationMode(.middle)
             .padding(.horizontal, 14)

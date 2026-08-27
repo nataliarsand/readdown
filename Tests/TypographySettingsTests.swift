@@ -1,0 +1,91 @@
+import AppKit
+import SwiftUI
+import XCTest
+@testable import ReadDown
+
+final class TypographySettingsTests: XCTestCase {
+    private static let suiteName = "com.heya.readdown.typography-settings-tests"
+    private var store: UserDefaults!
+
+    override func setUp() {
+        super.setUp()
+        store = UserDefaults(suiteName: Self.suiteName)
+        store.removePersistentDomain(forName: Self.suiteName)
+    }
+
+    override func tearDown() {
+        store.removePersistentDomain(forName: Self.suiteName)
+        store = nil
+        super.tearDown()
+    }
+
+    func testDefaultTypographyMatchesExistingReaderMetrics() {
+        let preferences = TypographyPreferences(store: store, postsNotifications: false)
+        XCTAssertEqual(preferences.ui, .defaultUI)
+        XCTAssertEqual(preferences.body, .defaultBody)
+        XCTAssertEqual(preferences.code, .defaultCode)
+    }
+
+    func testPersistsEachFontRoleIndependently() {
+        let preferences = TypographyPreferences(store: store, postsNotifications: false)
+        preferences.update(
+            ReaderFontSelection(family: "Helvetica Neue", weight: .semibold, size: 14), for: .ui)
+        preferences.update(
+            ReaderFontSelection(family: "Avenir Next", weight: .regular, size: 18), for: .body)
+        preferences.update(
+            ReaderFontSelection(family: "Menlo", weight: .medium, size: 15), for: .code)
+
+        let restored = TypographyPreferences(store: store, postsNotifications: false)
+        XCTAssertEqual(restored.ui.family, "Helvetica Neue")
+        XCTAssertEqual(restored.ui.weight, .semibold)
+        XCTAssertEqual(restored.ui.size, 14)
+        XCTAssertEqual(restored.body.family, "Avenir Next")
+        XCTAssertEqual(restored.body.size, 18)
+        XCTAssertEqual(restored.code.family, "Menlo")
+        XCTAssertEqual(restored.code.weight, .medium)
+    }
+
+    func testClampsSizesToRoleSpecificRanges() {
+        let preferences = TypographyPreferences(store: store, postsNotifications: false)
+        preferences.update(
+            ReaderFontSelection(family: ReaderFontSelection.systemFamily, weight: .regular, size: 99), for: .ui)
+        preferences.update(
+            ReaderFontSelection(family: ReaderFontSelection.systemFamily, weight: .regular, size: 2), for: .body)
+        XCTAssertEqual(preferences.ui.size, ReaderFontRole.ui.sizeRange.upperBound)
+        XCTAssertEqual(preferences.body.size, ReaderFontRole.body.sizeRange.lowerBound)
+    }
+
+    func testCustomFamilyIsEscapedForCSS() {
+        let selection = ReaderFontSelection(family: "Example\"Font\nName", weight: .bold, size: 17)
+        XCTAssertFalse(selection.cssFamily.contains("\n"))
+        XCTAssertTrue(selection.cssFamily.contains("Example\\\"Font Name"))
+    }
+
+    func testTypographyEmitsIndependentCSSVariables() {
+        let typography = ReaderTypography(
+            ui: ReaderFontSelection(family: "Helvetica Neue", weight: .medium, size: 14),
+            body: ReaderFontSelection(family: "Avenir Next", weight: .regular, size: 18),
+            code: ReaderFontSelection(family: "Menlo", weight: .semibold, size: 15)
+        )
+        XCTAssertTrue(typography.cssVariables.contains("--ui-font-size: 14px"))
+        XCTAssertTrue(typography.cssVariables.contains("--body-font-weight: 400"))
+        XCTAssertTrue(typography.cssVariables.contains("--code-font-family: \"Menlo\""))
+        XCTAssertTrue(typography.cssVariables.contains("--code-font-weight: 600"))
+    }
+
+    func testSettingsViewUsesThreeNativeFontComboBoxes() {
+        let preferences = TypographyPreferences(store: store, postsNotifications: false)
+        let hostingView = NSHostingView(rootView: TypographySettingsView(preferences: preferences))
+        hostingView.frame = NSRect(x: 0, y: 0, width: 560, height: 420)
+        hostingView.layoutSubtreeIfNeeded()
+
+        let comboBoxes = descendants(of: hostingView).compactMap { $0 as? NSComboBox }
+        XCTAssertEqual(comboBoxes.count, 3)
+        XCTAssertTrue(comboBoxes.allSatisfy { $0.numberOfItems > 2 })
+        XCTAssertTrue(comboBoxes.allSatisfy { $0.numberOfVisibleItems == 12 })
+    }
+
+    private func descendants(of view: NSView) -> [NSView] {
+        view.subviews + view.subviews.flatMap(descendants(of:))
+    }
+}

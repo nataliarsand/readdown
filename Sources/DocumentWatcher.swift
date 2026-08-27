@@ -22,11 +22,14 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
 
     private var palette: ReaderThemePalette
     private let themeProvider: (Bool) -> ReaderThemePalette
+    private var typography: ReaderTypography
+    private let typographyProvider: () -> ReaderTypography
     private var isRegistered = false
     private var reloadWorkItem: DispatchWorkItem?
     private var appearanceObservation: NSKeyValueObservation?
     private var lastResult: MarkdownRenderer.Result
     private var themeObservation: NSObjectProtocol?
+    private var typographyObservation: NSObjectProtocol?
 
     convenience init(initialText: String, fileURL: URL?, isDark: Bool) {
         let provider: (Bool) -> ReaderThemePalette = { dark in
@@ -36,21 +39,28 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
             initialText: initialText,
             fileURL: fileURL,
             initialPalette: provider(isDark),
-            themeProvider: provider
+            themeProvider: provider,
+            initialTypography: .default,
+            typographyProvider: { .default }
         )
     }
 
     init(initialText: String, fileURL: URL?, initialPalette: ReaderThemePalette,
-         themeProvider: @escaping (Bool) -> ReaderThemePalette) {
+         themeProvider: @escaping (Bool) -> ReaderThemePalette,
+         initialTypography: ReaderTypography = .default,
+         typographyProvider: @escaping () -> ReaderTypography = { .default }) {
         let result = MarkdownRenderer.render(initialText)
         palette = initialPalette
         self.themeProvider = themeProvider
         lastResult = result
+        typography = initialTypography
+        self.typographyProvider = typographyProvider
         html = HTMLTemplate.wrap(
             body: result.html,
             hasMermaid: result.hasMermaid,
             hasMath: result.hasMath,
-            palette: initialPalette
+            palette: initialPalette,
+            typography: initialTypography
         )
         self.text = initialText
         self.fileURL = fileURL
@@ -75,6 +85,14 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
             let dark = NSApplication.shared.effectiveAppearance.isDark
             self.applyTheme(self.themeProvider(dark))
         }
+        typographyObservation = NotificationCenter.default.addObserver(
+            forName: .readerTypographyDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.applyTypography(self.typographyProvider())
+        }
     }
 
     deinit {
@@ -83,6 +101,9 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         }
         if let themeObservation {
             NotificationCenter.default.removeObserver(themeObservation)
+        }
+        if let typographyObservation {
+            NotificationCenter.default.removeObserver(typographyObservation)
         }
     }
 
@@ -113,7 +134,8 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
             body: result.html,
             hasMermaid: result.hasMermaid,
             hasMath: result.hasMath,
-            palette: palette
+            palette: palette,
+            typography: typography
         )
         if next != html {
             lastChangeSource = .disk
@@ -131,6 +153,11 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         applyTheme(palette)
     }
 
+    /// Internal so tests can verify typography changes without shared defaults.
+    func typographyDidChange(to typography: ReaderTypography) {
+        applyTypography(typography)
+    }
+
     private func applyTheme(_ nextPalette: ReaderThemePalette) {
         guard nextPalette != palette else { return }
         palette = nextPalette
@@ -139,7 +166,21 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
             body: lastResult.html,
             hasMermaid: lastResult.hasMermaid,
             hasMath: lastResult.hasMath,
-            palette: nextPalette
+            palette: nextPalette,
+            typography: typography
+        )
+    }
+
+    private func applyTypography(_ nextTypography: ReaderTypography) {
+        guard nextTypography != typography else { return }
+        typography = nextTypography
+        lastChangeSource = .appearance
+        html = HTMLTemplate.wrap(
+            body: lastResult.html,
+            hasMermaid: lastResult.hasMermaid,
+            hasMath: lastResult.hasMath,
+            palette: palette,
+            typography: nextTypography
         )
     }
 }
