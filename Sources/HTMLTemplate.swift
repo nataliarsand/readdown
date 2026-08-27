@@ -792,18 +792,50 @@ enum HTMLTemplate {
         <script>
         // Swift stamps data-rd-theme; matchMedia and getComputedStyle report stale values in WKWebView.
         const dark = document.body.dataset.rdTheme === 'dark';
-        // Mermaid's built-in `'dark'` palette renders pie slices in nearly-
-        // black against our nearly-black document background — invisible.
-        // Pass only the pie-related `themeVariables` (which Mermaid stacks on
-        // top of the named theme) so the slices and legend are legible.
-        // Don't be tempted to add other themeVariables here — passing a wider
-        // set silently disables the named theme's per-diagram styling under
-        // WKWebView (the bug shipped in 1.13).
-        // `edgeLabelBackground` is also overridden so flowchart edge labels
-        // (`Yes`/`No`) sit on the document background instead of Mermaid's
-        // default gray box, which looks pasted-on against our near-black page.
+        // Keep the named built-in theme as a rendering baseline, then replace
+        // its semantic colors with the selected reader palette. Author-level
+        // Mermaid `style` / `classDef` directives still take precedence.
         const themeVars = {
+            background: '\(palette.background.cssHex)',
+            textColor: '\(palette.text.cssHex)',
+            primaryColor: '\(palette.surface.cssHex)',
+            primaryTextColor: '\(palette.text.cssHex)',
+            primaryBorderColor: '\(palette.border.cssHex)',
+            secondaryColor: '\(palette.codeBackground.cssHex)',
+            secondaryTextColor: '\(palette.text.cssHex)',
+            secondaryBorderColor: '\(palette.border.cssHex)',
+            tertiaryColor: '\(palette.tableHeader.cssHex)',
+            tertiaryTextColor: '\(palette.text.cssHex)',
+            tertiaryBorderColor: '\(palette.border.cssHex)',
+            lineColor: '\(palette.muted.cssHex)',
+            mainBkg: '\(palette.surface.cssHex)',
+            secondBkg: '\(palette.codeBackground.cssHex)',
+            nodeBorder: '\(palette.border.cssHex)',
+            nodeTextColor: '\(palette.text.cssHex)',
+            clusterBkg: '\(palette.tableHeader.cssHex)',
+            clusterBorder: '\(palette.border.cssHex)',
+            defaultLinkColor: '\(palette.muted.cssHex)',
+            titleColor: '\(palette.text.cssHex)',
             edgeLabelBackground: '\(palette.background.cssHex)',
+            actorBkg: '\(palette.surface.cssHex)',
+            actorBorder: '\(palette.border.cssHex)',
+            actorTextColor: '\(palette.text.cssHex)',
+            actorLineColor: '\(palette.muted.cssHex)',
+            signalColor: '\(palette.muted.cssHex)',
+            signalTextColor: '\(palette.text.cssHex)',
+            labelBoxBkgColor: '\(palette.codeBackground.cssHex)',
+            labelBoxBorderColor: '\(palette.border.cssHex)',
+            labelTextColor: '\(palette.text.cssHex)',
+            loopTextColor: '\(palette.text.cssHex)',
+            activationBorderColor: '\(palette.border.cssHex)',
+            activationBkgColor: '\(palette.tableHeader.cssHex)',
+            sequenceNumberColor: '\(palette.background.cssHex)',
+            noteBkgColor: '\(palette.tableHeader.cssHex)',
+            noteTextColor: '\(palette.text.cssHex)',
+            noteBorderColor: '\(palette.border.cssHex)',
+            labelColor: '\(palette.text.cssHex)',
+            altBackground: '\(palette.codeBackground.cssHex)',
+            classText: '\(palette.text.cssHex)',
             pie1: '\(palette.blue.cssHex)', pie2: '\(palette.orange.cssHex)', pie3: '\(palette.green.cssHex)',
             pie4: '\(palette.purple.cssHex)', pie5: '\(palette.red.cssHex)',
             pieTitleTextColor: '\(palette.text.cssHex)',
