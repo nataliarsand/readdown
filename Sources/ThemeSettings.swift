@@ -385,6 +385,7 @@ enum ReaderSettingsLayout {
     static let rowLabelWidth: CGFloat = 126
     static let rowSpacing: CGFloat = 18
     static let controlWidth: CGFloat = 330
+    static let themePickerWidth: CGFloat = 208
     static let cornerRadius: CGFloat = 10
 }
 
@@ -484,9 +485,14 @@ struct ReaderSettingsSeparator: View {
 
 struct ThemeSettingsView: View {
     @ObservedObject var preferences: ThemePreferences
+    @ObservedObject var typographyPreferences: TypographyPreferences
 
-    init(preferences: ThemePreferences = .shared) {
+    init(
+        preferences: ThemePreferences = .shared,
+        typographyPreferences: TypographyPreferences = .shared
+    ) {
         self.preferences = preferences
+        self.typographyPreferences = typographyPreferences
     }
 
     var body: some View {
@@ -517,7 +523,8 @@ struct ThemeSettingsView: View {
                 ) {
                     ThemeSelectionControl(
                         scheme: .light,
-                        selection: $preferences.lightTheme
+                        selection: $preferences.lightTheme,
+                        font: typographyPreferences.ui.nsFont
                     )
                 }
 
@@ -529,7 +536,8 @@ struct ThemeSettingsView: View {
                 ) {
                     ThemeSelectionControl(
                         scheme: .dark,
-                        selection: $preferences.darkTheme
+                        selection: $preferences.darkTheme,
+                        font: typographyPreferences.ui.nsFont
                     )
                 }
             }
@@ -549,6 +557,7 @@ struct ThemeSettingsView: View {
 private struct ThemeSelectionControl: View {
     let scheme: ReaderColorScheme
     @Binding var selection: ReaderThemeFamily
+    let font: NSFont
 
     var body: some View {
         HStack(spacing: 12) {
@@ -556,15 +565,78 @@ private struct ThemeSelectionControl: View {
                 palette: ReaderThemeCatalog.palette(for: selection, scheme: scheme)
             )
 
-            Picker(scheme == .light ? "Light Theme" : "Dark Theme", selection: $selection) {
-                ForEach(ReaderThemeFamily.allCases) { family in
-                    Text(family.variantName(for: scheme)).tag(family)
-                }
-            }
-            .labelsHidden()
-            .frame(width: 208)
+            ThemePopUpPicker(scheme: scheme, selection: $selection, font: font)
+                .frame(width: ReaderSettingsLayout.themePickerWidth)
         }
         .frame(width: 300, alignment: .trailing)
+    }
+}
+
+private struct ThemePopUpPicker: NSViewRepresentable {
+    let scheme: ReaderColorScheme
+    @Binding var selection: ReaderThemeFamily
+    let font: NSFont
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let button = NSPopUpButton(frame: .zero, pullsDown: false)
+        button.bezelStyle = .rounded
+        button.controlSize = .regular
+        button.alignment = .left
+        button.autoenablesItems = false
+        button.cell?.lineBreakMode = .byTruncatingTail
+        button.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.selectionDidChange(_:))
+        update(button)
+        return button
+    }
+
+    func updateNSView(_ button: NSPopUpButton, context: Context) {
+        context.coordinator.parent = self
+        update(button)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSPopUpButton, context: Context) -> CGSize? {
+        // Size the control itself, not an invisible frame around its title-sized bezel.
+        CGSize(width: ReaderSettingsLayout.themePickerWidth, height: nsView.intrinsicContentSize.height)
+    }
+
+    private func update(_ button: NSPopUpButton) {
+        let families = ReaderThemeFamily.allCases
+        let titles = families.map { $0.variantName(for: scheme) }
+        if button.itemTitles != titles {
+            button.removeAllItems()
+            button.addItems(withTitles: titles)
+        }
+        if button.font != font {
+            button.font = font
+            button.menu?.font = font
+            button.invalidateIntrinsicContentSize()
+        }
+        if let index = families.firstIndex(of: selection), button.indexOfSelectedItem != index {
+            button.selectItem(at: index)
+        }
+        button.setAccessibilityIdentifier("theme-picker-\(scheme.rawValue)")
+        button.setAccessibilityLabel(scheme == .light ? "Light Theme" : "Dark Theme")
+    }
+
+    final class Coordinator: NSObject {
+        var parent: ThemePopUpPicker
+
+        init(parent: ThemePopUpPicker) {
+            self.parent = parent
+        }
+
+        @objc func selectionDidChange(_ button: NSPopUpButton) {
+            let families = ReaderThemeFamily.allCases
+            guard families.indices.contains(button.indexOfSelectedItem) else { return }
+            parent.selection = families[button.indexOfSelectedItem]
+        }
     }
 }
 

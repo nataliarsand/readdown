@@ -70,6 +70,16 @@ enum ReaderFontWeight: Int, CaseIterable, Codable, Identifiable {
         case .bold: return .bold
         }
     }
+
+    var nsFontWeight: NSFont.Weight {
+        switch self {
+        case .light: return .light
+        case .regular: return .regular
+        case .medium: return .medium
+        case .semibold: return .semibold
+        case .bold: return .bold
+        }
+    }
 }
 
 struct ReaderFontSelection: Codable, Equatable {
@@ -101,6 +111,23 @@ struct ReaderFontSelection: Codable, Equatable {
             return .system(size: size, weight: weight.swiftUIWeight, design: .monospaced)
         default:
             return .custom(family, size: size).weight(weight.swiftUIWeight)
+        }
+    }
+
+    var nsFont: NSFont {
+        let pointSize = CGFloat(size)
+        switch family {
+        case Self.systemFamily:
+            return .systemFont(ofSize: pointSize, weight: weight.nsFontWeight)
+        case Self.monospacedFamily:
+            return .monospacedSystemFont(ofSize: pointSize, weight: weight.nsFontWeight)
+        default:
+            let descriptor = NSFontDescriptor(fontAttributes: [
+                .family: family,
+                .traits: [NSFontDescriptor.TraitKey.weight: weight.nsFontWeight.rawValue]
+            ])
+            return NSFont(descriptor: descriptor, size: pointSize)
+                ?? .systemFont(ofSize: pointSize, weight: weight.nsFontWeight)
         }
     }
 

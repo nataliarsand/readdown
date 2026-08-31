@@ -61,6 +61,21 @@ final class TypographySettingsTests: XCTestCase {
         XCTAssertTrue(selection.cssFamily.contains("Example\\\"Font Name"))
     }
 
+    func testNativeFontPreservesFamilyWeightAndSize() {
+        let system = ReaderFontSelection(family: ReaderFontSelection.systemFamily, weight: .bold, size: 17)
+        XCTAssertEqual(system.nsFont, NSFont.systemFont(ofSize: 17, weight: .bold))
+
+        let monospaced = ReaderFontSelection(
+            family: ReaderFontSelection.monospacedFamily, weight: .semibold, size: 18
+        )
+        XCTAssertEqual(monospaced.nsFont, NSFont.monospacedSystemFont(ofSize: 18, weight: .semibold))
+
+        let named = ReaderFontSelection(family: "Helvetica Neue", weight: .bold, size: 16).nsFont
+        XCTAssertEqual(named.familyName, "Helvetica Neue")
+        XCTAssertEqual(named.pointSize, 16)
+        XCTAssertTrue(named.fontDescriptor.symbolicTraits.contains(.bold))
+    }
+
     func testTypographyEmitsIndependentCSSVariables() {
         let typography = ReaderTypography(
             ui: ReaderFontSelection(family: "Helvetica Neue", weight: .medium, size: 14),

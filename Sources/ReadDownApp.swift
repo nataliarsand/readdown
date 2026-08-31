@@ -429,7 +429,10 @@ struct ReadDownApp: App {
 
         Settings {
             TabView {
-                ThemeSettingsView(preferences: themePreferences)
+                ThemeSettingsView(
+                    preferences: themePreferences,
+                    typographyPreferences: typographyPreferences
+                )
                     .tabItem { Label("Themes", systemImage: "paintpalette") }
                 TypographySettingsView(preferences: typographyPreferences)
                     .tabItem { Label("Typography", systemImage: "textformat") }
