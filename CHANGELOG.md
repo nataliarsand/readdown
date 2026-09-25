@@ -2,6 +2,17 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.18
+
+### New
+- Copy the file's path from the header pill, the File menu, or ⌥⌘C, ready to paste into a terminal or editor
+
+### Details
+
+**New**
+
+- **Copy Path.** A new pill button next to Show in Finder copies the document's full path to the clipboard. Also in the File menu as Copy Path, with the same ⌥⌘C shortcut Finder uses. (Issue #28, thanks @troelskn.)
+
 ## 1.17
 
 ### New

@@ -39,6 +39,7 @@ private struct ShortcutsListView: View {
         ("File", [
             ("⌘O", "Open file"),
             ("⇧⌘R", "Show in Finder"),
+            ("⌥⌘C", "Copy path"),
             ("⌘W", "Close window"),
         ]),
         ("Find", [

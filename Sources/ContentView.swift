@@ -121,6 +121,10 @@ struct ContentView: View {
             guard window?.isKeyWindow == true else { return }
             revealInFinder()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .copyFilePath)) { _ in
+            guard window?.isKeyWindow == true else { return }
+            copyFilePath()
+        }
         .onChange(of: watcher.html) { _ in
             if watcher.lastChangeSource == .disk {
                 showPill("Updated")
@@ -154,6 +158,8 @@ struct ContentView: View {
                            action: showFindBar)
             PillIconButton(icon: "folder", label: "Show in Finder",
                            disabled: fileURL == nil, action: revealInFinder)
+            PillIconButton(icon: "doc.on.clipboard", label: "Copy Path",
+                           disabled: fileURL == nil, action: copyFilePath)
         }
         .padding(4)
         .floatingSurface(Capsule(), fill: ReaderTheme.pill)
@@ -164,6 +170,16 @@ struct ContentView: View {
         guard let fileURL else { return }
         UsageMetrics.record(.showInFinder)
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+    }
+
+    /// Shared by the pill, the File menu, and ⌥⌘C (Finder's own shortcut for it).
+    private func copyFilePath() {
+        guard let fileURL else { return }
+        UsageMetrics.record(.copyPath)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(fileURL.path, forType: .string)
+        showPill("Path copied to clipboard")
     }
 
     private func showFindBar() {

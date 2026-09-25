@@ -379,6 +379,10 @@ struct ReadDownApp: App {
                     NotificationCenter.default.post(name: .showInFinder, object: nil)
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
+                Button("Copy Path") {
+                    NotificationCenter.default.post(name: .copyFilePath, object: nil)
+                }
+                .keyboardShortcut("c", modifiers: [.command, .option])
             }
             CommandGroup(replacing: .printItem) {
                 Button("Export as PDF...") {

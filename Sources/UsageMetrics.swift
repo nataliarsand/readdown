@@ -9,6 +9,7 @@ enum UsageMetrics {
         case copyCodeBlock = "copy_code"
         case findInDocument = "find"
         case showInFinder = "show_in_finder"
+        case copyPath = "copy_path"
         case printDocument = "print"
         case exportPDF = "export_pdf"
         case zoom = "zoom"

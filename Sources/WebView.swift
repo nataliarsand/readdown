@@ -6,6 +6,7 @@ import WebKit
 extension Notification.Name {
     static let printDocument = Notification.Name("printDocument")
     static let showInFinder = Notification.Name("showInFinder")
+    static let copyFilePath = Notification.Name("copyFilePath")
     static let exportPDF = Notification.Name("exportPDF")
     static let zoomIn = Notification.Name("zoomIn")
     static let zoomOut = Notification.Name("zoomOut")
