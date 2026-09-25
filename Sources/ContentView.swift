@@ -114,6 +114,12 @@ struct ContentView: View {
                 HStack(spacing: 0) {
                     titlePill
                     Spacer(minLength: ReaderTheme.headerEdgePadding)
+                    // Next to the buttons that trigger it, so the eye needn't travel.
+                    if let pillText {
+                        StatusPill(text: pillText)
+                            .padding(.trailing, 8)
+                            .transition(.opacity)
+                    }
                     actionPill
                 }
                 .padding(.top, ReaderTheme.headerTopPadding)
@@ -121,13 +127,6 @@ struct ContentView: View {
                 .padding(.trailing, ReaderTheme.headerEdgePadding)
             }
                 .ignoresSafeArea(.container, edges: .top)
-                .overlay(alignment: .bottomTrailing) {
-                    if let pillText {
-                        StatusPill(text: pillText)
-                            .padding(16)
-                            .transition(.opacity)
-                    }
-                }
                 .background(WindowAccessor { window in
                     self.window = window
                     WindowCascader.shared.cascade(window)
@@ -185,23 +184,23 @@ struct ContentView: View {
             }
             PillIconButton(icon: "magnifyingglass", label: "Find in Document",
                            action: showFindBar)
-            PillIconButton(icon: "folder", label: "Show in Finder",
-                           disabled: fileURL == nil, action: revealInFinder)
-            PillIconButton(icon: "doc.on.clipboard", label: "Copy Path",
-                           disabled: fileURL == nil, action: copyFilePath)
+            PillMenu(icon: "folder", label: "File Location", disabled: fileURL == nil) {
+                Button("Show in Finder", action: revealInFinder)
+                Button("Copy Path", action: copyFilePath)
+            }
         }
         .padding(4)
         .floatingSurface(Capsule(), fill: ReaderTheme.pill)
     }
 
-    /// Shared by the pill, the File menu, and ⇧⌘R.
+    /// Shared by the pill menu, the File menu, and ⇧⌘R.
     private func revealInFinder() {
         guard let fileURL else { return }
         UsageMetrics.record(.showInFinder)
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])
     }
 
-    /// Shared by the pill, the File menu, and ⌥⌘C (Finder's own shortcut for it).
+    /// Shared by the pill menu, the File menu, and ⌥⌘C (Finder's own shortcut for it).
     private func copyFilePath() {
         guard let fileURL else { return }
         UsageMetrics.record(.copyPath)
@@ -325,25 +324,56 @@ struct WindowDragArea: NSViewRepresentable {
 }
 
 /// Transient feedback pill ("Updated", "Full contents copied to clipboard").
+/// Confirmation in the header row, styled like the other pills. Never truncates;
+/// the title pill yields instead.
 private struct StatusPill: View {
     let text: String
 
     var body: some View {
-        Text(text)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(.regularMaterial, in: Capsule())
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(ReaderTheme.copyConfirm)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, 12)
+        .frame(height: ReaderTheme.headerPillHeight)
+        .floatingSurface(Capsule(), fill: ReaderTheme.pill)
+        .allowsHitTesting(false)
     }
 }
 
-/// Icon button with a hover highlight and an explicit accessibility label.
-private struct PillIconButton: View {
+/// The glyph inside a header pill, with the shared hover wash.
+private struct PillIcon: View {
     private static let hitArea = CGSize(width: 30, height: 26)
     private static let hoverShape = RoundedRectangle(cornerRadius: 8, style: .continuous)
     private static let hoverOpacity = 0.07
 
+    let icon: String
+    var tint: Color?
+    var disabled = false
+    let hovered: Bool
+
+    var body: some View {
+        Image(systemName: icon)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(disabled ? AnyShapeStyle(.tertiary)
+                                      : tint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.secondary))
+            .frame(width: Self.hitArea.width, height: Self.hitArea.height)
+            .background(
+                Self.hoverShape
+                    .fill(Color.primary.opacity(hovered && !disabled ? Self.hoverOpacity : 0))
+            )
+            .contentShape(Self.hoverShape)
+    }
+}
+
+/// Icon button with a hover highlight, a tooltip, and an explicit accessibility label.
+private struct PillIconButton: View {
     let icon: String
     let label: String
     var tint: Color?
@@ -353,20 +383,35 @@ private struct PillIconButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(disabled ? AnyShapeStyle(.tertiary)
-                                          : tint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.secondary))
-                .frame(width: Self.hitArea.width, height: Self.hitArea.height)
-                .background(
-                    Self.hoverShape
-                        .fill(Color.primary.opacity(hovered && !disabled ? Self.hoverOpacity : 0))
-                )
-                .contentShape(Self.hoverShape)
+            PillIcon(icon: icon, tint: tint, disabled: disabled, hovered: hovered)
         }
         .buttonStyle(.plain)
         .disabled(disabled)
         .onHover { hovered = $0 }
+        .help(label)
+        .accessibilityLabel(label)
+    }
+}
+
+/// A pill glyph that drops a short menu instead of firing one action.
+private struct PillMenu<Items: View>: View {
+    let icon: String
+    let label: String
+    var disabled = false
+    @ViewBuilder let items: () -> Items
+    @State private var hovered = false
+
+    var body: some View {
+        Menu(content: items) {
+            PillIcon(icon: icon, disabled: disabled, hovered: hovered)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(disabled)
+        .onHover { hovered = $0 }
+        .help(label)
         .accessibilityLabel(label)
     }
 }
