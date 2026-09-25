@@ -7,11 +7,18 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 ### New
 - Copy the file's path from the header pill, the File menu, or ⌥⌘C, ready to paste into a terminal or editor
 
+### Fixed
+- Long labels in Mermaid flowcharts wrap inside their box instead of being cut off
+
 ### Details
 
 **New**
 
 - **Copy Path.** A new pill button next to Show in Finder copies the document's full path to the clipboard. Also in the File menu as Copy Path, with the same ⌥⌘C shortcut Finder uses. (Issue #28, thanks @troelskn.)
+
+**Fixed**
+
+- Long identifiers in Mermaid flowchart nodes now wrap and the node grows to fit, instead of the text being clipped at the node's edge. (PR #27, thanks @skykeyjoker.)
 
 ## 1.17
 
