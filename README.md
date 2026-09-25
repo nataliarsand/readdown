@@ -52,6 +52,8 @@ Requires macOS 13 Ventura or later.
 
 Found a bug or have a feature request? [Open an issue](https://github.com/nataliarsand/readdown/issues).
 
+Want to send a fix? Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Security issues go through [SECURITY.md](SECURITY.md), not the public tracker.
+
 ## License
 
 Source-available. You may view, study, and contribute, but redistribution is not permitted. See [LICENSE](LICENSE) for details.
