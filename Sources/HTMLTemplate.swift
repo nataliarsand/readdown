@@ -374,6 +374,9 @@ enum HTMLTemplate {
             background: transparent;
             padding: 0;
             text-align: center;
+            /* Diagram labels inherit `pre`'s hanging indent, which pushes
+               wrapped lines past their foreignObject. */
+            text-indent: 0;
         }
         .mermaid svg {
             max-width: 100%;
