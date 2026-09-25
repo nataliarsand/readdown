@@ -25,7 +25,7 @@
 - **Syntax highlighting** — 19 languages auto-detected, or specify the language on your code fence.
 - **Math rendering** — Inline (`$x^2$`) and display (`$$\int f\,dx$$`) TeX equations via KaTeX, fully offline.
 - **Mermaid diagrams** — Flowcharts, sequence diagrams, pie charts, and more.
-- **Dark mode** — Follows your system appearance automatically.
+- **Dark mode** — Follows your system appearance, or pick Light or Dark from the View menu.
 - **Default reader** — One click to replace Xcode or TextEdit as your .md handler.
 
 ## Quick Look Setup

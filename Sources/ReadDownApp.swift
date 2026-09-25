@@ -12,6 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // Skip the launch sequence when hosting the test runner.
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
 
+        AppearanceMode.current.apply()
         resetQuickLook()
         _ = checkForUpdatesViewModel // force lazy init
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -338,6 +339,17 @@ struct CheckForUpdatesView: View {
 struct ReadDownApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage(UsageMetrics.consentKey) private var shareUsageData = false
+    @AppStorage(AppearanceMode.key) private var appearanceMode = AppearanceMode.system
+
+    /// Applies on set rather than via `onChange`, which doesn't fire for a menu Picker.
+    private var appearanceSelection: Binding<AppearanceMode> {
+        Binding(get: { appearanceMode }, set: { mode in
+            appearanceMode = mode
+            mode.apply()
+            UsageMetrics.record(.appearance)
+        })
+    }
+
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { file in
             ContentView(
@@ -398,6 +410,14 @@ struct ReadDownApp: App {
                 .keyboardShortcut("p", modifiers: .command)
             }
             CommandGroup(after: .toolbar) {
+                Picker("Appearance", selection: appearanceSelection) {
+                    ForEach(AppearanceMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+
+                Divider()
+
                 Button("Zoom In") {
                     NotificationCenter.default.post(name: .zoomIn, object: nil)
                 }

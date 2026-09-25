@@ -7,6 +7,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 ### New
 - Copy the file's path from the header pill, the File menu, or ⌥⌘C, ready to paste into a terminal or editor
 - YAML front matter at the top of a file shows as a code block instead of being parsed as Markdown
+- Pick Light or Dark in the View menu to read in a different appearance than macOS
 
 ### Fixed
 - Long labels in Mermaid flowcharts wrap inside their box instead of being cut off
@@ -17,6 +18,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 
 - **Copy Path.** A new pill button next to Show in Finder copies the document's full path to the clipboard. Also in the File menu as Copy Path, with the same ⌥⌘C shortcut Finder uses. (Issue #28, thanks @troelskn.)
 - **Front matter.** A YAML block between `---` lines at the very top of a file (agent skills, Jekyll, Hugo, Obsidian) renders as a `yaml` code block. A `---` anywhere else is still a horizontal rule. (Issue #29, thanks @troelskn.)
+- **Appearance.** View > Appearance switches Readdown between System, Light, and Dark. The choice is remembered and applies to every window; Quick Look keeps following macOS. (Issue #32, thanks @csbertran.)
 
 **Fixed**
 

@@ -4,6 +4,35 @@ extension NSAppearance {
     var isDark: Bool { bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
 }
 
+/// Appearance override from the View menu, persisted in defaults. Applying it
+/// app-wide retints the chrome and the page together: `DocumentWatcher`
+/// observes `effectiveAppearance` and restamps the document.
+enum AppearanceMode: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    static let key = "appearanceMode"
+    static var current: AppearanceMode {
+        AppearanceMode(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .system
+    }
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    func apply() {
+        NSApp.appearance = switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 /// Colors and metrics for the reader chrome. Values track `HTMLTemplate.swift`.
 enum ReaderTheme {
     /// Matches the page `--bg`, so chrome reads as one surface with the document.
