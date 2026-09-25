@@ -104,6 +104,44 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("let x = 1"))
     }
 
+    // MARK: - Front matter (issue #29)
+
+    func testFrontMatterRendersAsYAMLCodeBlock() {
+        let md = "---\nname: skill\ndescription: <b>x</b>\n---\n# Title"
+        let result = MarkdownRenderer.render(md).html
+        XCTAssertTrue(result.hasPrefix("<pre><code class=\"language-yaml\">name: skill\ndescription: &lt;b&gt;x&lt;/b&gt;</code></pre>"))
+        XCTAssertTrue(result.contains("<h1"))
+        XCTAssertFalse(result.contains("<hr>"))
+    }
+
+    func testFrontMatterClosedByDots() {
+        let result = MarkdownRenderer.render("---\na: 1\n...\ntext").html
+        XCTAssertTrue(result.contains("language-yaml\">a: 1</code>"))
+        XCTAssertTrue(result.contains("<p>text</p>"))
+    }
+
+    func testFrontMatterOnlyOnFirstLine() {
+        let result = MarkdownRenderer.render("intro\n\n---\na: 1\n---\n").html
+        XCTAssertFalse(result.contains("language-yaml"))
+        XCTAssertTrue(result.contains("<hr>"))
+    }
+
+    func testUnclosedOrEmptyFrontMatterIsNotSwallowed() {
+        let unclosed = MarkdownRenderer.render("---\na: 1\ntext").html
+        XCTAssertFalse(unclosed.contains("language-yaml"))
+        XCTAssertTrue(unclosed.contains("<hr>"))
+        XCTAssertTrue(unclosed.contains("text"))
+        let empty = MarkdownRenderer.render("---\n---\ntext").html
+        XCTAssertFalse(empty.contains("language-yaml"))
+        XCTAssertTrue(empty.contains("text"))
+    }
+
+    func testFrontMatterLinksNotHarvestedAsReferences() {
+        let result = MarkdownRenderer.render("---\n[ref]: https://a.example\n---\n[ref][]").html
+        XCTAssertTrue(result.contains("language-yaml"))
+        XCTAssertFalse(result.contains("href=\"https://a.example\""))
+    }
+
     func testFencedCodeBlockNoLanguage() {
         let md = "```\nplain code\n```"
         let result = MarkdownRenderer.render(md).html

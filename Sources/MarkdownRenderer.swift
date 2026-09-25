@@ -101,10 +101,19 @@ enum MarkdownRenderer {
 
     static func render(_ markdown: String) -> Result {
         var lines = markdown.components(separatedBy: "\n")
+        var html: [String] = []
+        // YAML front matter is shown as a yaml code block rather than parsed as
+        // Markdown (issue #29). Only a `---` on the very first line opens it; a
+        // later one is a thematic break. Peeled off before reference harvesting
+        // so nothing inside it is read as a definition.
+        if let end = frontMatterEnd(lines) {
+            let yaml = lines[1..<end].map(escapeHTML).joined(separator: "\n")
+            html.append("<pre><code class=\"language-yaml\">\(yaml)</code></pre>")
+            lines.removeFirst(end + 1)
+        }
         // Harvest `[label]: url` definitions (fence-aware) and blank those lines
         // before block parsing, so a reference can be defined anywhere.
         let refs = collectReferenceDefinitions(&lines)
-        var html: [String] = []
         var hasMermaid = false
         var i = 0
         // GitHub-style anchor slugs for heading IDs. Tracks duplicate counts so
@@ -896,6 +905,18 @@ enum MarkdownRenderer {
     /// EOF if unclosed). Each content line is de-indented by up to `openerIndent`
     /// columns (CommonMark §6.7) so list-item indentation doesn't leak into the
     /// rendered code.
+    /// Index of the line closing a front-matter block that opens on line 0, or
+    /// `nil` when the document has none. The closer is `---` or `...`; an unclosed
+    /// or empty block is left to the normal parser, where `---` is a rule.
+    private static func frontMatterEnd(_ lines: [String]) -> Int? {
+        guard lines.first?.trimmingCharacters(in: .whitespaces) == "---" else { return nil }
+        for k in 1..<lines.count {
+            let t = lines[k].trimmingCharacters(in: .whitespaces)
+            if t == "---" || t == "..." { return k > 1 ? k : nil }
+        }
+        return nil
+    }
+
     private static func consumeFence(_ i: inout Int, lines: [String], openerIndent: Int, hasMermaid: inout Bool) -> String {
         let stripped = lines[i].drop(while: { $0 == " " || $0 == "\t" })
         let fenceChar: Character = stripped.first == "~" ? "~" : "`"
