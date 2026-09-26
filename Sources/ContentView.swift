@@ -4,9 +4,7 @@ extension NSAppearance {
     var isDark: Bool { bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
 }
 
-/// Appearance override from the View menu, persisted in defaults. Applying it
-/// app-wide retints the chrome and the page together: `DocumentWatcher`
-/// observes `effectiveAppearance` and restamps the document.
+/// Applied app-wide: `DocumentWatcher` observes `effectiveAppearance` and restamps the page.
 enum AppearanceMode: String, CaseIterable, Identifiable {
     case system, light, dark
 
@@ -33,9 +31,9 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// Colors and metrics for the reader chrome. Values track `HTMLTemplate.swift`.
+/// Values track `HTMLTemplate.swift`.
 enum ReaderTheme {
-    /// Matches the page `--bg`, so chrome reads as one surface with the document.
+    /// Matches the page `--bg`.
     static let pageBackground = dynamic(light: (0xFC, 0xFC, 0xFB), dark: (0x0D, 0x11, 0x17))
     static let pill = Color(nsColor: dynamic(light: (0xFF, 0xFF, 0xFF), dark: (0x16, 0x1B, 0x22)))
     /// Matches the code-block copy button's confirmed state.
@@ -64,7 +62,6 @@ enum ReaderTheme {
 }
 
 extension View {
-    /// Filled shape with a hairline border and soft shadow, for the pills and find bar.
     func floatingSurface(_ shape: some InsettableShape, fill: some ShapeStyle) -> some View {
         background(fill, in: shape)
             .overlay(shape.strokeBorder(ReaderTheme.hairline))
@@ -90,10 +87,7 @@ struct ContentView: View {
     @State private var pillDismissWork: DispatchWorkItem?
 
     init(document: MarkdownDocument, baseURL: URL?, fileURL: URL? = nil) {
-        // Resolve dark vs light at template-generation time so the embedded
-        // Mermaid theme matches the page palette. WKWebView's JS-side dark-mode
-        // signals (`matchMedia`, `getComputedStyle` of var()-resolved colors)
-        // are unreliable, so the source of truth is Swift's `NSAppearance`.
+        // Appearance source of truth is `NSAppearance`; WebKit's media query is unreliable here.
         let isDark = NSApp.effectiveAppearance.isDark
         _watcher = StateObject(wrappedValue: DocumentWatcher(initialText: document.text, fileURL: fileURL, isDark: isDark))
         self.baseURL = baseURL
@@ -106,15 +100,12 @@ struct ContentView: View {
             ZStack(alignment: .top) {
                 WebView(baseURL: baseURL, findState: findState, watcher: watcher)
                     .frame(minWidth: 500, minHeight: 400)
-                // Over the web view, under the pills: restores header dragging,
-                // which the web view would otherwise swallow.
                 WindowDragArea()
                     .frame(height: ReaderTheme.headerStripHeight)
                     .frame(maxWidth: .infinity, alignment: .top)
                 HStack(spacing: 0) {
                     titlePill
                     Spacer(minLength: ReaderTheme.headerEdgePadding)
-                    // Next to the buttons that trigger it, so the eye needn't travel.
                     if let pillText {
                         StatusPill(text: pillText)
                             .padding(.trailing, 8)
@@ -140,8 +131,7 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .findInDocument)) { _ in
-            // Only the key window responds. `isKeyWindow` is more reliable than
-            // comparing against `NSApp.keyWindow` when SwiftUI re-wraps windows.
+            // `isKeyWindow`, not `NSApp.keyWindow`: SwiftUI re-wraps windows.
             guard window?.isKeyWindow == true else { return }
             showFindBar()
         }
@@ -160,8 +150,7 @@ struct ContentView: View {
         }
     }
 
-    /// The file name, replacing the hidden system title. Non-interactive so
-    /// clicks fall through to the drag strip.
+    /// Non-interactive so clicks reach the drag strip.
     private var titlePill: some View {
         Text(fileURL?.lastPathComponent ?? "Untitled")
             .font(.system(size: 13, weight: .semibold))
@@ -173,8 +162,7 @@ struct ContentView: View {
             .allowsHitTesting(false)
     }
 
-    /// Custom rather than `.toolbar`, which brings a system capsule, an opaque
-    /// header band, and non-working tooltips.
+    /// Not `.toolbar`: it brings a system capsule, an opaque header band, and broken tooltips.
     private var actionPill: some View {
         HStack(spacing: 2) {
             CopyButton(text: { watcher.text },
@@ -193,14 +181,12 @@ struct ContentView: View {
         .floatingSurface(Capsule(), fill: ReaderTheme.pill)
     }
 
-    /// Shared by the pill menu, the File menu, and ⇧⌘R.
     private func revealInFinder() {
         guard let fileURL else { return }
         UsageMetrics.record(.showInFinder)
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])
     }
 
-    /// Shared by the pill menu, the File menu, and ⌥⌘C (Finder's own shortcut for it).
     private func copyFilePath() {
         guard let fileURL else { return }
         UsageMetrics.record(.copyPath)
@@ -232,10 +218,7 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
     }
 
-    /// Transparent, full-height header with the pills floating over the content.
-    /// No `NSToolbar`: on Tahoe even an empty one draws an opaque header backdrop
-    /// that would cover the pills. Hiding the title drops the Document Title Menu;
-    /// Show in Finder and the File menu cover those actions.
+    /// No `NSToolbar`: on Tahoe even an empty one paints an opaque header over the pills.
     private func configureWindowChrome(_ window: NSWindow) {
         if !window.styleMask.contains(.fullSizeContentView) {
             window.styleMask.insert(.fullSizeContentView)
@@ -249,8 +232,7 @@ struct ContentView: View {
     }
 }
 
-/// Centers the traffic lights on the pill row. Re-applied on titlebar layout
-/// (resize, key-state changes), which resets the button positions.
+/// AppKit resets the button positions on every titlebar layout, hence the re-apply.
 final class TrafficLightAligner {
     private static var associatedKey: UInt8 = 0
 
@@ -311,8 +293,7 @@ final class TrafficLightAligner {
     }
 }
 
-/// A transparent strip that drags the window on mouse-down, restoring the
-/// title-bar drag the WKWebView underneath would otherwise swallow.
+/// Restores the title-bar drag the WKWebView underneath would swallow.
 struct WindowDragArea: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView { DragView() }
     func updateNSView(_ nsView: NSView, context: Context) {}
@@ -323,16 +304,33 @@ struct WindowDragArea: NSViewRepresentable {
     }
 }
 
-/// Transient feedback pill ("Updated", "Full contents copied to clipboard").
-/// Confirmation in the header row, styled like the other pills. Never truncates;
-/// the title pill yields instead.
+/// Never truncates; the title pill yields instead.
+extension CheckIcon {
+    struct Shape: SwiftUI.Shape {
+        func path(in rect: CGRect) -> Path {
+            let s = rect.width / CheckIcon.grid
+            var path = Path()
+            path.addLines(CheckIcon.points.map { CGPoint(x: rect.minX + $0.x * s, y: rect.minY + $0.y * s) })
+            return path
+        }
+    }
+
+    struct View: SwiftUI.View {
+        let size: CGFloat
+        var body: some SwiftUI.View {
+            Shape()
+                .stroke(style: StrokeStyle(lineWidth: strokeWidth * size / grid, lineCap: .round, lineJoin: .round))
+                .frame(width: size, height: size)
+        }
+    }
+}
+
 private struct StatusPill: View {
     let text: String
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 11, weight: .semibold))
+            CheckIcon.View(size: 12)
                 .foregroundStyle(ReaderTheme.copyConfirm)
             Text(text)
                 .font(.caption)
@@ -347,19 +345,18 @@ private struct StatusPill: View {
     }
 }
 
-/// The glyph inside a header pill, with the shared hover wash.
-private struct PillIcon: View {
-    private static let hitArea = CGSize(width: 30, height: 26)
-    private static let hoverShape = RoundedRectangle(cornerRadius: 8, style: .continuous)
-    private static let hoverOpacity = 0.07
+private struct PillIcon<Glyph: View>: View {
+    private static var hitArea: CGSize { CGSize(width: 30, height: 26) }
+    private static var hoverShape: RoundedRectangle { RoundedRectangle(cornerRadius: 8, style: .continuous) }
+    private static var hoverOpacity: Double { 0.07 }
 
-    let icon: String
     var tint: Color?
     var disabled = false
     let hovered: Bool
+    @ViewBuilder let glyph: () -> Glyph
 
     var body: some View {
-        Image(systemName: icon)
+        glyph()
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(disabled ? AnyShapeStyle(.tertiary)
                                       : tint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.secondary))
@@ -372,18 +369,17 @@ private struct PillIcon: View {
     }
 }
 
-/// Icon button with a hover highlight, a tooltip, and an explicit accessibility label.
-private struct PillIconButton: View {
-    let icon: String
+private struct PillIconButton<Glyph: View>: View {
     let label: String
     var tint: Color?
     var disabled = false
     let action: () -> Void
+    @ViewBuilder let glyph: () -> Glyph
     @State private var hovered = false
 
     var body: some View {
         Button(action: action) {
-            PillIcon(icon: icon, tint: tint, disabled: disabled, hovered: hovered)
+            PillIcon(tint: tint, disabled: disabled, hovered: hovered, glyph: glyph)
         }
         .buttonStyle(.plain)
         .disabled(disabled)
@@ -393,7 +389,12 @@ private struct PillIconButton: View {
     }
 }
 
-/// A pill glyph that drops a short menu instead of firing one action.
+extension PillIconButton where Glyph == Image {
+    init(icon: String, label: String, tint: Color? = nil, disabled: Bool = false, action: @escaping () -> Void) {
+        self.init(label: label, tint: tint, disabled: disabled, action: action) { Image(systemName: icon) }
+    }
+}
+
 private struct PillMenu<Items: View>: View {
     let icon: String
     let label: String
@@ -403,7 +404,7 @@ private struct PillMenu<Items: View>: View {
 
     var body: some View {
         Menu(content: items) {
-            PillIcon(icon: icon, disabled: disabled, hovered: hovered)
+            PillIcon(disabled: disabled, hovered: hovered) { Image(systemName: icon) }
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
@@ -416,12 +417,9 @@ private struct PillMenu<Items: View>: View {
     }
 }
 
-/// Copy button that swaps to a checkmark after copying, matching the code-block one.
+/// Confirmation state matches the code-block copy button.
 private struct CopyButton: View {
-    private static let confirmationSeconds: TimeInterval = 1.6
-
     let text: () -> String
-    /// Rich-text flavor written alongside the plain string.
     var html: () -> String? = { nil }
     var onCopied: () -> Void = {}
     @State private var confirmed = false
@@ -429,23 +427,31 @@ private struct CopyButton: View {
 
     var body: some View {
         PillIconButton(
-            icon: confirmed ? "checkmark" : "square.on.square",
             label: confirmed ? "Copied" : "Copy to Clipboard",
-            tint: confirmed ? ReaderTheme.copyConfirm : nil
+            tint: confirmed ? ReaderTheme.copyConfirm : nil,
+            action: copy
         ) {
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            pasteboard.setString(text(), forType: .string)
-            if let html = html() {
-                pasteboard.setString(html, forType: .html)
+            if confirmed {
+                CheckIcon.View(size: 14)
+            } else {
+                Image(systemName: "square.on.square")
             }
-            confirmed = true
-            resetWork?.cancel()
-            let work = DispatchWorkItem { confirmed = false }
-            resetWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.confirmationSeconds, execute: work)
-            onCopied()
         }
+    }
+
+    private func copy() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text(), forType: .string)
+        if let html = html() {
+            pasteboard.setString(html, forType: .html)
+        }
+        confirmed = true
+        resetWork?.cancel()
+        let work = DispatchWorkItem { confirmed = false }
+        resetWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + CheckIcon.confirmSeconds, execute: work)
+        onCopied()
     }
 }
 

@@ -1,5 +1,18 @@
 import Foundation
 
+/// The confirm check, drawn by the header pills and by the code-block copy button in the page.
+enum CheckIcon {
+    static let grid: CGFloat = 24
+    static let points: [CGPoint] = [CGPoint(x: 20, y: 6), CGPoint(x: 9, y: 17), CGPoint(x: 4, y: 12)]
+    static let strokeWidth: CGFloat = 2.5
+    static let confirmSeconds: TimeInterval = 1.6
+
+    static var svg: String {
+        let pts = points.map { "\(Int($0.x)) \(Int($0.y))" }.joined(separator: " ")
+        return "<svg viewBox=\"0 0 \(Int(grid)) \(Int(grid))\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"\(strokeWidth)\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"\(pts)\"></polyline></svg>"
+    }
+}
+
 enum HTMLTemplate {
 
     private static let mermaidJS: String? = {
@@ -8,11 +21,7 @@ enum HTMLTemplate {
         return js
     }()
 
-    // KaTeX: fast HTML+CSS math rendering. Its stylesheet has the woff2 math
-    // fonts embedded as `data:` URIs, so nothing loads over the network — it
-    // renders under the page's strict CSP (with `font-src data:`) like the
-    // bundled Mermaid. Lighter than MathJax and covers the math the vast
-    // majority of documents use. Both are injected only when a doc has math.
+    // KaTeX's stylesheet embeds its fonts as data: URIs, which the CSP's font-src allows.
     private static let katexJS: String? = {
         guard let url = Bundle.main.url(forResource: "katex.min", withExtension: "js"),
               let js = try? String(contentsOf: url, encoding: .utf8) else { return nil }
@@ -29,7 +38,7 @@ enum HTMLTemplate {
         let fontSize = compact ? "14px" : "16px"
         // Extra clearance for the floating header; Quick Look (compact) has none.
         let topPadding = compact ? "32px" : "64px"
-        // Blur veil under the header. Disabled in print (fixed = every page).
+        // Blur veil under the header; a fixed element would repeat on every printed page.
         let headerBlur = compact ? "" : """
         body::before {
             content: "";
@@ -54,15 +63,15 @@ enum HTMLTemplate {
         <meta name="color-scheme" content="light dark">
         <style>
         :root {
-            --text: #1f2328;            /* warmer than pure black, gentler on backlit screens */
-            --bg: #fcfcfb;              /* a hair off-white to reduce glare; matches ReaderTheme.pageBackground */
-            --muted: #57606a;           /* secondary text — blockquotes, h6, captions */
-            --code-bg: #eef1f5;         /* a step below --bg so code blocks read as blocks on the off-white page */
+            --text: #1f2328;
+            --bg: #fcfcfb;              /* must match ReaderTheme.pageBackground */
+            --muted: #57606a;
+            --code-bg: #eef1f5;
             --border: #d0d7de;
             --link: #0969da;
             --link-underline: rgba(9, 105, 218, 0.35);
             --blockquote-border: #d0d7de;
-            --table-stripe: #f2f4f7;    /* shifted with --bg so striping stays visible, a step above --code-bg */
+            --table-stripe: #f2f4f7;
             --table-header: #eef1f5;
             --scrollbar-thumb: rgba(0, 0, 0, 0.32);
         }
@@ -71,7 +80,7 @@ enum HTMLTemplate {
             :root {
                 --text: #e6edf3;
                 --bg: #0d1117;
-                --muted: #9198a1;       /* lifted from #8b949e for WCAG AA contrast */
+                --muted: #9198a1;       /* WCAG AA against --bg */
                 --code-bg: #161b22;
                 --border: #3d444d;
                 --link: #58a6ff;
@@ -110,20 +119,15 @@ enum HTMLTemplate {
             print-color-adjust: exact;
         }
 
-        /* Modular scale on 1.25 (major third). Em-relative margins so heading
-           breathing room scales with the heading size — h1 gets more space
-           above and below than h4 automatically. */
+        /* Sizes follow a 1.25 modular scale; em margins scale with the heading. */
         h1, h2, h3, h4, h5, h6 {
             margin: 1.6em 0 0.6em;
             font-weight: 600;
             line-height: 1.25;
-            /* When an anchor link scrolls to a heading, leave room for the
-               toolbar (which extends over the top of the content area). */
+            /* anchor targets clear the floating header */
             scroll-margin-top: 56px;
             position: relative;
         }
-        /* Collapsible sections: a quiet left-gutter chevron (hover to reveal) folds the
-           section down to the next same-or-higher heading. Absolutely positioned. */
         .rd-fold {
             position: absolute;
             left: -1.15rem;
@@ -141,7 +145,6 @@ enum HTMLTemplate {
         h1:hover > .rd-fold, h2:hover > .rd-fold, h3:hover > .rd-fold,
         h4:hover > .rd-fold, h5:hover > .rd-fold, h6:hover > .rd-fold { opacity: 0.3; }
         .rd-fold:hover { opacity: 0.7; }
-        /* Collapsed: chevron points right and stays faintly visible as a hint. */
         .rd-collapsed > .rd-fold { transform: rotate(-90deg); opacity: 0.28; }
         .rd-fold-hidden { display: none !important; }
         @media print {
@@ -155,8 +158,7 @@ enum HTMLTemplate {
         h5 { font-size: 0.875em; }
         h6 { font-size: 0.85em; color: var(--muted); }
 
-        /* First element shouldn't push the page down — body padding-top
-           already provides the chrome clearance. */
+        /* body padding already clears the header */
         body > :first-child { margin-top: 0; }
 
         p {
@@ -164,8 +166,6 @@ enum HTMLTemplate {
             margin-bottom: 1em;
         }
 
-        /* Always-on subtle underline — easier to scan for links than hover-only
-           underline, but quieter than the default. */
         a {
             color: var(--link);
             text-decoration: underline;
@@ -195,26 +195,20 @@ enum HTMLTemplate {
             border-radius: 8px;
             margin: 1.25em 0;
             max-width: 100%;
-            /* Wrap long lines instead of clipping them behind a horizontal
-               scroll — a reader shouldn't hide content. Matches print. */
             white-space: pre-wrap;
             overflow-wrap: break-word;
-            /* Wrapped continuations sit 2ch in; off the 4-space code grid so
-               a continuation can't be read as a new line of code. */
+            /* 2ch sits off the 4-space code grid, so a wrapped continuation can't read as new code. */
             text-indent: 2ch hanging each-line;
         }
 
-        pre code {
+        pre code, pre code.hljs {
             padding: 0;
             background: transparent;
             border-radius: 0;
             font-size: 100%;
         }
 
-        /* Copy button. Lives on a non-scrolling wrapper so it stays pinned to the
-           top-right while the <pre> scrolls horizontally underneath it. Hidden by
-           default, revealed on hover/focus — keeps the reading view quiet and means
-           it never shows up in printed or exported output (no hover at render time). */
+        /* The wrapper doesn't scroll with the <pre>, so the copy button stays pinned. */
         .rd-codeblock {
             position: relative;
         }
@@ -374,27 +368,19 @@ enum HTMLTemplate {
             background: transparent;
             padding: 0;
             text-align: center;
-            /* Diagram labels inherit `pre`'s hanging indent, which pushes
-               wrapped lines past their foreignObject. */
+            /* pre's hanging indent pushes wrapped diagram labels past their foreignObject */
             text-indent: 0;
         }
         .mermaid svg {
             max-width: 100%;
             height: auto;
         }
-        /* Mermaid constrains flowchart HTML labels to a 200px foreignObject.
-           Let long identifiers wrap inside that box so Mermaid can measure the
-           resulting lines and grow the node height instead of clipping text. */
+        /* Mermaid boxes flowchart labels in a fixed-width foreignObject; wrapping lets it grow the node instead of clipping. */
         pre.mermaid svg[aria-roledescription="flowchart-v2"] .nodeLabel p {
             white-space: normal;
             overflow-wrap: anywhere;
         }
-        /* Math (KaTeX). Display blocks center and scroll horizontally so a wide
-           equation never forces the page wider. KaTeX renders with the current
-           text color, so math inherits `--text` and adapts to dark mode for free.
-           KaTeX's own stylesheet — with the math fonts embedded as data: URIs —
-           is injected only for documents that contain math. A failed expression
-           renders its raw source via KaTeX's `.katex-error` styling. */
+        /* Display math scrolls horizontally so a wide equation never widens the page. */
         .rd-math-display {
             display: block;
             margin: 1.25em 0;
@@ -403,7 +389,7 @@ enum HTMLTemplate {
             overflow-y: hidden;
         }
         .rd-math-inline { display: inline; }
-        /* .rd-math-display already supplies the vertical rhythm; drop KaTeX's own. */
+        /* .rd-math-display owns the vertical margin */
         .katex-display { margin: 0 !important; }
         .rd-math-error,
         .katex-error {
@@ -416,8 +402,7 @@ enum HTMLTemplate {
             .rd-math-error,
             .katex-error { color: #ff7b72; }
         }
-        /* Autohide scrollbar: invisible by default, fades in while scrolling.
-           Thin Bear-style: ~6px visible thumb (10px track, 2px transparent border). */
+        /* Scrollbar shows only while body.rd-scrolling is set by script. */
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -484,14 +469,10 @@ enum HTMLTemplate {
         hljs.highlightAll();
         </script>
         <script>
-        // Copy button for fenced code blocks (ChatGPT-style). Wraps each
-        // <pre><code> in a positioned container and pins a button to the
-        // top-right. Runs after highlightAll so the highlighted DOM is final;
-        // Mermaid blocks are <pre class="mermaid"> with no <code> child, so the
-        // `pre > code` selector skips them.
+        // Runs after highlightAll; Mermaid <pre>s have no <code> child, so `pre > code` skips them.
         (function() {
             const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-            const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            const CHECK_ICON = '\(CheckIcon.svg)';
 
             function legacyCopy(text) {
                 const ta = document.createElement('textarea');
@@ -520,15 +501,12 @@ enum HTMLTemplate {
                     btn.classList.remove('rd-copied');
                     btn.innerHTML = COPY_ICON;
                     btn.setAttribute('aria-label', 'Copy code');
-                }, 1600);
+                }, \(Int(CheckIcon.confirmSeconds * 1000)));
             }
 
             function copyCode(code, btn) {
-                // textContent gives the exact source (newlines preserved, HTML
-                // entities and highlight.js token spans resolved back to plain text).
                 const text = code.textContent;
-                // Prefer the async Clipboard API; fall back to execCommand, which is
-                // the reliable path inside WKWebView's loadHTMLString context.
+                // execCommand is the reliable path under loadHTMLString.
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(text).then(
                         function() { showCopied(btn); },
@@ -557,8 +535,7 @@ enum HTMLTemplate {
         })();
         </script>
         <script>
-        // Rewrites Cmd+C: WebKit's default serialization bakes computed styles
-        // into the paste as literal formatting.
+        // Rewrites Cmd+C: WebKit's default serialization bakes computed styles into the paste.
         (function() {
             // Null prototype so inherited names can't pass the allowlist.
             var KEEP_ATTRS = Object.assign(Object.create(null),
@@ -648,8 +625,7 @@ enum HTMLTemplate {
             };
 
             document.addEventListener('copy', function(e) {
-                // The code-block button's execCommand fallback copies from a
-                // hidden textarea.
+                // The code-block button's execCommand fallback copies from a hidden textarea.
                 if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
                 if (!e.clipboardData) return;
                 var html = window.__rdCopy.htmlForSelection();
@@ -734,7 +710,6 @@ enum HTMLTemplate {
         })();
         </script>
         <script>
-        // Autohide scrollbar: add `rd-scrolling` class for 700ms after any scroll event.
         (function() {
             let timer;
             window.addEventListener('scroll', () => {
@@ -746,8 +721,7 @@ enum HTMLTemplate {
         </script>
         \(compact ? "" : """
         <script>
-        // Collapsible headings: fold the section down to the next same-or-higher
-        // heading. Headings are flat siblings, so the fold walks nextElementSibling.
+        // Headings are flat siblings, so a section runs to the next same-or-higher heading.
         (function() {
             var CH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
             function level(el) {
@@ -782,22 +756,15 @@ enum HTMLTemplate {
         <style>\(katexCSS!)</style>
         <script>\(katexJS!)</script>
         <script>
-        // Render only the `.rd-math` elements the renderer emitted — never a
-        // document-wide scan — so a stray `$` in prose and any `<pre>`/`<code>`
-        // stay literal. KaTeX renders synchronously; `throwOnError: false` shows
-        // the raw TeX in its own error styling instead of throwing, matching the
-        // graceful fallback the renderer set up.
+        // Only renderer-emitted .rd-math nodes; a document-wide scan would eat stray `$` in prose and code.
         (function() {
             var nodes = document.querySelectorAll('.rd-math');
             for (var i = 0; i < nodes.length; i++) {
                 var el = nodes[i];
                 var display = el.classList.contains('rd-math-display');
                 try {
-                    // textContent gives the raw TeX back (the browser decodes the
-                    // HTML-escaped `<`, `&`, … the renderer wrote).
                     katex.render(el.textContent, el, { displayMode: display, throwOnError: false });
                 } catch (e) {
-                    // Leave the source text in place; just flag it.
                     el.classList.add('rd-math-error');
                 }
             }
@@ -807,36 +774,10 @@ enum HTMLTemplate {
         \(hasMermaid && mermaidJS != nil ? """
         <script>\(mermaidJS!)</script>
         <script>
-        // Mermaid theming. Two layers:
-        //   1. `theme: 'dark' | 'default'` — Mermaid's built-in palettes. These
-        //      are baked into the bundle and apply reliably inside WKWebView.
-        //      `theme: 'base'` (which would let themeVariables alone define the
-        //      palette) silently failed to apply our overrides under WKWebView
-        //      even though it worked in Safari — the "fix" shipped in 1.13
-        //      never actually took effect on users' machines. Always start
-        //      from a built-in theme.
-        //   2. `themeVariables` — overrides on top, tuned to Readdown's palette
-        //      so diagrams blend with the document. Mermaid stacks these on
-        //      top of the chosen theme, so we keep both Readdown branding
-        //      AND a working baseline.
-        //
-        // Dark-mode detection: Swift decides up-front (via NSApp.effectiveAppearance
-        // when the template is generated) and emits `data-rd-theme` on `<body>`.
-        // JS detection alternatives all failed in WKWebView — matchMedia returns
-        // stale results, getComputedStyle doesn't resolve CSS variables, and
-        // freshly-injected probe elements don't get styles applied synchronously.
-        // Reading a pre-emitted data attribute removes every race condition.
+        // Swift stamps data-rd-theme; matchMedia and getComputedStyle report stale values in WKWebView.
         const dark = document.body.dataset.rdTheme === 'dark';
-        // Mermaid's built-in `'dark'` palette renders pie slices in nearly-
-        // black against our nearly-black document background — invisible.
-        // Pass only the pie-related `themeVariables` (which Mermaid stacks on
-        // top of the named theme) so the slices and legend are legible.
-        // Don't be tempted to add other themeVariables here — passing a wider
-        // set silently disables the named theme's per-diagram styling under
-        // WKWebView (the bug shipped in 1.13).
-        // `edgeLabelBackground` is also overridden so flowchart edge labels
-        // (`Yes`/`No`) sit on the document background instead of Mermaid's
-        // default gray box, which looks pasted-on against our near-black page.
+        // Keep to a built-in theme with these few overrides: `theme: 'base'` or a wider
+        // themeVariables set silently drops per-diagram styling under WKWebView.
         const themeVars = dark ? {
             edgeLabelBackground: '#0d1117',
             pie1: '#58a6ff', pie2: '#f59e0b', pie3: '#34d399',

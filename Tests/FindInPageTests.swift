@@ -3,8 +3,7 @@ import WebKit
 import XCTest
 @testable import ReadDown
 
-/// Drives the real in-page JavaScript inside a WKWebView, loading the same
-/// HTML the app ships.
+/// Drives the real in-page JavaScript inside a WKWebView, on the same HTML the app ships.
 final class FindInPageTests: XCTestCase {
 
     // MARK: - Harness
@@ -18,7 +17,6 @@ final class FindInPageTests: XCTestCase {
         return webView
     }
 
-    /// Polls a boolean JS expression until it holds (or fails the test).
     private func waitUntilTrue(_ webView: WKWebView, _ js: String,
                                timeout: TimeInterval = 10,
                                file: StaticString = #filePath, line: UInt = #line) {
@@ -30,7 +28,6 @@ final class FindInPageTests: XCTestCase {
         XCTFail("Timed out waiting for: \(js)", file: file, line: line)
     }
 
-    /// Synchronously evaluates JS by pumping the run loop.
     @discardableResult
     private func evaluate(_ webView: WKWebView, _ js: String) -> Any? {
         var value: Any?
@@ -126,6 +123,18 @@ final class FindInPageTests: XCTestCase {
         XCTAssertEqual(buttons, 0)
     }
 
+    func testHighlightedCodeKeepsTheBlockBackground() {
+        let webView = loadDocument("```swift\nlet x = 1\n```")
+        let bg = evaluate(webView, "getComputedStyle(document.querySelector('pre code.hljs')).backgroundColor") as? String
+        XCTAssertEqual(bg, "rgba(0, 0, 0, 0)")
+    }
+
+    func testCodeCopyButtonUsesTheSharedCheck() {
+        let webView = loadDocument("```\nx\n```")
+        let svg = evaluate(webView, "document.querySelector('.rd-copy-btn').click(), document.querySelector('.rd-copy-btn').innerHTML") as? String
+        XCTAssertEqual(svg, CheckIcon.svg)
+    }
+
     // MARK: - Selection copy (clean HTML flavor)
 
     private func selectAllAndExport(_ webView: WKWebView) -> String? {
@@ -216,7 +225,6 @@ final class FindInPageTests: XCTestCase {
         XCTAssertFalse(html.contains("<svg"))
     }
 
-    /// Drives the real copy event, not just the exposed cleaner.
     func testCopyEventRewritesClipboardData() {
         let webView = loadDocument("# Title\n\nBody text.")
         let json = evaluate(webView, """
@@ -364,12 +372,8 @@ final class FindInPageTests: XCTestCase {
             "Mermaid did not grow the node for dynamically wrapped lines")
     }
 
-    // MARK: - Print/PDF always renders light (Mermaid dark-on-paper fix)
+    // MARK: - Print/PDF always renders light
 
-    /// The print/PDF path renders with the light template so paper never
-    /// inherits the dark palette. Exercises the full pipeline the fix uses —
-    /// light HTML + a real Mermaid render + `createPDF` — and checks the
-    /// resulting PDF's background is light, not the dark page colour.
     func testMermaidPrintPDFBackgroundIsLight() throws {
         let result = MarkdownRenderer.render("""
         # Diagram
@@ -404,10 +408,7 @@ final class FindInPageTests: XCTestCase {
             "print background must be light; brightness \(brightness) suggests the dark palette leaked to paper")
     }
 
-    /// Brightness (0 dark … 1 light) of a page-background pixel. The thumbnail
-    /// keeps the page's aspect ratio (avoiding transparent letterbox margins),
-    /// and we sample the top padding band, horizontally centred, which is the
-    /// body background colour, above any content.
+    /// The thumbnail keeps the page aspect ratio; letterbox margins would sample as transparent.
     private func cornerBrightness(of page: PDFPage) throws -> CGFloat {
         let bounds = page.bounds(for: .mediaBox)
         let w: CGFloat = 160
@@ -415,8 +416,7 @@ final class FindInPageTests: XCTestCase {
         let image = page.thumbnail(of: NSSize(width: w, height: h), for: .mediaBox)
         let tiff = try XCTUnwrap(image.tiffRepresentation)
         let rep = try XCTUnwrap(NSBitmapImageRep(data: tiff))
-        // Lower-centre: empty body background, below any content and clear of
-        // the page's top edge.
+        // Lower-centre: body background, clear of content and the page edge.
         let color = try XCTUnwrap(
             rep.colorAt(x: Int(w / 2), y: Int(h * 0.7))?.usingColorSpace(.sRGB))
         return color.brightnessComponent
