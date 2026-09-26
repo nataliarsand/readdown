@@ -11,6 +11,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 
 ### Fixed
 - Long labels in Mermaid flowcharts wrap inside their box instead of being cut off
+- Highlighted code blocks no longer show a lighter band behind the text
 
 ### Details
 
@@ -23,6 +24,9 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 **Fixed**
 
 - Long identifiers in Mermaid flowchart nodes now wrap and the node grows to fit, instead of the text being clipped at the node's edge. (PR #27, thanks @skykeyjoker.)
+- Syntax-highlighted code sat on a slightly lighter background than its block in light mode. Both now match.
+- A code fence indented four or more spaces was dropped from the page instead of showing as text.
+- Show in Finder and Copy Path share one folder button in the header; every header button has a tooltip; the "copied" confirmation appears next to the buttons.
 
 ## 1.17
 
