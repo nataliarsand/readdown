@@ -14,18 +14,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         AppearanceMode.current.apply()
         resetQuickLook()
-        _ = checkForUpdatesViewModel // force lazy init
+        _ = checkForUpdatesViewModel // eager: the Check for Updates menu item won't render if this resolves later
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.updaterController.startUpdater()
         }
 
-        // Defer the restore decision. macOS may deliver application(_:open:) —
-        // which sets launchedWithFiles and opens the clicked document — around
-        // or just after this callback, so restoring synchronously here would
-        // resurrect the whole previous session before we know a file was opened.
-        // Waiting a beat, then skipping restore if a file was opened (flag set,
-        // or a document already exists), means opening a file shows just that
-        // file while a plain Dock/Spotlight launch still restores the old set.
+        // application(_:open:) can land after this callback; restoring synchronously would resurrect the old session over the opened file.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             guard let self else { return }
             self.dismissOpenPanels()
@@ -44,15 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
     }
 
-    /// We manage session restoration ourselves via `DocumentSession.restorePreviousSession()`
-    /// — see `applicationDidFinishLaunching` above. AppKit's automatic
-    /// `NSDocumentControllerPersistentRestoration` mechanism (which this method
-    /// opts into when it returns `true`) was racing with our restoration: both
-    /// fired concurrently at launch, AppKit had no file-existence guard, and the
-    /// two flows deadlocked SwiftUI's `AppWindowsController.makeWindowController`
-    /// when state was inconsistent (force-quit with files since deleted, Time
-    /// Machine restore, etc.) — the app would hang at launch with no window.
-    /// Return `false` so AppKit skips its own restoration and only ours runs.
+    /// AppKit's own restoration races `DocumentSession.restorePreviousSession()` and deadlocks window creation on inconsistent state; only ours runs.
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         false
     }
@@ -67,11 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         false
     }
 
-    /// SwiftUI's DocumentGroup only opens the first URL when multiple files are
-    /// passed at launch (Finder multi-select → Open With Readdown). Route through
-    /// NSDocumentController so each file gets its own window. Setting the flag
-    /// also tells `applicationDidFinishLaunching` to skip session restoration —
-    /// the user opened these files explicitly, they don't want the old set too.
+    /// DocumentGroup opens only the first of several launch URLs; NSDocumentController opens each.
     func application(_ application: NSApplication, open urls: [URL]) {
         launchedWithFiles = true
         for url in urls {
@@ -101,8 +83,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
-        // The delegate keeps a strong reference; without this, closing via the
-        // red button over-releases the window and the next reopen crashes.
+        // Closing via the red button would over-release the window and crash the next reopen.
         window.isReleasedWhenClosed = false
         window.center()
         window.contentView = NSHostingView(rootView: WelcomeView(dismissWindow: { [weak self] in
@@ -112,8 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         welcomeWindow = window
     }
 
-    /// Custom About window — replaces the standard about panel, which clips a
-    /// credits block this size and reads as a wall of links.
+    /// The standard about panel clips a credits block this size.
     func showAboutWindow() {
         if let existing = aboutWindow {
             existing.makeKeyAndOrderFront(nil)
@@ -135,8 +115,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         aboutWindow = window
     }
 
-    /// Reset Quick Look so the system re-scans extensions.
-    /// Ensures Readdown's QL extension is picked up if a competing one was removed.
+    /// Re-scan so Readdown's extension is picked up after a competing one is removed.
     private func resetQuickLook() {
         DispatchQueue.global(qos: .utility).async {
             let process = Process()
@@ -157,9 +136,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
 }
 
-/// Offsets each new document window so multiple open files don't stack on top of each other.
-/// Windows that appear during the launch grace period are assumed to be coming from macOS state
-/// restoration and keep their saved positions instead of getting cascaded away.
+/// Windows appearing within the launch grace period are state-restored and keep their saved positions.
 final class WindowCascader {
     static let shared = WindowCascader()
     private static let launchGrace: TimeInterval = 2.0
@@ -175,22 +152,13 @@ final class WindowCascader {
     }
 }
 
-/// Persists which document URLs are currently open across launches via
-/// security-scoped bookmarks. Sandboxed apps lose access to file URLs after
-/// quit unless they keep a bookmark, and SwiftUI DocumentGroup doesn't
-/// implement state restoration reliably — so we track ourselves.
-///
-/// During quit, every ContentView's `.onDisappear` fires and would normally
-/// unregister its URL — wiping the session before we get to save it. We watch
-/// `NSApplication.willTerminateNotification` and ignore unregister calls once
-/// the app is terminating, so the last-known set of open files is what gets
-/// restored on next launch.
+/// Sandboxed reopen needs security-scoped bookmarks; DocumentGroup's own restoration is unreliable.
+/// Quit fires every `.onDisappear` unregister, so unregisters are ignored once terminating.
 final class DocumentSession {
     static let shared = DocumentSession()
     private static let bookmarksKey = "openDocumentBookmarks"
     private var bookmarks: [String: Data] = [:]
-    // URLs we hold a security-scoped access grant on (from restored bookmarks).
-    // Tracked so each start can be balanced with a stop when the document closes.
+    // Security-scoped grants, each balanced by a stop on close.
     private var scopedURLs: [String: URL] = [:]
     private var isTerminating = false
     private let queue = DispatchQueue(label: "com.heya.readdown.documentsession")
@@ -201,9 +169,7 @@ final class DocumentSession {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            // Synchronous flush: Sparkle relaunches the app immediately after
-            // willTerminate, so we can't trust async writes to land. Block the
-            // shutdown long enough to persist + force the defaults to disk.
+            // Sparkle relaunches immediately after willTerminate; an async write wouldn't land.
             self?.queue.sync {
                 self?.isTerminating = true
                 self?.persistLocked()
@@ -235,7 +201,6 @@ final class DocumentSession {
         queue.async {
             guard !self.isTerminating else { return }
             self.bookmarks.removeValue(forKey: url.path)
-            // Release the security-scoped grant taken in restorePreviousSession().
             if let scoped = self.scopedURLs.removeValue(forKey: url.path) {
                 scoped.stopAccessingSecurityScopedResource()
             }
@@ -248,11 +213,8 @@ final class DocumentSession {
         UserDefaults.standard.set(values, forKey: Self.bookmarksKey)
     }
 
-    /// Reopens documents from the previous session. Returns the count attempted.
-    /// The actual `openDocument` calls are async; the count is what we asked for.
-    ///
-    /// Called once at launch, before any document window exists — so it mutates
-    /// `bookmarks`/`scopedURLs` directly. Anything running later must use `queue`.
+    /// Returns the count attempted; the opens themselves are async.
+    /// Runs once at launch before any document exists, so it bypasses `queue`.
     @discardableResult
     func restorePreviousSession() -> Int {
         guard let saved = UserDefaults.standard.array(forKey: Self.bookmarksKey) as? [Data] else { return 0 }
@@ -266,8 +228,6 @@ final class DocumentSession {
                 bookmarkDataIsStale: &stale
             ) else { continue }
             guard FileManager.default.fileExists(atPath: url.path) else { continue }
-            // Hold security-scoped access for the restored URL; balanced by a
-            // stop in unregister(_:) when the document window closes.
             if url.startAccessingSecurityScopedResource() {
                 scopedURLs[url.path] = url
             }
@@ -279,12 +239,7 @@ final class DocumentSession {
     }
 }
 
-/// Calls back the moment the hosting view is added to an `NSWindow`, *before*
-/// the window is first displayed. We avoid `DispatchQueue.main.async` here so
-/// chrome configuration (toolbar, fullSizeContentView, background) is in place
-/// before AppKit decides the Tahoe corner radius. Async ran after first
-/// display, which left some windows (e.g. those opened directly from Finder)
-/// with the smaller "title-bar-only" radius.
+/// Fires before first display; chrome configured any later misses AppKit's Tahoe corner-radius decision.
 final class WindowAccessNSView: NSView {
     var onWindow: ((NSWindow) -> Void)?
     private var notified = false
@@ -370,11 +325,7 @@ struct ReadDownApp: App {
                     }
                 }
         }
-        // Hidden title bar at the scene level, so SwiftUI never installs a
-        // toolbar/title of its own. A window-level override alone gets undone
-        // on SwiftUI's next update pass — the header band would reappear a
-        // moment after the window opens. The pills in ContentView are the
-        // visible header.
+        // Scene-level: a window-level override is undone on SwiftUI's next update pass.
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 880, height: 720)
         .commands {
@@ -479,9 +430,6 @@ struct ReadDownApp: App {
 
 }
 
-/// Custom About window content. Hierarchy over a link dump: icon, name,
-/// version, tagline; then attribution as one sentence with subtle links; then
-/// the support actions as a row of buttons.
 struct AboutView: View {
     static let windowSize = NSSize(width: 380, height: 452)
 
@@ -539,7 +487,6 @@ struct AboutView: View {
     }
 }
 
-/// A compact icon+label card used for the About window's support actions.
 private struct AboutActionButton: View {
     let icon: String
     let title: String

@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// A brief "Thank you!" pill that springs in centered, then fades out.
 enum ThanksPop {
 
     static func show(centeredIn rect: NSRect) {

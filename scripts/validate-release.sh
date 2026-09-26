@@ -1,8 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Validates a Readdown release build to catch common issues
-# before shipping. Run against the exported .app bundle.
+# Run against the exported .app bundle before shipping.
 
 APP_PATH="${1:-}"
 EXPECTED_BUNDLE_ID="com.heya.readdown"
@@ -53,9 +52,7 @@ check_sdk() {
     fi
 }
 
-# Main app intentionally keeps SDK 26.x to get macOS Tahoe chrome on macOS 26+.
-# Only the QL extension and Sparkle binaries must stay <= SDK 15 for macOS 15
-# compatibility (extensions / installer XPC services that macOS 15 refuses to load).
+# Only the QL extension and Sparkle binaries must be <= SDK 15; the main app keeps SDK 26 for the Tahoe chrome.
 check_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/ReadDownQuickLook" "Quick Look extension"
 check_sdk "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer" "Sparkle Installer"
 check_sdk "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate" "Sparkle Autoupdate"
@@ -67,7 +64,6 @@ echo "--- Quick Look Extension ---"
 check "QL appex exists" test -d "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex"
 check "QL binary exists" test -x "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/ReadDownQuickLook"
 
-# Verify QL Info.plist has correct structure
 QL_PLIST="$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/Info.plist"
 check "QL Info.plist exists" test -f "$QL_PLIST"
 check "QL extension point in NSExtension" \
@@ -134,7 +130,7 @@ check "SUFeedURL in Info.plist" /usr/libexec/PlistBuddy -c "Print :SUFeedURL" "$
 check "SUPublicEDKey in Info.plist" /usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$APP_PLIST"
 check "SUEnableInstallerLauncherService in Info.plist" /usr/libexec/PlistBuddy -c "Print :SUEnableInstallerLauncherService" "$APP_PLIST"
 
-# Verify entitlements include Sparkle mach-lookup exceptions (required for sandboxed apps)
+# Without the mach-lookup exceptions the sandboxed Sparkle installer fails silently.
 APP_ENTITLEMENTS=$(codesign -d --entitlements - "$APP_PATH" 2>&1)
 if echo "$APP_ENTITLEMENTS" | grep -q "readdown-spks" && echo "$APP_ENTITLEMENTS" | grep -q "readdown-spki"; then
     echo "  PASS: Entitlements include Sparkle mach-lookup exceptions"

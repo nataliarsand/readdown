@@ -16,7 +16,7 @@ final class DocumentWatcherTests: XCTestCase {
         XCTAssertTrue(watcher.html.contains("data-rd-theme=\"light\""))
     }
 
-    // MARK: - Live appearance change (the Mermaid dark-mode fix)
+    // MARK: - Live appearance change
 
     func testAppearanceChangeReRendersWithNewTheme() {
         let watcher = DocumentWatcher(initialText: "# Hi", fileURL: nil, isDark: false)
@@ -64,8 +64,7 @@ final class DocumentWatcherTests: XCTestCase {
     }
 
     func testDiskChangeSyncsTextEvenWhenHtmlUnchanged() throws {
-        // Trailing whitespace changes the source but not the rendered HTML; Copy
-        // must still reflect what's on disk.
+        // Trailing whitespace changes the source but not the HTML; Copy must still match disk.
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

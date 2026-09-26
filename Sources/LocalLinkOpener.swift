@@ -1,16 +1,10 @@
 import AppKit
 import Foundation
 
-/// Handles a link inside a rendered document that points at another local file.
-///
-/// Readdown is sandboxed, so it can't read a sibling file the user never opened.
-/// Rather than prompt for folder access, a local link reveals its target in
-/// Finder — Finder has the access, so there's no permission panel — and the
-/// reader opens it from there (space to preview, double-click to open here).
+/// Sandboxed: a sibling file can't be read without a grant, but revealing it in Finder needs none.
 enum LocalLinkOpener {
 
-    /// Reveal the file a local link points at in Finder. `target` may carry a
-    /// `#fragment`; Finder selects the file by path.
+    /// Drops any `#fragment`; Finder selects by path.
     static func revealInFinder(_ target: URL) {
         let fileURL = URL(fileURLWithPath: target.path)
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])

@@ -5,7 +5,6 @@ private let inlineMathPattern = try! NSRegularExpression(
 private let displayMathPattern = try! NSRegularExpression(
     pattern: "<div class=\"rd-math rd-math-display\">([^<]*)</div>")
 
-/// Builds the HTML flavor for the full-document copy.
 enum ClipboardExport {
 
     /// Rich editors won't infer monospace from bare `<pre>`/`<code>`.

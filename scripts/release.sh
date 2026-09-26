@@ -90,10 +90,7 @@ if [ ! -d "$APP_PATH" ]; then
 fi
 
 # ── Step 3: Patch SDK version ──
-# Xcode 26 beta stamps sdk 26.x into binaries, which causes macOS 15 to
-# refuse registering app extensions and prevents Sparkle's XPC installer
-# services from launching. Rewrite to sdk 15.0 after export, then re-sign
-# so the patched binaries have valid signatures.
+# macOS 15 refuses app extensions and Sparkle XPC services stamped sdk 26.x; rewrite to 15.0, then re-sign.
 
 echo "==> Patching SDK version..."
 patch_sdk() {
@@ -109,13 +106,9 @@ patch_sdk() {
     fi
 }
 
-# Patch QL extension (must stay SDK 15 so macOS 15 will load the extension).
-# Main app is intentionally NOT patched — keeping it at SDK 26.x is what makes
-# AppKit apply macOS Tahoe chrome (unified toolbar + larger corner radius) on
-# Tahoe users. Deployment target still gates available APIs.
+# Only the QL extension and Sparkle binaries are patched. The main app must keep its SDK 26 stamp or AppKit drops the Tahoe chrome.
 patch_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/ReadDownQuickLook"
 
-# Patch Sparkle framework binaries (installer, updater, downloader, autoupdate)
 SPARKLE_FW="$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B"
 patch_sdk "$SPARKLE_FW/Sparkle"
 patch_sdk "$SPARKLE_FW/Autoupdate"
@@ -123,10 +116,8 @@ patch_sdk "$SPARKLE_FW/Updater.app/Contents/MacOS/Updater"
 patch_sdk "$SPARKLE_FW/XPCServices/Installer.xpc/Contents/MacOS/Installer"
 patch_sdk "$SPARKLE_FW/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
 
-# Re-sign after patching (innermost first, then outer)
-# IMPORTANT: must pass --entitlements to preserve them after re-signing
+# Innermost first. codesign --force wipes entitlements unless --entitlements is passed.
 echo "==> Re-signing after SDK patch..."
-# Sign standalone executables first, then their containing bundles, then framework
 codesign --force --sign "Developer ID Application" --options runtime \
     "$SPARKLE_FW/Autoupdate"
 codesign --force --sign "Developer ID Application" --options runtime \
@@ -199,9 +190,7 @@ echo "==> Signing DMG..."
 codesign --sign "Developer ID Application" "$DMG_PATH"
 
 # ── Step 9b: Notarize & staple the DMG ──
-# The app inside is already notarized+stapled, but Gatekeeper checks the DMG
-# itself on a manual download, so it must be notarized and stapled too — an
-# unnotarized DMG trips "Apple cannot verify this app." Sparkle uses the zip.
+# Gatekeeper checks the DMG itself on a manual download; a stapled app inside is not enough.
 
 if [ "$SKIP_NOTARIZE" = false ]; then
     echo "==> Notarizing DMG..."
@@ -214,7 +203,7 @@ if [ "$SKIP_NOTARIZE" = false ]; then
 fi
 
 # ── Step 10: Create Sparkle zip ──
-# Sparkle auto-updates require a zip (not DMG). DMG is for manual downloads.
+# Sparkle can only install from a zip, never a DMG.
 
 echo "==> Creating Sparkle zip..."
 ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
@@ -223,7 +212,6 @@ ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
 echo "==> Generating Sparkle appcast entry..."
 
-# Find Sparkle tools from SPM
 SPARKLE_BIN="$(find ~/Library/Developer/Xcode/DerivedData/ReadDown-*/SourcePackages/artifacts/sparkle/Sparkle/bin -maxdepth 0 2>/dev/null | head -1)"
 if [ -z "$SPARKLE_BIN" ] || [ ! -f "$SPARKLE_BIN/sign_update" ]; then
     echo "    WARNING: Sparkle tools not found. Skipping appcast generation."
@@ -236,11 +224,7 @@ else
     ZIP_SIZE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
     ZIP_URL="https://github.com/nataliarsand/readdown/releases/download/v${VERSION}/Readdown.zip"
 
-    # Extract the highlights for the Sparkle update dialog from CHANGELOG.md.
-    # Grabs everything under `## VERSION` up to (but not including) `### Details` or the next `## `.
-    # Converts `### Subhead` → <h3>, `- item` → <li> (lines escaped for HTML), groups consecutive
-    # bullets into <ul>, and strips HTML-looking backtick code so Sparkle's HTML renderer can't
-    # interpret them as real tags.
+    # Release notes for the Sparkle dialog: the CHANGELOG section for VERSION, up to "### Details", as HTML.
     CHANGELOG_PATH="$PROJECT_DIR/CHANGELOG.md"
     HIGHLIGHTS=""
     if [ -f "$CHANGELOG_PATH" ]; then
@@ -332,8 +316,7 @@ APPCAST
 fi
 
 # ── Step 12: Clean intermediate artifacts ──
-# Remove export folder and archive so only DMG and zip remain.
-# Prevents stale .app bundles from appearing in Spotlight.
+# Leftover .app bundles show up in Spotlight.
 
 rm -rf "$EXPORT_PATH" "$ARCHIVE_PATH"
 

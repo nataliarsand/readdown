@@ -2,9 +2,7 @@ import AppKit
 import Combine
 import Foundation
 
-/// Renders a document to HTML, re-rendering when the file changes on disk or
-/// the system appearance changes. `NSFilePresenter` tracks atomic saves
-/// (write-temp-then-rename); the initial render is synchronous to avoid a flash.
+/// `NSFilePresenter` tracks atomic saves (write-temp-then-rename); the initial render is synchronous to avoid a flash.
 final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     /// Lets the UI show the "Updated" pill for content changes but not re-themes.
     enum ChangeSource {
@@ -75,8 +73,6 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         }
 
         guard let decodedText = decoded else { return }
-        // Keep `text` in sync with disk even when the rendered HTML is unchanged
-        // (e.g. trailing whitespace), so Copy reflects the file, not a stale source.
         if decodedText != text { text = decodedText }
         let result = MarkdownRenderer.render(decodedText)
         lastResult = result

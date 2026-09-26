@@ -37,7 +37,6 @@ final class TextFileDecoderTests: XCTestCase {
     }
 
     func testNonUTF8FallbackDoesNotThrow() throws {
-        // Data that's invalid UTF-8 should still decode via fallback
         var data = "hello".data(using: .utf8)!
         data.append(contentsOf: [0xe9, 0xf1, 0xfc]) // Latin-1 accented chars
         XCTAssertNil(String(data: data, encoding: .utf8))
@@ -58,8 +57,7 @@ final class TextFileDecoderTests: XCTestCase {
     }
 
     func testUTF8BOMIsStripped() throws {
-        // A UTF-8 file saved with a BOM must not keep the leading U+FEFF, or an
-        // invisible char precedes the content and a first-line heading fails to parse.
+        // A leftover U+FEFF stops a first-line heading from parsing.
         var data = Data([0xEF, 0xBB, 0xBF])
         data.append("# Heading".data(using: .utf8)!)
         let result = try TextFileDecoder.decode(data)

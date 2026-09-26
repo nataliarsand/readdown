@@ -1,9 +1,7 @@
 import XCTest
 @testable import ReadDown
 
-/// The link-click policy: what happens when a reader clicks a link inside a
-/// rendered document. Local markdown/text links open the sibling; anchors
-/// scroll in place; apps, binaries, and unknown schemes are refused.
+/// What a click on a link inside a rendered document is allowed to do.
 final class LinkPolicyTests: XCTestCase {
 
     private typealias Decision = WebView.Coordinator.LinkDecision
@@ -29,7 +27,7 @@ final class LinkPolicyTests: XCTestCase {
         XCTAssertEqual(decide("ftp://example.com/file"), .ignore)
     }
 
-    // MARK: - Local document links (the fix)
+    // MARK: - Local document links
 
     func testLocalMarkdownAndTextRevealInFinder() {
         XCTAssertEqual(decide("file:///Users/x/dir/02-notes.md"), .revealInFinder)
@@ -53,7 +51,7 @@ final class LinkPolicyTests: XCTestCase {
         XCTAssertEqual(decide("file:///Users/x/dir/subfolder"), .ignore) // no extension
     }
 
-    // MARK: - Same-document fragments (must keep working — regressed once in 1.12)
+    // MARK: - Same-document fragments
 
     func testSameDocFragmentSavedDocStaysInWebView() {
         XCTAssertEqual(
@@ -67,7 +65,6 @@ final class LinkPolicyTests: XCTestCase {
     }
 
     func testExternalLinkWithFragmentIsNotTreatedAsAnchor() {
-        // `https://evil/#x` carries a fragment but is not the current document.
         XCTAssertEqual(
             decide("https://evil.example/#x", page: "file:///Users/x/dir/"),
             .openExternally

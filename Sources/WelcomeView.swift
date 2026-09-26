@@ -1,8 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Reusable version pill — surface this anywhere a Readdown version needs to be displayed.
-/// Reads from `CFBundleShortVersionString`, so the bundle is the single source of truth.
 struct VersionBadge: View {
     var version: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
 
@@ -19,7 +17,6 @@ struct VersionBadge: View {
     }
 }
 
-/// Quick-reference for the app's keyboard shortcuts. Surfaced from the Help menu.
 enum ShortcutsHelp {
     static func show() {
         let alert = NSAlert()
@@ -86,12 +83,8 @@ private struct ShortcutsListView: View {
     }
 }
 
-/// Shared "set as default" helpers surfaced from the welcome and the Help menu.
 enum DefaultAppHelp {
-    /// macOS 14, 15, and 26.0–26.3.x silently reject `NSWorkspace.setDefaultApplication` from
-    /// sandboxed apps (sandboxd logs "Unentitled request to set default handler"). Apple
-    /// re-enabled the sandboxed path in macOS 26.4. On anything older, calling the API looks
-    /// like it worked but nothing changes — so we skip straight to the manual instructions.
+    /// Sandboxed `setDefaultApplication` silently no-ops before macOS 26.4.
     static func nativePromptLikelyWorks() -> Bool {
         let v = ProcessInfo.processInfo.operatingSystemVersion
         return v.majorVersion > 26 || (v.majorVersion == 26 && v.minorVersion >= 4)
@@ -113,8 +106,6 @@ enum DefaultAppHelp {
 }
 
 struct WelcomeView: View {
-    /// Fixed window size — referenced by both the SwiftUI frame here and the
-    /// NSWindow contentRect in `ReadDownApp.showWelcomeWindow()`.
     static let windowSize = CGSize(width: 320, height: 360)
 
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
@@ -152,16 +143,10 @@ struct WelcomeView: View {
 
     private func onAppear() {
         let isFreshInstall = lastLaunchedBuild.isEmpty && !hasPrompted
-        // "What's new" only when the build actually changed since the last
-        // visit — a plain reopen on the same build gets the regular welcome.
         isPostUpdate = !isFreshInstall && lastLaunchedBuild != currentBuild
         lastLaunchedBuild = currentBuild
         refreshSetupStatus()
 
-        // On fresh install with a macOS that actually honours sandboxed default-app requests,
-        // trigger the native prompt proactively. The user downloaded this app — asking whether
-        // to open .md files with it now is obviously on-topic, and the system dialog is clearer
-        // than any confirmation we could build ourselves.
         if isFreshInstall && !isDefault && DefaultAppHelp.nativePromptLikelyWorks() {
             hasPrompted = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
@@ -192,9 +177,6 @@ struct WelcomeView: View {
 
             Spacer(minLength: 0)
 
-            // Only surface these when the user actually needs to act. On modern macOS the
-            // default-app flow is automatic (see onAppear); this link is only shown on older
-            // macOS where we can't trigger the native prompt reliably.
             if !isDefault && !DefaultAppHelp.nativePromptLikelyWorks() {
                 Button("Set Readdown as default for .md files") {
                     DefaultAppHelp.show()
@@ -289,8 +271,7 @@ struct WelcomeView: View {
 
     private func refreshSetupStatus() {
         isDefault = isReaddownDefaultForMarkdown()
-        // isQLExtensionEnabled() spawns `pluginkit` and waits on it — never
-        // block the main thread. Run it off-main and publish the result back.
+        // isQLExtensionEnabled() blocks on pluginkit.
         DispatchQueue.global(qos: .userInitiated).async {
             let enabled = self.isQLExtensionEnabled()
             DispatchQueue.main.async { self.qlEnabled = enabled }
@@ -307,8 +288,6 @@ struct WelcomeView: View {
         }
     }
 
-    /// Triggers the macOS native "Use Readdown? / Keep TextEdit?" confirmation when the OS
-    /// supports it; otherwise falls back to manual instructions.
     private func requestDefaultAppChange() {
         guard DefaultAppHelp.nativePromptLikelyWorks() else {
             DefaultAppHelp.show()
@@ -341,10 +320,7 @@ struct WelcomeView: View {
         return current == ours
     }
 
-    /// `pluginkit -m -i <id>` emits `+  <id>` when the extension is enabled and `-  <id>` when
-    /// it's disabled but still registered. If the sandbox blocks the process, or the output is
-    /// empty, default to "enabled" — nagging the user about an extension that is actually on is
-    /// worse than quietly missing one that's off.
+    /// pluginkit prints `+ <id>` when enabled and `- <id>` when disabled; unreadable output counts as enabled.
     private func isQLExtensionEnabled() -> Bool {
         let bundleID = Bundle.main.bundleIdentifier ?? ""
         let qlID = bundleID + ".ReadDownQuickLook"

@@ -16,11 +16,7 @@ extension Notification.Name {
     static let findPrevious = Notification.Name("findPrevious")
 }
 
-/// `WKWebView` subclass that owns zoom for both Cmd-scroll and trackpad pinch.
-/// Uses `pageZoom` instead of `setMagnification` because WebKit's magnification
-/// API silently clamps to 1.0 as the lower bound — so pinch-to-zoom-out below
-/// 100% doesn't work. `pageZoom` accepts the full 0.5–3.0 range and reflows
-/// text on zoom changes (better UX for a reader than bitmap scaling).
+/// `pageZoom`, not `setMagnification`: WebKit clamps magnification at 1.0, so it can't zoom out.
 final class ZoomableWebView: WKWebView {
     static let minZoom: CGFloat = 0.5
     static let maxZoom: CGFloat = 3.0
@@ -59,12 +55,11 @@ struct WebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
-        // Weak proxy: the content controller retains its handlers.
         config.userContentController.add(WeakScriptMessageHandler(context.coordinator), name: "rdUsage")
 
         let webView = ZoomableWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        // ZoomableWebView handles pinch directly so the range matches Cmd-scroll (0.5–3.0).
+        // Pinch goes through ZoomableWebView so it shares the Cmd-scroll range.
         webView.allowsMagnification = false
         webView.loadHTMLString(watcher.html, baseURL: baseURL)
         context.coordinator.webView = webView
@@ -74,9 +69,7 @@ struct WebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        // Content reloads are pushed by the Coordinator's Combine subscription on
-        // `watcher.$html` — see `observeWatcher()`. Keeping `updateNSView` a no-op
-        // avoids re-loading the 200KB embedded highlight.js on every SwiftUI rerender.
+        // Must stay a no-op: the web view is read-only after load; reloads come from `observeWatcher()`.
     }
 
     /// Breaks the retain cycle from WKUserContentController to the Coordinator.
@@ -139,8 +132,7 @@ struct WebView: NSViewRepresentable {
                 }
         }
 
-        /// Reload the WebView when the file changes on disk.
-        /// `dropFirst()` skips the initial value — `makeNSView` already loaded it.
+        /// `dropFirst()` skips the value `makeNSView` already loaded.
         func observeWatcher() {
             watcherObserver = watcher.$html
                 .dropFirst()
@@ -153,10 +145,7 @@ struct WebView: NSViewRepresentable {
 
         private func reload(_ html: String) {
             guard let webView else { return }
-            // Capture current scroll so the reader doesn't lose their place when an
-            // external editor saves. Sequencing matters: read scrollY *before*
-            // loadHTMLString, since evaluateJavaScript is async and the reload would
-            // otherwise reset position before we read it. Restored in didFinish.
+            // Read scrollY before loading; the reload resets it. Restored in didFinish.
             webView.evaluateJavaScript("window.scrollY") { [weak self] result, _ in
                 guard let self, let webView = self.webView else { return }
                 self.pendingScrollY = result as? Double
@@ -224,7 +213,6 @@ struct WebView: NSViewRepresentable {
             webView.resetZoom()
         }
 
-        /// Print/PDF configuration with Readdown's standard 36 pt margins.
         private func standardPrintInfo() -> NSPrintInfo {
             let margin: CGFloat = 36
             let printInfo = NSPrintInfo()
@@ -237,10 +225,7 @@ struct WebView: NSViewRepresentable {
             return printInfo
         }
 
-        /// Provides the WebView to print/export from. In dark mode this is a
-        /// light-themed offscreen render, so paper never inherits the dark
-        /// palette — Mermaid bakes its colours into the generated SVG, so the
-        /// on-screen view can't just be reused. In light mode it's the live view.
+        /// Dark mode prints from an offscreen light render: Mermaid bakes its colours into the SVG.
         private func printSource(_ completion: @escaping (WKWebView) -> Void) {
             guard let live = webView else { return }
             guard NSApp.effectiveAppearance.isDark else {
@@ -373,54 +358,31 @@ struct WebView: NSViewRepresentable {
             decisionHandler(.allow)
         }
 
-        /// What to do with an activated link. Pulled out as a pure function so
-        /// the policy is unit-testable without a live WebView.
         enum LinkDecision: Equatable {
-            case allowInWebView   // same-document `#fragment` — let WebKit scroll
-            case openExternally   // http/https/mailto — hand to NSWorkspace
-            case revealInFinder   // file:// text/markdown — reveal in Finder
-            case ignore           // refuse — unknown scheme, or a local file
-                                  // that isn't a document worth revealing
+            case allowInWebView   // same-document `#fragment`
+            case openExternally   // http/https/mailto
+            case revealInFinder   // file:// text/markdown
+            case ignore           // unknown scheme, or a local file that isn't a document
         }
 
         static func linkDecision(for url: URL, page: URL?) -> LinkDecision {
-            // Same-document fragment links (`#heading-anchor`) — let WebKit
-            // handle the scroll natively. The earlier strict scheme/host/path
-            // triple-match against the page URL rejected real intra-doc clicks
-            // because `loadHTMLString(_:baseURL:)` reports `about:blank` for an
-            // untitled doc and a trailing-slash-mismatched directory URL for a
-            // saved one — that broke all heading anchors from 1.12 onward.
-            // `isSameDocumentFragment` accepts both shapes while still rejecting
-            // external links that happen to carry a fragment (e.g.
-            // `https://evil/#x`), which must still go through NSWorkspace.
+            // An external URL carrying a fragment must still go through NSWorkspace.
             if url.fragment != nil, isSameDocumentFragment(click: url, page: page) {
                 return .allowInWebView
             }
-            // Relative links between documents (`[details](notes.md)`) resolve to
-            // a file:// URL against the doc's directory. Reveal the target in
-            // Finder when it's a text/markdown file. Anything else local — an app
-            // bundle, a binary, a disk image — is ignored so a rendered document
-            // can't trick the reader into surfacing or launching it.
+            // Only text documents, so a rendered file can't surface or launch anything else.
             if url.isFileURL {
                 return isOpenableLocalDocument(url) ? .revealInFinder : .ignore
             }
             return isAllowedExternalURL(url) ? .openExternally : .ignore
         }
 
-        /// Returns `true` when `click` is a fragment URL pointing inside the
-        /// currently-loaded document. Tolerates the two real-world shapes the
-        /// loader produces: an `about:blank` page URL (loaded with no baseURL),
-        /// and a directory baseURL whose path differs from the click's only by
-        /// a trailing slash.
+        /// `loadHTMLString` reports `about:blank` with no baseURL, and a directory
+        /// baseURL can differ from the click by a trailing slash; both are same-document.
         private static func isSameDocumentFragment(click: URL, page: URL?) -> Bool {
-            // No real page URL yet, or page is `about:blank` — accept only when
-            // the click URL is itself `about:`-scoped (which is what a bare
-            // `#frag` resolves to in that document context).
             guard let page = page, page.absoluteString != "about:blank" else {
                 return click.scheme == nil || click.scheme == "about"
             }
-            // Otherwise: scheme + host must match, and paths must match modulo
-            // a single trailing slash on either side.
             guard click.scheme == page.scheme, click.host == page.host else {
                 return false
             }
@@ -444,10 +406,7 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        /// Text/markdown document extensions a relative link may point at. Matches
-        /// the document types Readdown itself opens, so a cross-link lands the
-        /// reader on the target instead of doing nothing. Deliberately excludes
-        /// executables, app bundles, and other file types.
+        /// The document types Readdown itself opens; never executables or bundles.
         private static let openableLocalExtensions: Set<String> = [
             "md", "markdown", "mdown", "mkd", "mdwn", "mdtxt", "mdtext",
             "txt", "text"
@@ -459,9 +418,7 @@ struct WebView: NSViewRepresentable {
     }
 }
 
-/// Renders a document into an offscreen, light-themed WebView for print/PDF
-/// output, then calls back once it (including any Mermaid diagrams) has
-/// finished laying out. Held by the Coordinator until the operation completes.
+/// Offscreen light-themed render for print/PDF; calls back once Mermaid has laid out.
 private final class PrintRenderer: NSObject, WKNavigationDelegate {
     private let webView: WKWebView
     private let hasMermaid: Bool
@@ -474,9 +431,7 @@ private final class PrintRenderer: NSObject, WKNavigationDelegate {
         self.completion = completion
         let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: false)
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: max(width, 320), height: 10))
-        // Force light appearance so the page CSS `prefers-color-scheme` also
-        // resolves light — `isDark: false` only covers Mermaid and the theme
-        // attribute, not the media-query palette.
+        // `isDark: false` doesn't reach the `prefers-color-scheme` palette; the view appearance does.
         webView.appearance = NSAppearance(named: .aqua)
         webView.underPageBackgroundColor = .white
         super.init()
@@ -488,8 +443,7 @@ private final class PrintRenderer: NSObject, WKNavigationDelegate {
         hasMermaid ? waitForMermaid() : finish()
     }
 
-    /// Mermaid renders asynchronously after load; wait until every diagram has
-    /// produced its SVG (bounded, so a failed render can't hang printing).
+    /// Mermaid renders after load; bounded so a failed diagram can't hang printing.
     private func waitForMermaid(attempt: Int = 0) {
         let js = """
         (function() {

@@ -4,15 +4,11 @@
 #   snapshot-downloads.sh            record today's cumulative counts
 #   snapshot-downloads.sh --report   show downloads per day (day-over-day deltas)
 #
-# GitHub only exposes a *cumulative* download_count per release asset — there is
-# no per-day history. So we snapshot that total once a day; the difference
-# between two consecutive snapshots is the number of downloads on that day.
-#
-# Runs daily via ~/Library/LaunchAgents/com.heya.readdown.download-snapshot.plist
-# Data: metrics/downloads.csv  (gitignored)
+# GitHub exposes only a cumulative download_count per asset, so a daily snapshot is the only per-day history.
+# Scheduled daily by a LaunchAgent.
 
 set -euo pipefail
-# launchd gives a minimal PATH — make sure `gh` (Homebrew) is findable.
+# launchd gives a minimal PATH; gh lives in Homebrew.
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 REPO="nataliarsand/readdown"
@@ -50,7 +46,6 @@ if grep -q "^${DATE}," "$CSV"; then
     exit 0
 fi
 
-# One row per release asset: date,tag,asset,cumulative_count
 gh api "repos/$REPO/releases" --paginate \
   --jq '.[] | .tag_name as $t | .assets[] | "\($t),\(.name),\(.download_count)"' \
   | sed "s/^/${DATE},/" >> "$CSV"

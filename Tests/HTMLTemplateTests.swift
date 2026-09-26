@@ -76,7 +76,6 @@ final class HTMLTemplateTests: XCTestCase {
     func testInjectsKaTeXWhenHasMath() {
         let result = HTMLTemplate.wrap(
             body: "<span class=\"rd-math rd-math-inline\">x^2</span>", hasMath: true)
-        // Our explicit per-element conversion call, and the fonts-allowing CSP.
         XCTAssertTrue(result.contains("katex.render("))
         XCTAssertTrue(result.contains("throwOnError: false"))
         XCTAssertTrue(result.contains("font-src data:"))
@@ -85,7 +84,6 @@ final class HTMLTemplateTests: XCTestCase {
     func testNoKaTeXWhenNoMath() {
         let result = HTMLTemplate.wrap(body: "<p>no math here</p>", hasMath: false)
         XCTAssertFalse(result.contains("katex.render("))
-        // No math means the strict default font policy stays in place.
         XCTAssertTrue(result.contains("font-src 'none'"))
     }
 

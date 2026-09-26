@@ -3,8 +3,7 @@ import XCTest
 
 final class UsageMetricsTests: XCTestCase {
 
-    // An isolated suite: the test runner is hosted by the app, so touching
-    // UserDefaults.standard would wipe the real install's consent and counts.
+    // The runner is hosted by the app: UserDefaults.standard would wipe the real install's consent.
     private static let suiteName = "com.heya.readdown.usage-metrics-tests"
     private var testStore: UserDefaults!
 
