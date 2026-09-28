@@ -14,6 +14,8 @@ enum UsageMetrics {
         case exportPDF = "export_pdf"
         case zoom = "zoom"
         case appearance = "appearance"
+        case openLinkConfirmed = "open_link"
+        case openLinkCancelled = "cancel_link"
         case documentOpened = "open_document"
         case consentGranted = "consent_granted"
     }

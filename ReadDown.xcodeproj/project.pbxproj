@@ -11,6 +11,7 @@
 		A100000000000000000002 /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000002 /* MarkdownDocument.swift */; };
 		A100000000000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000003 /* ContentView.swift */; };
 		A100000000000000000004 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000004 /* WebView.swift */; };
+		A100000000000000000022 /* LinkScheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000022 /* LinkScheme.swift */; };
 		A100000000000000000021 /* LocalLinkOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000021 /* LocalLinkOpener.swift */; };
 		A100000000000000000005 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000005 /* MarkdownRenderer.swift */; };
 		A100000000000000000006 /* HTMLTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000006 /* HTMLTemplate.swift */; };
@@ -22,6 +23,7 @@
 		A100000000000000000011 /* ThanksPop.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000011 /* ThanksPop.swift */; };
 		A100000000000000000012 /* ClipboardExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000012 /* ClipboardExport.swift */; };
 		A200000000000000000007 /* SyntaxHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C /* SyntaxHighlight.swift */; };
+		A200000000000000000022 /* LinkScheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000022 /* LinkScheme.swift */; };
 		A100000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000009 /* Assets.xcassets */; };
 		A200000000000000000001 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000000000000000001 /* PreviewViewController.swift */; };
 		A200000000000000000002 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000005 /* MarkdownRenderer.swift */; };
@@ -82,6 +84,7 @@
 		B100000000000000000002 /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
 		B100000000000000000003 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B100000000000000000004 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		B100000000000000000022 /* LinkScheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkScheme.swift; sourceTree = "<group>"; };
 		B100000000000000000021 /* LocalLinkOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLinkOpener.swift; sourceTree = "<group>"; };
 		B100000000000000000005 /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
 		B100000000000000000006 /* HTMLTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLTemplate.swift; sourceTree = "<group>"; };
@@ -157,6 +160,7 @@
 				B100000000000000000002 /* MarkdownDocument.swift */,
 				B100000000000000000003 /* ContentView.swift */,
 				B100000000000000000004 /* WebView.swift */,
+				B100000000000000000022 /* LinkScheme.swift */,
 				B100000000000000000021 /* LocalLinkOpener.swift */,
 				B100000000000000000005 /* MarkdownRenderer.swift */,
 				B100000000000000000006 /* HTMLTemplate.swift */,
@@ -381,6 +385,7 @@
 				A100000000000000000002 /* MarkdownDocument.swift in Sources */,
 				A100000000000000000003 /* ContentView.swift in Sources */,
 				A100000000000000000004 /* WebView.swift in Sources */,
+				A100000000000000000022 /* LinkScheme.swift in Sources */,
 				A100000000000000000021 /* LocalLinkOpener.swift in Sources */,
 				A100000000000000000005 /* MarkdownRenderer.swift in Sources */,
 				A100000000000000000006 /* HTMLTemplate.swift in Sources */,
@@ -403,6 +408,7 @@
 				A200000000000000000003 /* HTMLTemplate.swift in Sources */,
 				A200000000000000000005 /* TextFileDecoder.swift in Sources */,
 				A200000000000000000007 /* SyntaxHighlight.swift in Sources */,
+				A200000000000000000022 /* LinkScheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

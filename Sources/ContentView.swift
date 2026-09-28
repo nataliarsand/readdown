@@ -143,6 +143,11 @@ struct ContentView: View {
             guard window?.isKeyWindow == true else { return }
             copyFilePath()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .linkNotice)) { notification in
+            guard notification.object as? NSWindow == window,
+                  let text = notification.userInfo?["text"] as? String else { return }
+            showPill(text)
+        }
         .onChange(of: watcher.html) { _ in
             if watcher.lastChangeSource == .disk {
                 showPill("Updated")

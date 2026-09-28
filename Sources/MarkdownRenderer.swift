@@ -10,7 +10,7 @@ private let tableSepPattern = try! NSRegularExpression(pattern: "^\\s*\\|?[\\s:]
 
 private let imagePattern = try! NSRegularExpression(pattern: "!\\[([^\\]]*)\\]\\(([^()]+(?:\\([^()]*\\)[^()]*)*)\\)")
 private let linkPattern = try! NSRegularExpression(pattern: "\\[([^\\]]*)\\]\\(([^()]+(?:\\([^()]*\\)[^()]*)*)\\)")
-private let autolinkURLPattern = try! NSRegularExpression(pattern: "<(https?://[^\\s<>]+)>")
+private let autolinkURLPattern = try! NSRegularExpression(pattern: "<([A-Za-z][A-Za-z0-9+.\\-]{1,31}:[^\\s<>]*)>")
 private let autolinkEmailPattern = try! NSRegularExpression(pattern: "<([a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,})>")
 private let codePattern = try! NSRegularExpression(pattern: "`([^`]+)`")
 // `$` is excluded: escaped dollars belong to the math pass.
@@ -973,31 +973,21 @@ enum MarkdownRenderer {
         if trimmed.contains(where: { $0 == "\t" || $0 == "\n" || $0 == "\r" }) {
             trimmed.removeAll(where: { $0 == "\t" || $0 == "\n" || $0 == "\r" })
         }
-        let lowercased = trimmed.lowercased()
-        if trimmed.isEmpty || lowercased.hasPrefix("//") {
+        if trimmed.isEmpty || trimmed.hasPrefix("//") {
             return false
         }
-        if lowercased.hasPrefix("#") || lowercased.hasPrefix("http://") || lowercased.hasPrefix("https://") || lowercased.hasPrefix("mailto:") {
+        switch LinkScheme.kind(of: trimmed) {
+        case .denied:
+            return false
+        case .web, .custom:
             return true
-        }
-
-        if let components = URLComponents(string: trimmed),
-           let scheme = components.scheme?.lowercased(),
-           !scheme.isEmpty {
-            if ["http", "https", "mailto"].contains(scheme) {
-                return true
-            }
-            return false
-        }
-
-        if let colonIndex = trimmed.firstIndex(of: ":") {
-            let beforeColon = trimmed[..<colonIndex]
-            if beforeColon.count == 1 || beforeColon.allSatisfy({ $0.isLetter }) {
+        case .relative:
+            // `C:\…` is a drive letter, never a relative path.
+            if let colonIndex = trimmed.firstIndex(of: ":"), trimmed[..<colonIndex].count == 1 {
                 return false
             }
+            return true
         }
-
-        return true
     }
 
     /// `data:image/…` is safe only as an `<img>` source (rendered statically, CSP allows `img-src data:`); a `data:` href stays blocked.

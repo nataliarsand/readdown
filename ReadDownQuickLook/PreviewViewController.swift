@@ -22,11 +22,13 @@ class PreviewViewController: NSViewController, QLPreviewingController, WKNavigat
     func webView(_ webView: WKWebView,
                  decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if navigationAction.navigationType == .linkActivated {
-            decisionHandler(.cancel)
+        // Only the preview's own load; a click, or anything else, goes nowhere.
+        if navigationAction.navigationType != .linkActivated,
+           let url = navigationAction.request.url, url.isFileURL || url.scheme == "about" {
+            decisionHandler(.allow)
             return
         }
-        decisionHandler(.allow)
+        decisionHandler(.cancel)
     }
 
     func preparePreviewOfFile(at url: URL, completionHandler handler: @escaping (Error?) -> Void) {

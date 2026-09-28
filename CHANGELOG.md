@@ -2,6 +2,17 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.19
+
+### New
+- Links to other apps (codex://, vscode://, obsidian://) open after a confirmation that names the app; nothing is remembered between clicks
+
+### Details
+
+**New**
+
+- **Links to other apps.** A link whose scheme belongs to an app on your Mac, written as `[text](codex://…)` or `<codex://…>`, now opens that app after a confirmation naming it and showing the link. Every click asks, and nothing is remembered. If no app on the Mac handles the scheme, the header says so. Links that reach files, shares or remote hosts, run scripts or automation, or open system panes stay plain text, and Quick Look never opens anything. Bare `codex://…` text without link syntax stays text, as on GitHub. (Issue #31, thanks @justin808.)
+
 ## 1.18
 
 ### New

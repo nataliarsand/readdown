@@ -192,6 +192,71 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("href"))
     }
 
+    // MARK: - Custom schemes (#31)
+
+    func testCustomSchemeLinkRenders() {
+        let html = MarkdownRenderer.render("[Open](codex://open?file=notes.md)").html
+        XCTAssertTrue(html.contains("<a href=\"codex://open?file=notes.md\">Open</a>"))
+    }
+
+    func testCustomSchemeReferenceLinkRenders() {
+        let html = MarkdownRenderer.render("[Open][ed]\n\n[ed]: vscode://file/a.md").html
+        XCTAssertTrue(html.contains("href=\"vscode://file/a.md\""))
+    }
+
+    func testCustomSchemeAngleAutolinkRenders() {
+        let html = MarkdownRenderer.render("<codex://open>").html
+        XCTAssertTrue(html.contains("<a href=\"codex://open\">codex://open</a>"))
+    }
+
+    func testBareCustomSchemeTextStaysPlain() {
+        let html = MarkdownRenderer.render("Try codex://open?file=x now").html
+        XCTAssertFalse(html.contains("<a "))
+        XCTAssertTrue(html.contains("codex://open?file=x"))
+    }
+
+    func testDeniedSchemesStayLiteral() {
+        let denied = [
+            "file:///etc/hosts", "smb://server/share", "afp://server/vol", "nfs://host/x", "cifs://host/x",
+            "ftp://host/x", "ftps://host/x", "sftp://host/x", "tftp://host/x",
+            "ssh://host", "telnet://host", "vnc://host", "x-man-page://ls",
+            "ms-settings:display", "ms-word:ofe|u|x", "x-apple.systempreferences:com.apple.x",
+            "x-apple-helpbasic://x", "javascript:alert(1)", "vbscript:x", "data:text/html,x",
+            "blob:https://x", "about:blank", "applescript://x", "shortcuts://run-shortcut?name=x", "help:anchor",
+            "FILE:///etc/hosts", "Smb://server/share"
+        ]
+        for url in denied {
+            let html = MarkdownRenderer.render("[x](\(url))").html
+            XCTAssertFalse(html.contains("href"), url)
+            XCTAssertTrue(html.contains("x"), url)
+        }
+    }
+
+    func testDeniedSchemeSmuggledWithTabStaysLiteral() {
+        let html = MarkdownRenderer.render("[x](sm\tb://server/share)").html
+        XCTAssertFalse(html.contains("href"))
+    }
+
+    func testRawHTMLEntityObfuscatedSchemesFollowTheDenylist() {
+        // The browser decodes `&colon;` before it parses the scheme.
+        let denied = MarkdownRenderer.render("<a href=\"file&colon;///etc/hosts\">x</a>").html
+        XCTAssertFalse(denied.contains("href"))
+        let numeric = MarkdownRenderer.render("<a href=\"smb&#58;//server/share\">x</a>").html
+        XCTAssertFalse(numeric.contains("href"))
+        let custom = MarkdownRenderer.render("<a href=\"codex&colon;//open\">x</a>").html
+        XCTAssertTrue(custom.contains("href"))
+    }
+
+    func testWindowsDriveLetterStaysLiteral() {
+        let html = MarkdownRenderer.render("[x](C:\\Users\\me\\notes.md)").html
+        XCTAssertFalse(html.contains("href"))
+    }
+
+    func testRelativePathWithColonRenders() {
+        let html = MarkdownRenderer.render("[x](./notes/10:30-standup.md)").html
+        XCTAssertTrue(html.contains("href=\"./notes/10:30-standup.md\""))
+    }
+
     func testSafeURLsAllowed() {
         let httpResult = MarkdownRenderer.render("[ok](https://example.com)").html
         XCTAssertTrue(httpResult.contains("href"))
