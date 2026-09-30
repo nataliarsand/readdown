@@ -23,6 +23,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 ### Fixed
 - Long labels in Mermaid flowcharts wrap inside their box instead of being cut off
 - Highlighted code blocks no longer show a lighter band behind the text
+- Pressing ⌘ while scrolling on a trackpad keeps scrolling instead of zooming
 
 ### Details
 
@@ -37,6 +38,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 - Long identifiers in Mermaid flowchart nodes now wrap and the node grows to fit, instead of the text being clipped at the node's edge. (PR #27, thanks @skykeyjoker.)
 - Syntax-highlighted code sat on a slightly lighter background than its block in light mode. Both now match.
 - A code fence indented four or more spaces was dropped from the page instead of showing as text.
+- Pressing ⌘ partway through a trackpad scroll no longer zooms the page. A trackpad gesture zooms only when ⌘ is held as it starts; ⌘ with a mouse wheel zooms as before. (Issue #30, thanks @max-jardetzky.)
 - Show in Finder and Copy Path share one folder button in the header; every header button has a tooltip; the "copied" confirmation appears next to the buttons.
 
 ## 1.17
