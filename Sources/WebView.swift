@@ -22,8 +22,15 @@ final class ZoomableWebView: WKWebView {
     static let minZoom: CGFloat = 0.5
     static let maxZoom: CGFloat = 3.0
 
+    private var gestureStartedZooming = false
+
     override func scrollWheel(with event: NSEvent) {
-        if event.modifierFlags.contains(.command) {
+        let command = event.modifierFlags.contains(.command)
+        if event.phase.contains(.began) {
+            gestureStartedZooming = command
+        }
+        let isWheel = event.phase.isEmpty && event.momentumPhase.isEmpty
+        if command, isWheel || gestureStartedZooming {
             applyZoomDelta(event.scrollingDeltaY * 0.01)
             return
         }
