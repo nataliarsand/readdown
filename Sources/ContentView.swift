@@ -52,7 +52,7 @@ enum ReaderTheme {
     static let toastSuccessText = Color(nsColor: dynamic(light: (0x56, 0xAC, 0x5F), dark: (0x6B, 0xC2, 0x74)))
     static let toastSuccessFill = Color(nsColor: dynamic(light: (0xF2, 0xFA, 0xF5), dark: (0x14, 0x24, 0x1A)))
     static let toastSuccessBorder = Color(nsColor: dynamic(light: (0xD6, 0xEB, 0xDA), dark: (0x25, 0x45, 0x2D)))
-    static let toastSeconds: TimeInterval = 3
+    static let toastSeconds: TimeInterval = 1.5
 
     private static func dynamic(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
         NSColor(name: nil) { appearance in
@@ -72,6 +72,7 @@ extension View {
         background(fill, in: shape)
             .overlay(shape.strokeBorder(ReaderTheme.hairline))
             .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        .allowsHitTesting(false)
     }
 }
 
@@ -120,7 +121,7 @@ struct ContentView: View {
                 .padding(.trailing, ReaderTheme.headerEdgePadding)
                 // In the header row, which sits outside the safe area.
                 if let toast {
-                    ToastView(toast: toast, dismiss: dismissToast)
+                    ToastView(toast: toast)
                         .padding(.top, ReaderTheme.headerTopPadding)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -385,7 +386,6 @@ struct Toast: Equatable {
 
 private struct ToastView: View {
     let toast: Toast
-    let dismiss: () -> Void
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: ReaderTheme.toastRadius, style: .continuous)
@@ -402,20 +402,11 @@ private struct ToastView: View {
             }
             Text(toast.text)
                 .font(.system(size: 14, weight: .medium))
-            Button(action: dismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .frame(width: 18, height: 18)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Dismiss")
         }
         .foregroundStyle(toast.kind.foreground)
         .lineLimit(1)
         .fixedSize()
-        .padding(.leading, 14)
-        .padding(.trailing, 10)
+        .padding(.horizontal, 14)
         .frame(height: ReaderTheme.headerPillHeight)
         .background(toast.kind.fill, in: shape)
         .overlay(shape.strokeBorder(toast.kind.border))
