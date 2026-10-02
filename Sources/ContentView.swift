@@ -31,14 +31,23 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// Values track `HTMLTemplate.swift`.
 enum ReaderTheme {
     /// Matches the page `--bg`.
     static let pageBackground = dynamic(light: (0xFC, 0xFC, 0xFB), dark: (0x0D, 0x11, 0x17))
     static let pill = Color(nsColor: dynamic(light: (0xFF, 0xFF, 0xFF), dark: (0x16, 0x1B, 0x22)))
     /// Matches the page `--success`.
     static let success = Color(nsColor: dynamic(light: (0x1F, 0x96, 0x2C), dark: (0x2E, 0xBE, 0x3D)))
+    static var successFill: Color { success.opacity(0.1) }
+    static var successBorder: Color { success.opacity(0.25) }
     static let hairline = Color.primary.opacity(0.08)
+    static let hoverFill = Color.primary.opacity(0.07)
+
+    static let controlRadius: CGFloat = 8
+    static let panelRadius: CGFloat = 12
+    static var panelShape: RoundedRectangle { RoundedRectangle(cornerRadius: panelRadius, style: .continuous) }
+
+    static let appear = Animation.easeOut(duration: 0.15)
+    static let disappear = Animation.easeIn(duration: 0.2)
 
     static let headerTopPadding: CGFloat = 6
     static let headerPillHeight: CGFloat = 34
@@ -47,9 +56,6 @@ enum ReaderTheme {
     /// Clears the traffic lights.
     static let headerLeadingClearance: CGFloat = 76
     static let headerEdgePadding: CGFloat = 12
-
-    static let toastRadius: CGFloat = 12
-    static let toastSeconds: TimeInterval = 1.5
 
     private static func dynamic(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
         NSColor(name: nil) { appearance in
@@ -65,9 +71,10 @@ enum ReaderTheme {
 }
 
 extension View {
-    func floatingSurface(_ shape: some InsettableShape, fill: some ShapeStyle) -> some View {
+    func floatingSurface(_ shape: some InsettableShape, fill: some ShapeStyle,
+                         border: Color = ReaderTheme.hairline) -> some View {
         background(fill, in: shape)
-            .overlay(shape.strokeBorder(ReaderTheme.hairline))
+            .overlay(shape.strokeBorder(border))
             .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
     }
 }
@@ -120,7 +127,6 @@ struct ContentView: View {
                         .padding(.top, ReaderTheme.headerStripHeight + 4)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                // In the header row, which sits outside the safe area.
                 if let toast {
                     ToastView(toast: toast)
                         .padding(.top, ReaderTheme.headerTopPadding)
@@ -219,25 +225,25 @@ struct ContentView: View {
 
     private func showFindBar() {
         UsageMetrics.record(.findInDocument)
-        withAnimation(.easeOut(duration: 0.15)) {
+        withAnimation(ReaderTheme.appear) {
             findState.isVisible = true
         }
         findState.focusRequest += 1
     }
 
     private func showToast(_ new: Toast) {
-        withAnimation(.easeOut(duration: 0.2)) {
+        withAnimation(ReaderTheme.appear) {
             toast = new
         }
         toastDismissWork?.cancel()
         let work = DispatchWorkItem { dismissToast() }
         toastDismissWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + ReaderTheme.toastSeconds, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + CheckIcon.confirmSeconds, execute: work)
     }
 
     private func dismissToast() {
         toastDismissWork?.cancel()
-        withAnimation(.easeIn(duration: 0.25)) {
+        withAnimation(ReaderTheme.disappear) {
             toast = nil
         }
     }
@@ -328,7 +334,6 @@ struct WindowDragArea: NSViewRepresentable {
     }
 }
 
-/// Never truncates; the title pill yields instead.
 extension CheckIcon {
     struct Shape: SwiftUI.Shape {
         func path(in rect: CGRect) -> Path {
@@ -391,14 +396,14 @@ struct Toast: Equatable {
 
         var fill: Color {
             switch self {
-            case .success: ReaderTheme.success.opacity(0.1)
+            case .success: ReaderTheme.successFill
             case .info: .clear
             }
         }
 
         var border: Color {
             switch self {
-            case .success: ReaderTheme.success.opacity(0.25)
+            case .success: ReaderTheme.successBorder
             case .info: ReaderTheme.hairline
             }
         }
@@ -410,10 +415,6 @@ struct Toast: Equatable {
 
 private struct ToastView: View {
     let toast: Toast
-
-    private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: ReaderTheme.toastRadius, style: .continuous)
-    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -432,18 +433,17 @@ private struct ToastView: View {
         .fixedSize()
         .padding(.horizontal, 14)
         .frame(height: ReaderTheme.headerPillHeight)
-        .background(toast.kind.fill, in: shape)
-        .background(ReaderTheme.pill, in: shape)
-        .overlay(shape.strokeBorder(toast.kind.border))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        .background(toast.kind.fill, in: ReaderTheme.panelShape)
+        .floatingSurface(ReaderTheme.panelShape, fill: ReaderTheme.pill, border: toast.kind.border)
         .allowsHitTesting(false)
     }
 }
 
 private struct PillIcon<Glyph: View>: View {
     private static var hitArea: CGSize { CGSize(width: 30, height: 26) }
-    private static var hoverShape: RoundedRectangle { RoundedRectangle(cornerRadius: 8, style: .continuous) }
-    private static var hoverOpacity: Double { 0.07 }
+    private static var hoverShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: ReaderTheme.controlRadius, style: .continuous)
+    }
 
     var tint: Color?
     var disabled = false
@@ -458,7 +458,7 @@ private struct PillIcon<Glyph: View>: View {
             .frame(width: Self.hitArea.width, height: Self.hitArea.height)
             .background(
                 Self.hoverShape
-                    .fill(Color.primary.opacity(hovered && !disabled ? Self.hoverOpacity : 0))
+                    .fill(hovered && !disabled ? ReaderTheme.hoverFill : .clear)
             )
             .contentShape(Self.hoverShape)
     }
@@ -516,7 +516,6 @@ private struct PillMenu<Items: View>: View {
     }
 }
 
-/// Confirmation state matches the code-block copy button.
 private struct CopyButton: View {
     let text: () -> String
     var html: () -> String? = { nil }
@@ -599,7 +598,7 @@ final class HeaderTipState: ObservableObject {
         } else if hovered == tip {
             pending?.cancel()
             hovered = nil
-            // Leaving one button fires just before entering the next; waiting lets the tip swap instead of blinking.
+            // The next button's enter follows this exit; waiting lets the tip swap without a blink.
             schedule(after: Self.handoff) { [weak self] in self?.hide() }
         }
     }
@@ -613,7 +612,7 @@ final class HeaderTipState: ObservableObject {
     private func show(_ tip: HeaderTip) {
         guard hovered == tip else { return }
         if shown == nil {
-            withAnimation(.easeOut(duration: 0.12)) { shown = tip }
+            withAnimation(ReaderTheme.appear) { shown = tip }
         } else {
             shown = tip
         }
@@ -629,7 +628,7 @@ final class HeaderTipState: ObservableObject {
         pending?.cancel()
         guard hovered == nil else { return }
         if shown != nil { lastHidden = Date() }
-        withAnimation(.easeIn(duration: 0.1)) { shown = nil }
+        withAnimation(ReaderTheme.disappear) { shown = nil }
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
         clickMonitor = nil
     }
@@ -663,7 +662,6 @@ extension View {
     }
 }
 
-/// Centred under the button, but never past the pill's trailing edge.
 /// A layout, not measured state, so a new tip is placed by its own width on its first frame.
 private struct HeaderTipLayout: Layout {
     let button: CGRect
@@ -697,7 +695,7 @@ struct HeaderTipBubble: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2)
-                    .background(Color.primary.opacity(0.07), in: Capsule())
+                    .background(ReaderTheme.hoverFill, in: Capsule())
             }
         }
         .lineLimit(1)
@@ -756,7 +754,7 @@ struct FindBar: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .foregroundStyle(.secondary)
-        .floatingSurface(RoundedRectangle(cornerRadius: 10, style: .continuous), fill: ReaderTheme.pill)
+        .floatingSurface(ReaderTheme.panelShape, fill: ReaderTheme.pill)
         .frame(maxWidth: 380)
         .padding(.horizontal, 16)
         .onAppear(perform: focusAndSelectSearchText)
@@ -771,7 +769,7 @@ struct FindBar: View {
     }
 
     private func close() {
-        withAnimation(.easeOut(duration: 0.15)) {
+        withAnimation(ReaderTheme.disappear) {
             state.isVisible = false
         }
         state.searchText = ""

@@ -1,6 +1,6 @@
 import Foundation
 
-/// The confirm check, drawn by the header pills and by the code-block copy button in the page.
+/// Drawn by SwiftUI in the header and as SVG in the page, so both match.
 enum CheckIcon {
     static let grid: CGFloat = 24
     static let points: [CGPoint] = [CGPoint(x: 20, y: 6), CGPoint(x: 9, y: 17), CGPoint(x: 4, y: 12)]
@@ -13,13 +13,12 @@ enum CheckIcon {
     }
 }
 
-/// Drawn from one definition in the header and on code blocks, so both match.
 enum CopyIcon {
     static let grid: CGFloat = 24
     static let strokeWidth: CGFloat = 2
     static let radius: CGFloat = 2.5
     static let front = CGRect(x: 8, y: 8, width: 13, height: 13)
-    /// The back square's visible edge, from where it leaves the front square to where it rejoins it.
+    /// The back square's visible edge, which starts and ends on the front square.
     static let backCorners: [CGPoint] = [CGPoint(x: 16, y: 8), CGPoint(x: 16, y: 3), CGPoint(x: 3, y: 3),
                                          CGPoint(x: 3, y: 16), CGPoint(x: 8, y: 16)]
 

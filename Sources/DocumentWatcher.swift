@@ -4,7 +4,7 @@ import Foundation
 
 /// `NSFilePresenter` tracks atomic saves (write-temp-then-rename); the initial render is synchronous to avoid a flash.
 final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
-    /// Lets the UI show the "Updated" pill for content changes but not re-themes.
+    /// Lets the UI announce content changes but not re-themes.
     enum ChangeSource {
         case disk
         case appearance

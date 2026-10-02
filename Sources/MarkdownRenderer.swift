@@ -243,7 +243,6 @@ enum MarkdownRenderer {
                 html.append("<p>\(inlineMarkdown(para.joined(separator: "\n"), refs: refs))</p>")
             }
 
-            // No branch may leave `i` unmoved; a stuck line hangs the app (issue #8).
             if i == iAtStart {
                 i += 1
             }
