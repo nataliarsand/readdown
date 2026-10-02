@@ -377,13 +377,6 @@ struct Toast: Equatable {
             case .info: ReaderTheme.hairline
             }
         }
-
-        var icon: String {
-            switch self {
-            case .success: "checkmark.circle"
-            case .info: "info.circle"
-            }
-        }
     }
 
     let text: String
@@ -400,8 +393,13 @@ private struct ToastView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: toast.kind.icon)
-                .font(.system(size: 15, weight: .medium))
+            switch toast.kind {
+            case .success:
+                CheckIcon.View(size: 14)
+            case .info:
+                Image(systemName: "info.circle")
+                    .font(.system(size: 15, weight: .medium))
+            }
             Text(toast.text)
                 .font(.system(size: 14, weight: .medium))
             Button(action: dismiss) {
