@@ -5,7 +5,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 ## 1.18
 
 ### New
-- Copy the file's path from the header pill, the File menu, or ⌥⌘C, ready to paste into a terminal or editor
+- Copy the file's path from the header's folder button, the File menu, or ⌥⌘C, ready to paste into a terminal or editor
 - YAML front matter at the top of a file shows as a code block instead of being parsed as Markdown
 - Pick Light or Dark in the View menu to read in a different appearance than macOS
 - Links to other apps (codex://, vscode://, obsidian://) open after a confirmation that names the app; nothing is remembered between clicks
@@ -19,7 +19,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 
 **New**
 
-- **Copy Path.** A new pill button next to Show in Finder copies the document's full path to the clipboard. Also in the File menu as Copy Path, with the same ⌥⌘C shortcut Finder uses. (Issue #28, thanks @troelskn.)
+- **Copy Path.** The header's folder button now opens a menu with Show in Finder and Copy Path, which copies the document's full path to the clipboard. Also in the File menu, with the same ⌥⌘C shortcut Finder uses. (Issue #28, thanks @troelskn.)
 - **Front matter.** A YAML block between `---` lines at the very top of a file (agent skills, Jekyll, Hugo, Obsidian) renders as a `yaml` code block. A `---` anywhere else is still a horizontal rule. (Issue #29, thanks @troelskn.)
 - **Appearance.** View > Appearance switches Readdown between System, Light, and Dark. The choice is remembered and applies to every window; Quick Look keeps following macOS. (Issue #32, thanks @csbertran.)
 - **Links to other apps.** A link whose scheme belongs to an app on your Mac, written as `[text](codex://…)` or `<codex://…>`, now opens that app after a confirmation naming it and showing the link. Every click asks, and nothing is remembered. If no app on the Mac handles the scheme, the header says so. Links that reach files, shares or remote hosts, run scripts or automation, or open system panes stay plain text, and Quick Look never opens anything. Bare `codex://…` text without link syntax stays text, as on GitHub. (Issue #31, thanks @justin808.)
