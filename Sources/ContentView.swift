@@ -37,7 +37,7 @@ enum ReaderTheme {
     static let pageBackground = dynamic(light: (0xFC, 0xFC, 0xFB), dark: (0x0D, 0x11, 0x17))
     static let pill = Color(nsColor: dynamic(light: (0xFF, 0xFF, 0xFF), dark: (0x16, 0x1B, 0x22)))
     /// Matches the page `--success`.
-    static let success = Color(nsColor: NSColor(srgbRed: 0x2E / 255, green: 0xBE / 255, blue: 0x3D / 255, alpha: 1))
+    static let success = Color(nsColor: dynamic(light: (0x1F, 0x96, 0x2C), dark: (0x2E, 0xBE, 0x3D)))
     static let hairline = Color.primary.opacity(0.08)
 
     static let headerTopPadding: CGFloat = 6
@@ -115,6 +115,11 @@ struct ContentView: View {
                 .padding(.top, ReaderTheme.headerTopPadding)
                 .padding(.leading, ReaderTheme.headerLeadingClearance)
                 .padding(.trailing, ReaderTheme.headerEdgePadding)
+                if findState.isVisible {
+                    FindBar(state: findState)
+                        .padding(.top, ReaderTheme.headerStripHeight + 4)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 // In the header row, which sits outside the safe area.
                 if let toast {
                     ToastView(toast: toast)
@@ -128,12 +133,6 @@ struct ContentView: View {
                     WindowCascader.shared.cascade(window)
                     configureWindowChrome(window)
                 })
-
-            if findState.isVisible {
-                FindBar(state: findState)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .findInDocument)) { _ in
             // `isKeyWindow`, not `NSApp.keyWindow`: SwiftUI re-wraps windows.
@@ -350,6 +349,35 @@ extension CheckIcon {
     }
 }
 
+extension CopyIcon {
+    struct Shape: SwiftUI.Shape {
+        func path(in rect: CGRect) -> Path {
+            let s = rect.width / CopyIcon.grid
+            func p(_ point: CGPoint) -> CGPoint { CGPoint(x: rect.minX + point.x * s, y: rect.minY + point.y * s) }
+            var path = Path()
+            let f = CopyIcon.front
+            path.addRoundedRect(in: CGRect(origin: p(f.origin), size: CGSize(width: f.width * s, height: f.height * s)),
+                                cornerSize: CGSize(width: CopyIcon.radius * s, height: CopyIcon.radius * s))
+            let c = CopyIcon.backCorners
+            path.move(to: p(c[0]))
+            for i in 1...3 {
+                path.addArc(tangent1End: p(c[i]), tangent2End: p(c[i + 1]), radius: CopyIcon.radius * s)
+            }
+            path.addLine(to: p(c[4]))
+            return path
+        }
+    }
+
+    struct View: SwiftUI.View {
+        let size: CGFloat
+        var body: some SwiftUI.View {
+            Shape()
+                .stroke(style: StrokeStyle(lineWidth: strokeWidth * size / grid, lineCap: .round, lineJoin: .round))
+                .frame(width: size, height: size)
+        }
+    }
+}
+
 struct Toast: Equatable {
     enum Kind {
         case success, info
@@ -505,7 +533,7 @@ private struct CopyButton: View {
             if confirmed {
                 CheckIcon.View(size: 14)
             } else {
-                Image(systemName: "square.on.square")
+                CopyIcon.View(size: 16)
             }
         }
     }
@@ -690,7 +718,7 @@ struct FindBar: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
 
-            TextField("Find", text: $state.searchText)
+            TextField("Find", text: $state.searchText, prompt: Text("Find").foregroundColor(.secondary))
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
                 .onSubmit { NotificationCenter.default.post(name: .findNext, object: nil) }
@@ -707,22 +735,28 @@ struct FindBar: View {
             }
             .buttonStyle(.borderless)
             .disabled(state.searchText.isEmpty)
+            .opacity(state.searchText.isEmpty ? 0.4 : 1)
+            .accessibilityLabel("Previous Match")
 
             Button(action: { NotificationCenter.default.post(name: .findNext, object: nil) }) {
                 Image(systemName: "chevron.down")
             }
             .buttonStyle(.borderless)
             .disabled(state.searchText.isEmpty)
+            .opacity(state.searchText.isEmpty ? 0.4 : 1)
+            .accessibilityLabel("Next Match")
 
             Button(action: close) {
                 Image(systemName: "xmark")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Close Find")
             .keyboardShortcut(.escape, modifiers: [])
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .floatingSurface(RoundedRectangle(cornerRadius: 10, style: .continuous), fill: .regularMaterial)
+        .foregroundStyle(.secondary)
+        .floatingSurface(RoundedRectangle(cornerRadius: 10, style: .continuous), fill: ReaderTheme.pill)
         .frame(maxWidth: 380)
         .padding(.horizontal, 16)
         .onAppear(perform: focusAndSelectSearchText)
