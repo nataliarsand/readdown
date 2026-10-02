@@ -36,8 +36,8 @@ enum ReaderTheme {
     /// Matches the page `--bg`.
     static let pageBackground = dynamic(light: (0xFC, 0xFC, 0xFB), dark: (0x0D, 0x11, 0x17))
     static let pill = Color(nsColor: dynamic(light: (0xFF, 0xFF, 0xFF), dark: (0x16, 0x1B, 0x22)))
-    /// Matches the code-block copy button's confirmed state.
-    static let copyConfirm = Color(nsColor: dynamic(light: (0x1A, 0x7F, 0x37), dark: (0x3F, 0xB9, 0x50)))
+    /// Matches the page `--success`.
+    static let success = Color(nsColor: NSColor(srgbRed: 0x2E / 255, green: 0xBE / 255, blue: 0x3D / 255, alpha: 1))
     static let hairline = Color.primary.opacity(0.08)
 
     static let headerTopPadding: CGFloat = 6
@@ -49,9 +49,6 @@ enum ReaderTheme {
     static let headerEdgePadding: CGFloat = 12
 
     static let toastRadius: CGFloat = 12
-    static let toastSuccessText = Color(nsColor: dynamic(light: (0x56, 0xAC, 0x5F), dark: (0x6B, 0xC2, 0x74)))
-    static let toastSuccessFill = Color(nsColor: dynamic(light: (0xF2, 0xFA, 0xF5), dark: (0x14, 0x24, 0x1A)))
-    static let toastSuccessBorder = Color(nsColor: dynamic(light: (0xD6, 0xEB, 0xDA), dark: (0x25, 0x45, 0x2D)))
     static let toastSeconds: TimeInterval = 1.5
 
     private static func dynamic(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
@@ -360,21 +357,21 @@ struct Toast: Equatable {
 
         var foreground: Color {
             switch self {
-            case .success: ReaderTheme.toastSuccessText
+            case .success: ReaderTheme.success
             case .info: .primary
             }
         }
 
         var fill: Color {
             switch self {
-            case .success: ReaderTheme.toastSuccessFill
-            case .info: ReaderTheme.pill
+            case .success: ReaderTheme.success.opacity(0.1)
+            case .info: .clear
             }
         }
 
         var border: Color {
             switch self {
-            case .success: ReaderTheme.toastSuccessBorder
+            case .success: ReaderTheme.success.opacity(0.25)
             case .info: ReaderTheme.hairline
             }
         }
@@ -409,6 +406,7 @@ private struct ToastView: View {
         .padding(.horizontal, 14)
         .frame(height: ReaderTheme.headerPillHeight)
         .background(toast.kind.fill, in: shape)
+        .background(ReaderTheme.pill, in: shape)
         .overlay(shape.strokeBorder(toast.kind.border))
         .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
     }
@@ -501,7 +499,7 @@ private struct CopyButton: View {
     var body: some View {
         PillIconButton(
             label: confirmed ? "Copied" : "Copy to Clipboard",
-            tint: confirmed ? ReaderTheme.copyConfirm : nil,
+            tint: confirmed ? ReaderTheme.success : nil,
             action: copy
         ) {
             if confirmed {

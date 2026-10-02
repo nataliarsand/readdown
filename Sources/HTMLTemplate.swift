@@ -69,6 +69,7 @@ enum HTMLTemplate {
             --code-bg: #eef1f5;
             --border: #d0d7de;
             --link: #0969da;
+            --success: #2ebe3d;         /* must match ReaderTheme.success */
             --link-underline: rgba(9, 105, 218, 0.35);
             --blockquote-border: #d0d7de;
             --table-stripe: #f2f4f7;
@@ -246,15 +247,8 @@ enum HTMLTemplate {
 
         .rd-copy-btn.rd-copied {
             opacity: 1;
-            color: #1a7f37;
-            border-color: #1a7f37;
-        }
-
-        @media screen and (prefers-color-scheme: dark) {
-            .rd-copy-btn.rd-copied {
-                color: #3fb950;
-                border-color: #3fb950;
-            }
+            color: var(--success);
+            border-color: var(--success);
         }
 
         .rd-copy-btn svg {
