@@ -388,7 +388,7 @@ struct ReadDownApp: App {
                 Button("Find...") {
                     NotificationCenter.default.post(name: .findInDocument, object: nil)
                 }
-                .keyboardShortcut("f", modifiers: .command)
+                .keyboardShortcut(AppShortcut.find)
 
                 Button("Find Next") {
                     NotificationCenter.default.post(name: .findNext, object: nil)

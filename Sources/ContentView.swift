@@ -85,6 +85,7 @@ struct ContentView: View {
     @State private var window: NSWindow?
     @State private var pillText: String?
     @State private var pillDismissWork: DispatchWorkItem?
+    @StateObject private var tips = HeaderTipState()
 
     init(document: MarkdownDocument, baseURL: URL?, fileURL: URL? = nil) {
         // Appearance source of truth is `NSAppearance`; WebKit's media query is unreliable here.
@@ -176,7 +177,7 @@ struct ContentView: View {
                 showPill("Full contents copied to clipboard")
             }
             PillIconButton(icon: "magnifyingglass", label: "Find in Document",
-                           action: showFindBar)
+                           shortcut: AppShortcut.find, action: showFindBar)
             PillMenu(icon: "folder", label: "File Location", disabled: fileURL == nil) {
                 Button("Show in Finder", action: revealInFinder)
                 Button("Copy Path", action: copyFilePath)
@@ -184,6 +185,16 @@ struct ContentView: View {
         }
         .padding(4)
         .floatingSurface(Capsule(), fill: ReaderTheme.pill)
+        .environmentObject(tips)
+        .overlayPreferenceValue(HeaderTipAnchor.self) { anchor in
+            GeometryReader { proxy in
+                if let anchor, let tip = tips.shown {
+                    HeaderTipPlacement(tip: tip, button: proxy[anchor], container: proxy.size)
+                        .transition(.opacity)
+                }
+            }
+            .allowsHitTesting(false)
+        }
     }
 
     private func revealInFinder() {
@@ -376,6 +387,7 @@ private struct PillIcon<Glyph: View>: View {
 
 private struct PillIconButton<Glyph: View>: View {
     let label: String
+    var shortcut: KeyboardShortcut?
     var tint: Color?
     var disabled = false
     let action: () -> Void
@@ -389,14 +401,17 @@ private struct PillIconButton<Glyph: View>: View {
         .buttonStyle(.plain)
         .disabled(disabled)
         .onHover { hovered = $0 }
-        .help(label)
+        .headerTip(HeaderTip(label: label, shortcut: shortcut))
         .accessibilityLabel(label)
     }
 }
 
 extension PillIconButton where Glyph == Image {
-    init(icon: String, label: String, tint: Color? = nil, disabled: Bool = false, action: @escaping () -> Void) {
-        self.init(label: label, tint: tint, disabled: disabled, action: action) { Image(systemName: icon) }
+    init(icon: String, label: String, shortcut: KeyboardShortcut? = nil, tint: Color? = nil,
+         disabled: Bool = false, action: @escaping () -> Void) {
+        self.init(label: label, shortcut: shortcut, tint: tint, disabled: disabled, action: action) {
+            Image(systemName: icon)
+        }
     }
 }
 
@@ -417,7 +432,7 @@ private struct PillMenu<Items: View>: View {
         .fixedSize()
         .disabled(disabled)
         .onHover { hovered = $0 }
-        .help(label)
+        .headerTip(HeaderTip(label: label))
         .accessibilityLabel(label)
     }
 }
@@ -457,6 +472,151 @@ private struct CopyButton: View {
         resetWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + CheckIcon.confirmSeconds, execute: work)
         onCopied()
+    }
+}
+
+enum AppShortcut {
+    static let find = KeyboardShortcut("f", modifiers: .command)
+}
+
+extension KeyboardShortcut {
+    var symbols: String {
+        let order: [(EventModifiers, String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
+        return order.filter { modifiers.contains($0.0) }.map(\.1).joined() + String(key.character).uppercased()
+    }
+}
+
+struct HeaderTip: Equatable {
+    let label: String
+    var shortcut: KeyboardShortcut?
+
+    static func == (a: HeaderTip, b: HeaderTip) -> Bool {
+        a.label == b.label && a.shortcut?.symbols == b.shortcut?.symbols
+    }
+}
+
+/// Native `.help` waits about a second and can't show a shortcut.
+final class HeaderTipState: ObservableObject {
+    private static let delay: TimeInterval = 0.35
+    /// Moving to the next button soon after shows its tip at once, as AppKit does.
+    private static let warmWindow: TimeInterval = 0.5
+
+    @Published private(set) var shown: HeaderTip?
+    private var hovered: HeaderTip?
+    private var pending: DispatchWorkItem?
+    private var lastHidden = Date.distantPast
+    private var clickMonitor: Any?
+
+    func hover(_ tip: HeaderTip, _ inside: Bool) {
+        if inside {
+            hovered = tip
+            pending?.cancel()
+            if shown != nil || Date().timeIntervalSince(lastHidden) < Self.warmWindow {
+                show(tip)
+            } else {
+                let work = DispatchWorkItem { [weak self] in self?.show(tip) }
+                pending = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.delay, execute: work)
+            }
+        } else if hovered == tip {
+            hovered = nil
+            hide()
+        }
+    }
+
+    private func show(_ tip: HeaderTip) {
+        guard hovered == tip else { return }
+        withAnimation(.easeOut(duration: 0.12)) { shown = tip }
+        // A click opens a menu or changes the button; the tip would sit over it.
+        clickMonitor = clickMonitor ?? NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            self?.hovered = nil
+            self?.hide()
+            return event
+        }
+    }
+
+    private func hide() {
+        pending?.cancel()
+        if shown != nil { lastHidden = Date() }
+        withAnimation(.easeIn(duration: 0.1)) { shown = nil }
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
+        clickMonitor = nil
+    }
+
+    deinit {
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
+    }
+}
+
+struct HeaderTipAnchor: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>?
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = value ?? nextValue()
+    }
+}
+
+private struct HeaderTipModifier: ViewModifier {
+    let tip: HeaderTip
+    @EnvironmentObject private var tips: HeaderTipState
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { tips.hover(tip, $0) }
+            .anchorPreference(key: HeaderTipAnchor.self, value: .bounds) { tips.shown == tip ? $0 : nil }
+    }
+}
+
+extension View {
+    func headerTip(_ tip: HeaderTip) -> some View {
+        modifier(HeaderTipModifier(tip: tip))
+    }
+}
+
+/// Centred under the button, but never past the pill's trailing edge.
+private struct HeaderTipPlacement: View {
+    let tip: HeaderTip
+    let button: CGRect
+    let container: CGSize
+    @State private var width: CGFloat = 0
+
+    var body: some View {
+        HeaderTipBubble(tip: tip)
+            .background(GeometryReader { bubble in
+                Color.clear
+                    .onAppear { width = bubble.size.width }
+                    .onChange(of: bubble.size.width) { width = $0 }
+            })
+            .opacity(width == 0 ? 0 : 1)
+            .offset(x: min(button.midX - width / 2, container.width - width),
+                    y: container.height + HeaderTipBubble.gap)
+            .frame(width: container.width, height: container.height, alignment: .topLeading)
+    }
+}
+
+struct HeaderTipBubble: View {
+    static let gap: CGFloat = 8
+
+    let tip: HeaderTip
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(tip.label)
+                .font(.system(size: 13))
+            if let shortcut = tip.shortcut {
+                Text(shortcut.symbols)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Color.primary.opacity(0.07), in: Capsule())
+            }
+        }
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.leading, 12)
+        .padding(.trailing, tip.shortcut == nil ? 12 : 6)
+        .padding(.vertical, 6)
+        .floatingSurface(Capsule(), fill: ReaderTheme.pill)
     }
 }
 
