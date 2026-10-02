@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - Pre-compiled Regex Patterns
-
 private let fencePattern = try! NSRegularExpression(pattern: "^\\s{0,3}(`{3,}|~{3,})")
 private let headingPattern = try! NSRegularExpression(pattern: "^\\s{0,3}#{1,6}(?:\\s+|$)")
 private let ulPattern = try! NSRegularExpression(pattern: "^\\s*[-*+] ")
@@ -43,7 +41,6 @@ private let slugTagPattern = try! NSRegularExpression(pattern: "<[^>]+>")
 private let slugStripPattern = try! NSRegularExpression(pattern: "[^\\p{L}\\p{N}\\-_\\s]")
 private let slugSpacePattern = try! NSRegularExpression(pattern: "\\s")
 
-/// Reference-link definitions, keyed by lowercased label.
 private typealias RefDefs = [String: (url: String, title: String?)]
 
 /// Allowlist: any tag or attribute not listed is escaped to text, never emitted.
@@ -254,8 +251,6 @@ enum MarkdownRenderer {
         return Result(html: joined, hasMath: hasMath, hasMermaid: hasMermaid)
     }
 
-    // MARK: - Inline Markdown
-
     private static func escapeHTMLPreservingTags(_ text: String) -> String {
         let ns = text as NSString
         let matches = htmlTagPattern.matches(in: text, range: NSRange(location: 0, length: ns.length))
@@ -283,7 +278,6 @@ enum MarkdownRenderer {
         return result
     }
 
-    /// `("", false)` for comments and anything that isn't a well-formed tag.
     private static func htmlTagName(_ tag: String) -> (name: String, isClosing: Bool) {
         var s = Substring(tag)
         guard s.first == "<" else { return ("", false) }
@@ -295,7 +289,6 @@ enum MarkdownRenderer {
 
     /// Escapes, rather than drops, any tag outside the allowlist.
     private static func sanitizeHTMLTag(_ tag: String) -> String {
-        // Comments are inert.
         if tag.hasPrefix("<!--") { return tag }
         var s = Substring(tag)
         guard s.first == "<" else { return escapeHTML(tag) }
@@ -465,9 +458,6 @@ enum MarkdownRenderer {
         return s
     }
 
-    // MARK: - Reference Links & Autolinking
-
-    /// Blanks each definition line in place; labels are case-insensitive and the first definition wins.
     private static func collectReferenceDefinitions(_ lines: inout [String]) -> RefDefs {
         var refs: RefDefs = [:]
         var inFence = false
@@ -513,7 +503,6 @@ enum MarkdownRenderer {
         return (label, url, title)
     }
 
-    /// `nil` when the label is undefined or the URL unsafe; the caller keeps the literal text.
     private static func referenceAnchor(text: String, label: String, refs: RefDefs) -> String? {
         guard let def = refs[label.lowercased()] else { return nil }
         let url = sanitizedMarkdownURL(def.url)
@@ -602,9 +591,6 @@ enum MarkdownRenderer {
         }
     }
 
-    // MARK: - List Helpers
-
-    /// `.para` is raw markdown, `.block` finished HTML.
     private enum ListPiece { case para(String); case block(String) }
 
     private static func listItemIndent(_ line: String) -> Int {
@@ -770,7 +756,6 @@ enum MarkdownRenderer {
         return pieces
     }
 
-    /// `nil` for an unclosed or empty block, which the normal parser then treats as a rule.
     private static func frontMatterEnd(_ lines: [String]) -> Int? {
         guard lines.first?.trimmingCharacters(in: .whitespaces) == "---" else { return nil }
         for k in 1..<lines.count {
@@ -809,8 +794,6 @@ enum MarkdownRenderer {
         return "<pre><code\(langAttr)>\(code.joined(separator: "\n"))</code></pre>"
     }
 
-    // MARK: - Block Helpers
-
     /// Must mirror the opener tests in `parseDisplayMath`, so the paragraph collector releases exactly the lines it will claim.
     private static func isDisplayMathOpener(_ line: String) -> Bool {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -823,7 +806,7 @@ enum MarkdownRenderer {
         return rest.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    /// `""` for an empty block; `nil` with `i` untouched when the line doesn't open display math. An unterminated block consumes to EOF.
+    /// An unterminated block consumes to EOF.
     private static func parseDisplayMath(_ i: inout Int, lines: [String]) -> String? {
         let trimmed = lines[i].trimmingCharacters(in: .whitespaces)
         let isDollar = trimmed.hasPrefix("$$")
@@ -874,16 +857,12 @@ enum MarkdownRenderer {
             && unique.first.map { "-*_".contains($0) } == true
     }
 
-    // MARK: - Table Helpers
-
     private static func parseTableRow(_ line: String) -> [String] {
         var row = line.trimmingCharacters(in: .whitespaces)
         if row.hasPrefix("|") { row = String(row.dropFirst()) }
         if row.hasSuffix("|") { row = String(row.dropLast()) }
         return row.components(separatedBy: "|")
     }
-
-    // MARK: - Helpers
 
     static func escapeHTML(_ string: String) -> String {
         string
@@ -1020,8 +999,6 @@ enum MarkdownRenderer {
         return count == 0 ? slug : "\(slug)-\(count)"
     }
 }
-
-// MARK: - String Regex Helpers
 
 private extension String {
     func matchesPattern(_ regex: NSRegularExpression) -> Bool {

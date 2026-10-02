@@ -4,8 +4,6 @@ import XCTest
 
 final class DocumentWatcherTests: XCTestCase {
 
-    // MARK: - Theme stamping
-
     func testStampsDarkThemeAtInit() {
         let watcher = DocumentWatcher(initialText: "# Hi", fileURL: nil, isDark: true)
         XCTAssertTrue(watcher.html.contains("data-rd-theme=\"dark\""))
@@ -15,8 +13,6 @@ final class DocumentWatcherTests: XCTestCase {
         let watcher = DocumentWatcher(initialText: "# Hi", fileURL: nil, isDark: false)
         XCTAssertTrue(watcher.html.contains("data-rd-theme=\"light\""))
     }
-
-    // MARK: - Live appearance change
 
     func testAppearanceChangeReRendersWithNewTheme() {
         let watcher = DocumentWatcher(initialText: "# Hi", fileURL: nil, isDark: false)
@@ -37,8 +33,6 @@ final class DocumentWatcherTests: XCTestCase {
         watcher.appearanceDidChange(isDark: false)
         XCTAssertEqual(watcher.html, before)
     }
-
-    // MARK: - Disk reload (feeds auto-refresh and Copy to Clipboard)
 
     func testDiskChangeUpdatesHtmlAndText() throws {
         let dir = FileManager.default.temporaryDirectory

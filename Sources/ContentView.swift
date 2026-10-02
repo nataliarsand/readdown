@@ -53,7 +53,6 @@ enum ReaderTheme {
     static let headerPillHeight: CGFloat = 34
     static var headerCenterFromTop: CGFloat { headerTopPadding + headerPillHeight / 2 }
     static var headerStripHeight: CGFloat { headerTopPadding * 2 + headerPillHeight }
-    /// Clears the traffic lights.
     static let headerLeadingClearance: CGFloat = 76
     static let headerEdgePadding: CGFloat = 12
 

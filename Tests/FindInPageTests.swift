@@ -6,8 +6,6 @@ import XCTest
 /// Drives the real in-page JavaScript inside a WKWebView, on the same HTML the app ships.
 final class FindInPageTests: XCTestCase {
 
-    // MARK: - Harness
-
     private func loadDocument(_ markdown: String) -> WKWebView {
         let result = MarkdownRenderer.render(markdown)
         let html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath)
@@ -46,8 +44,6 @@ final class FindInPageTests: XCTestCase {
         let dict = evaluate(webView, "window.__rdFind.\(call)") as? [String: Any]
         return (dict?["total"] as? Int ?? -1, dict?["current"] as? Int ?? -1)
     }
-
-    // MARK: - Find in document
 
     func testSearchCountsAllMatches() {
         let webView = loadDocument("alpha beta alpha\n\nAnother alpha here.")
@@ -89,8 +85,6 @@ final class FindInPageTests: XCTestCase {
         let marks = evaluate(webView, "document.querySelectorAll('mark.rd-find').length") as? Int
         XCTAssertEqual(marks, 0)
     }
-
-    // MARK: - Code-block copy buttons
 
     func testCopyButtonInjectedPerFencedBlock() {
         let webView = loadDocument("""
@@ -134,8 +128,6 @@ final class FindInPageTests: XCTestCase {
         let svg = evaluate(webView, "document.querySelector('.rd-copy-btn').click(), document.querySelector('.rd-copy-btn').innerHTML") as? String
         XCTAssertEqual(svg, CheckIcon.svg)
     }
-
-    // MARK: - Selection copy (clean HTML flavor)
 
     private func selectAllAndExport(_ webView: WKWebView) -> String? {
         evaluate(webView, """
@@ -371,8 +363,6 @@ final class FindInPageTests: XCTestCase {
         XCTAssertGreaterThan(boxHeight, lineHeight * 3,
             "Mermaid did not grow the node for dynamically wrapped lines")
     }
-
-    // MARK: - Print/PDF always renders light
 
     func testMermaidPrintPDFBackgroundIsLight() throws {
         let result = MarkdownRenderer.render("""

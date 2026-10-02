@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-/// Opt-in, anonymous feature-usage counters. Inert until the user consents.
+/// Inert until the user consents.
 enum UsageMetrics {
 
     enum Feature: String {

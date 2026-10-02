@@ -24,8 +24,6 @@ final class UsageMetricsTests: XCTestCase {
         testStore.dictionary(forKey: "usageMetricsCounts") as? [String: Int]
     }
 
-    // MARK: - Consent gating
-
     func testNothingIsCountedWithoutConsent() {
         UsageMetrics.record(.copyFile)
         UsageMetrics.record(.findInDocument)
@@ -56,8 +54,6 @@ final class UsageMetricsTests: XCTestCase {
         XCTAssertTrue(UsageMetrics.wasPrompted)
     }
 
-    // MARK: - Developer opt-out
-
     func testSuppressedMachineRecordsNothingDespiteConsent() {
         UsageMetrics.setConsent(true)
         testStore.set(true, forKey: "usageMetricsDevOptOut")
@@ -81,8 +77,6 @@ final class UsageMetricsTests: XCTestCase {
         testStore.set(true, forKey: "usageMetricsDevOptOut")
         XCTAssertTrue(UsageMetrics.isSuppressed)
     }
-
-    // MARK: - Payload contract (what the consent prompt promises)
 
     func testPayloadCarriesOnlyVersionOsAndCounts() {
         let payload = UsageMetrics.payload(counts: ["find": 3])

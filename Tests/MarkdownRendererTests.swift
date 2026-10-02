@@ -3,8 +3,6 @@ import XCTest
 
 final class MarkdownRendererTests: XCTestCase {
 
-    // MARK: - Headings
-
     func testHeadings() {
         XCTAssertEqual(MarkdownRenderer.render("# Hello").html, "<h1 id=\"hello\">Hello</h1>")
         XCTAssertEqual(MarkdownRenderer.render("## Hello").html, "<h2 id=\"hello\">Hello</h2>")
@@ -41,8 +39,6 @@ final class MarkdownRendererTests: XCTestCase {
         )
     }
 
-    // MARK: - Emphasis
-
     func testBold() {
         XCTAssertEqual(MarkdownRenderer.render("**bold**").html, "<p><strong>bold</strong></p>")
         XCTAssertEqual(MarkdownRenderer.render("__bold__").html, "<p><strong>bold</strong></p>")
@@ -60,8 +56,6 @@ final class MarkdownRendererTests: XCTestCase {
     func testStrikethrough() {
         XCTAssertEqual(MarkdownRenderer.render("~~deleted~~").html, "<p><del>deleted</del></p>")
     }
-
-    // MARK: - Code
 
     func testInlineCode() {
         XCTAssertEqual(MarkdownRenderer.render("`code`").html, "<p><code>code</code></p>")
@@ -92,8 +86,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("<pre><code class=\"language-swift\">"))
         XCTAssertTrue(result.contains("let x = 1"))
     }
-
-    // MARK: - Front matter (issue #29)
 
     func testFrontMatterRendersAsYAMLCodeBlock() {
         let md = "---\nname: skill\ndescription: <b>x</b>\n---\n# Title"
@@ -152,8 +144,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("&lt;div&gt;"))
     }
 
-    // MARK: - Links and Images
-
     func testLink() {
         let result = MarkdownRenderer.render("[Click](https://example.com)").html
         XCTAssertEqual(result, "<p><a href=\"https://example.com\">Click</a></p>")
@@ -174,8 +164,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("href=\"#section\""))
     }
 
-    // MARK: - URL Safety
-
     func testJavascriptURLBlocked() {
         let result = MarkdownRenderer.render("[xss](javascript:alert(1))").html
         XCTAssertFalse(result.contains("href"))
@@ -191,8 +179,6 @@ final class MarkdownRendererTests: XCTestCase {
         let result = MarkdownRenderer.render("[xss](//evil.com)").html
         XCTAssertFalse(result.contains("href"))
     }
-
-    // MARK: - Custom schemes (#31)
 
     func testCustomSchemeLinkRenders() {
         let html = MarkdownRenderer.render("[Open](codex://open?file=notes.md)").html
@@ -265,8 +251,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(relativeResult.contains("href"))
     }
 
-    // MARK: - Data-URI images (issue #18)
-
     func testDataURIImageRenders() {
         let uri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
         let result = MarkdownRenderer.render("![red dot](\(uri))").html
@@ -292,8 +276,6 @@ final class MarkdownRendererTests: XCTestCase {
         let dataLink = MarkdownRenderer.render("[x](data:image/png;base64,AAAA)").html
         XCTAssertFalse(dataLink.contains("href"), "data: URIs stay blocked for links")
     }
-
-    // MARK: - Lists
 
     func testUnorderedList() {
         let md = "- one\n- two\n- three"
@@ -355,8 +337,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("<br>"))
     }
 
-    // MARK: - Code Inside Lists (issue #9)
-
     func testFencedCodeInsideOrderedListItem() {
         let md = """
         1. Lorem ipsum dolor sit amet:
@@ -410,8 +390,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(html.contains("oops no close"))
     }
 
-    // MARK: - Line breaks
-
     func testSoftNewlineBecomesSpace() {
         let result = MarkdownRenderer.render("line one\nline two").html
         XCTAssertEqual(result, "<p>line one line two</p>")
@@ -422,15 +400,11 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertEqual(result, "<p>line one<br>line two</p>")
     }
 
-    // MARK: - Blockquote
-
     func testBlockquote() {
         let result = MarkdownRenderer.render("> quoted text").html
         XCTAssertTrue(result.contains("<blockquote>"))
         XCTAssertTrue(result.contains("quoted text"))
     }
-
-    // MARK: - Horizontal Rule
 
     func testHorizontalRule() {
         XCTAssertEqual(MarkdownRenderer.render("---").html, "<hr>")
@@ -442,8 +416,6 @@ final class MarkdownRendererTests: XCTestCase {
         let result = MarkdownRenderer.render("--").html
         XCTAssertFalse(result.contains("<hr>"))
     }
-
-    // MARK: - Setext Headings
 
     func testSetextH1() {
         XCTAssertEqual(MarkdownRenderer.render("Title\n===").html, "<h1 id=\"title\">Title</h1>")
@@ -465,8 +437,6 @@ final class MarkdownRendererTests: XCTestCase {
         )
     }
 
-    // MARK: - Tables
-
     func testTable() {
         let md = "| A | B |\n| --- | --- |\n| 1 | 2 |"
         let result = MarkdownRenderer.render(md).html
@@ -484,8 +454,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("align=\"center\""))
         XCTAssertTrue(result.contains("align=\"right\""))
     }
-
-    // MARK: - HTML Passthrough
 
     func testHTMLPassthrough() {
         let md = "<div>raw html</div>"
@@ -524,8 +492,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("<!-- hidden -->"))
         XCTAssertFalse(result.contains("&lt;!--"))
     }
-
-    // MARK: - HTML sanitization (allowlist)
 
     func testBlockLevelScriptIsEscaped() {
         let result = MarkdownRenderer.render("<div><script>alert(1)</script></div>").html
@@ -578,8 +544,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("<h2>"), "script content must be opaque, not rendered")
         XCTAssertTrue(result.contains("&lt;h2&gt;"))
     }
-
-    // MARK: - Backslash escapes
 
     func testBackslashEscapesEmphasis() {
         XCTAssertEqual(MarkdownRenderer.render("\\*not italic\\*").html, "<p>*not italic*</p>")
@@ -651,8 +615,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(MarkdownRenderer.render(md).html.contains("<td align=\"left\">prose</td>"))
     }
 
-    // MARK: - Links
-
     func testLinkURLWithParens() {
         // The underscore is entity-encoded so the italic pass cannot touch the href.
         let result = MarkdownRenderer.render("[Wiki](https://en.wikipedia.org/wiki/Foo_(bar))").html
@@ -675,8 +637,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("<a href=\"javascript:"))
     }
 
-    // MARK: - HTML Escaping
-
     func testHTMLEscaping() {
         XCTAssertEqual(MarkdownRenderer.escapeHTML("<script>"), "&lt;script&gt;")
         XCTAssertEqual(MarkdownRenderer.escapeHTML("a & b"), "a &amp; b")
@@ -694,8 +654,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("<script>"))
         XCTAssertTrue(result.contains("&lt;script&gt;"))
     }
-
-    // MARK: - Mermaid
 
     func testMermaidBlockUsesMermaidClass() {
         let md = "```mermaid\ngraph TD\n    A-->B\n```"
@@ -724,8 +682,6 @@ final class MarkdownRendererTests: XCTestCase {
         let result = MarkdownRenderer.render(md)
         XCTAssertFalse(result.hasMermaid)
     }
-
-    // MARK: - Math (TeX)
 
     func testInlineDollarMath() {
         let result = MarkdownRenderer.render("Euler: $e^{i\\pi}+1=0$ done")
@@ -834,8 +790,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.html.contains("Next paragraph"))
     }
 
-    // MARK: - Tilde Fences
-
     func testTildeFenceWithLanguage() {
         let md = "~~~ruby\nputs 'hi'\n~~~"
         let result = MarkdownRenderer.render(md).html
@@ -857,8 +811,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("no closing fence"))
         XCTAssertTrue(result.contains("still going"))
     }
-
-    // MARK: - Inline Replacement Edge Cases
 
     func testMultipleInlinePatternsOnOneLine() {
         let result = MarkdownRenderer.render("**bold** and *italic* and `code` and [link](https://x.com)").html
@@ -902,8 +854,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("href=\"https://google.com/search?q=hello&amp;lang=en\""))
     }
 
-    // MARK: - Empty / Edge Cases
-
     func testEmptyInput() {
         XCTAssertEqual(MarkdownRenderer.render("").html, "")
     }
@@ -911,8 +861,6 @@ final class MarkdownRendererTests: XCTestCase {
     func testBlankLines() {
         XCTAssertEqual(MarkdownRenderer.render("\n\n\n").html, "")
     }
-
-    // MARK: - Renderer hang resistance (issue #8)
 
     /// Issue #8 repro: a paragraph line starting with `#24` must still advance the parser.
     func testParagraphLineStartingWithHashNumberDoesNotHang() {
@@ -946,8 +894,6 @@ final class MarkdownRendererTests: XCTestCase {
     func testLoneHashIsEmptyHeading() {
         XCTAssertEqual(MarkdownRenderer.render("#").html, "<h1 id=\"section\"></h1>")
     }
-
-    // MARK: - Underscore emphasis flanking (CommonMark §6.2)
 
     func testIntraWordUnderscoresAreNotItalic() {
         let html = MarkdownRenderer.render("lots_of_underscores_in_names").html
@@ -985,8 +931,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(html.contains("snake_case"))
     }
 
-    // MARK: - HTML Template integration (Mermaid theming)
-
     func testMermaidHTMLCarriesThemeAttribute() {
         let md = """
         # x
@@ -1008,8 +952,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(lightHTML.contains("data-rd-theme=\"light\""))
     }
 
-    // MARK: - Ordered list start numbers (issue #16)
-
     func testOrderedListHonorsStartNumber() {
         let html = MarkdownRenderer.render("2. two\n3. three").html
         XCTAssertTrue(html.contains("<ol start=\"2\">"))
@@ -1026,8 +968,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(html.contains("<ol>"))
         XCTAssertFalse(html.contains("start="))
     }
-
-    // MARK: - Inline emphasis across wrapped list lines (issue #15)
 
     func testBoldAcrossWrappedListItemLines() {
         let md = """
@@ -1057,8 +997,6 @@ final class MarkdownRendererTests: XCTestCase {
         let html = MarkdownRenderer.render(md).html
         XCTAssertTrue(html.contains("<code>some code</code>"))
     }
-
-    // MARK: - Nested & mixed lists
 
     func testNestedOrderedList() {
         let html = MarkdownRenderer.render("1. a\n   1. b").html
@@ -1090,8 +1028,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertEqual(html, "<ol><li>a<ul><li>b<ol><li>c</li></ol></li></ul></li></ol>")
     }
 
-    // MARK: - Loose lists
-
     func testLooseUnorderedListWrapsItemsInParagraphs() {
         let html = MarkdownRenderer.render("- a\n\n- b").html
         XCTAssertEqual(html, "<ul><li><p>a</p></li><li><p>b</p></li></ul>")
@@ -1112,8 +1048,6 @@ final class MarkdownRendererTests: XCTestCase {
         let html = MarkdownRenderer.render(md).html
         XCTAssertEqual(html, "<ul><li><p>first</p><p>second paragraph</p></li><li><p>third</p></li></ul>")
     }
-
-    // MARK: - Link & image titles
 
     func testLinkWithTitle() {
         XCTAssertEqual(
@@ -1149,8 +1083,6 @@ final class MarkdownRendererTests: XCTestCase {
             "<p><a href=\"https://a.com\" title=\"a&lt;b&amp;c\">x</a></p>"
         )
     }
-
-    // MARK: - Reference links
 
     func testFullReferenceLink() {
         XCTAssertEqual(
@@ -1205,8 +1137,6 @@ final class MarkdownRendererTests: XCTestCase {
         )
     }
 
-    // MARK: - Reference images
-
     func testFullReferenceImage() {
         XCTAssertEqual(
             MarkdownRenderer.render("![alt][img]\n\n[img]: https://a.com/i.png").html,
@@ -1255,16 +1185,12 @@ final class MarkdownRendererTests: XCTestCase {
         )
     }
 
-    // MARK: - Thematic break after a list
-
     func testThematicBreakClosesListWithoutBlankLine() {
         XCTAssertEqual(
             MarkdownRenderer.render("- a\n***").html,
             "<ul><li>a</li></ul>\n<hr>"
         )
     }
-
-    // MARK: - GFM bare-URL autolinking
 
     func testBareURLAutolinked() {
         XCTAssertEqual(

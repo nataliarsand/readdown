@@ -34,7 +34,6 @@ check() {
 echo "==> Validating $APP_PATH"
 echo ""
 
-# ── SDK Version ──
 echo "--- SDK Version (vtool) ---"
 
 check_sdk() {
@@ -57,7 +56,6 @@ check_sdk "$APP_PATH/Contents/PlugIns/ReadDownQuickLook.appex/Contents/MacOS/Rea
 check_sdk "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer" "Sparkle Installer"
 check_sdk "$APP_PATH/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate" "Sparkle Autoupdate"
 
-# ── Quick Look Extension Bundle ──
 echo ""
 echo "--- Quick Look Extension ---"
 
@@ -88,7 +86,6 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-# ── Code Signing ──
 echo ""
 echo "--- Code Signing ---"
 
@@ -104,7 +101,6 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-# ── App Info.plist ──
 echo ""
 echo "--- App Info.plist ---"
 
@@ -120,7 +116,6 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-# ── Sparkle Auto-Update ──
 echo ""
 echo "--- Sparkle Auto-Update ---"
 
@@ -140,7 +135,6 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-# ── Universal Binary ──
 echo ""
 echo "--- Architecture ---"
 
@@ -153,7 +147,6 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-# ── Summary ──
 echo ""
 echo "==> Results: $PASS passed, $FAIL failed"
 

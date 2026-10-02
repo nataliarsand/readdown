@@ -4,7 +4,6 @@ import Foundation
 /// Sandboxed: a sibling file can't be read without a grant, but revealing it in Finder needs none.
 enum LocalLinkOpener {
 
-    /// Drops any `#fragment`; Finder selects by path.
     static func revealInFinder(_ target: URL) {
         let fileURL = URL(fileURLWithPath: target.path)
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])

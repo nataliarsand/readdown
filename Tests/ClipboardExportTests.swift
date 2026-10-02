@@ -7,8 +7,6 @@ final class ClipboardExportTests: XCTestCase {
         ClipboardExport.htmlFragment(fromRenderedBody: MarkdownRenderer.render(markdown).html)
     }
 
-    // MARK: - Semantic structure passes through
-
     func testHeadingsPassThroughAsBareTags() {
         let html = export("# Title\n\n## Section")
         XCTAssertTrue(html.contains("<h1"))
@@ -24,16 +22,12 @@ final class ClipboardExportTests: XCTestCase {
         XCTAssertFalse(html.contains("<td style"))
     }
 
-    // MARK: - Task checkboxes
-
     func testTaskCheckboxesBecomeBallotCharacters() {
         let html = export("- [ ] open\n- [x] done")
         XCTAssertFalse(html.contains("<input"))
         XCTAssertTrue(html.contains("☐"))
         XCTAssertTrue(html.contains("☑"))
     }
-
-    // MARK: - Math
 
     func testInlineMathBecomesTeXSource() {
         let html = export("Euler: $e^{i\\pi} = -1$")
@@ -55,8 +49,6 @@ final class ClipboardExportTests: XCTestCase {
         XCTAssertTrue(html.contains("a &lt; b"))
     }
 
-    // MARK: - Code
-
     func testCodeBlocksCarryMonospaceStyle() {
         let html = export("```swift\nlet x = 1\n```")
         XCTAssertTrue(html.contains("<pre style=\"font-family:'Courier New',monospace\">"))
@@ -67,8 +59,6 @@ final class ClipboardExportTests: XCTestCase {
         let html = export("Use `grep` here")
         XCTAssertTrue(html.contains("<code style=\"font-family:'Courier New',monospace\">grep</code>"))
     }
-
-    // MARK: - Template ships the selection-copy cleaner
 
     func testTemplateInstallsCopyCleaner() {
         let html = HTMLTemplate.wrap(body: "<p>Hi</p>")

@@ -16,7 +16,6 @@ DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CSV="$DIR/metrics/downloads.csv"
 mkdir -p "$DIR/metrics"
 
-# ── Report mode ──────────────────────────────────────────────────────────────
 if [[ "${1:-}" == "--report" ]]; then
     if [[ ! -f "$CSV" ]]; then
         echo "No data yet — run the snapshot at least twice on different days."
@@ -24,7 +23,6 @@ if [[ "${1:-}" == "--report" ]]; then
     fi
     echo "Readdown downloads per day"
     echo "=========================="
-    # Sum every asset per date → cumulative total, then diff consecutive days.
     awk -F, 'NR>1 { total[$1] += $4 } END { for (d in total) print d","total[d] }' "$CSV" \
       | sort \
       | awk -F, '
@@ -37,7 +35,6 @@ if [[ "${1:-}" == "--report" ]]; then
     exit 0
 fi
 
-# ── Snapshot mode (default) ──────────────────────────────────────────────────
 DATE="$(date +%F)"
 [[ -f "$CSV" ]] || echo "date,tag,asset,count" > "$CSV"
 

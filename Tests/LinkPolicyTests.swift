@@ -2,7 +2,6 @@ import WebKit
 import XCTest
 @testable import ReadDown
 
-/// What a click on a link inside a rendered document is allowed to do.
 final class LinkPolicyTests: XCTestCase {
 
     private typealias Decision = ReadDown.WebView.Coordinator.LinkDecision
@@ -13,8 +12,6 @@ final class LinkPolicyTests: XCTestCase {
             page: page.flatMap { URL(string: $0) }
         )
     }
-
-    // MARK: - External links
 
     func testWebAndMailOpenExternally() {
         XCTAssertEqual(decide("https://example.com"), .openExternally)
@@ -34,8 +31,6 @@ final class LinkPolicyTests: XCTestCase {
         XCTAssertEqual(decide("shortcuts://run-shortcut?name=x"), .ignore)
         XCTAssertEqual(decide("about:blank"), .ignore)
     }
-
-    // MARK: - Custom schemes (#31)
 
     func testCustomSchemesAskBeforeOpening() {
         XCTAssertEqual(decide("codex://open?file=notes.md"), .askBeforeOpening)
@@ -61,8 +56,6 @@ final class LinkPolicyTests: XCTestCase {
         XCTAssertTrue(shown.contains("…"))
     }
 
-    // MARK: - Local document links
-
     func testLocalMarkdownAndTextRevealInFinder() {
         XCTAssertEqual(decide("file:///Users/x/dir/02-notes.md"), .revealInFinder)
         XCTAssertEqual(decide("file:///Users/x/dir/README.markdown"), .revealInFinder)
@@ -85,8 +78,6 @@ final class LinkPolicyTests: XCTestCase {
         XCTAssertEqual(decide("file:///Users/x/dir/subfolder"), .ignore) // no extension
     }
 
-    // MARK: - Same-document fragments
-
     func testSameDocFragmentSavedDocStaysInWebView() {
         XCTAssertEqual(
             decide("file:///Users/x/dir/#heading", page: "file:///Users/x/dir/"),
@@ -105,9 +96,6 @@ final class LinkPolicyTests: XCTestCase {
         )
     }
 
-    // MARK: - In the web view
-
-    /// The real coordinator, with every policy answer recorded.
     private final class SpyCoordinator: ReadDown.WebView.Coordinator {
         var answers: [(url: String, policy: WKNavigationActionPolicy)] = []
 

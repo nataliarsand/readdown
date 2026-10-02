@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# ── Readdown Release Script ──
 # Builds, signs, notarizes, and packages Readdown as a DMG.
 #
 # Usage:
@@ -24,8 +23,6 @@ ZIP_PATH="$PROJECT_DIR/release/${APP_NAME}.zip"
 
 SKIP_NOTARIZE=false
 
-# ── Parse arguments ──
-
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --skip-notarize) SKIP_NOTARIZE=true; shift ;;
@@ -33,13 +30,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ── Clean previous build ──
-
 echo "==> Cleaning previous release artifacts..."
 rm -rf "$PROJECT_DIR/release"
 mkdir -p "$PROJECT_DIR/release"
-
-# ── Step 1: Archive ──
 
 echo "==> Archiving..."
 xcodebuild archive \
@@ -50,8 +43,6 @@ xcodebuild archive \
     -quiet \
     CODE_SIGN_STYLE=Manual \
     CODE_SIGN_IDENTITY="Developer ID Application"
-
-# ── Step 2: Export ──
 
 echo "==> Exporting..."
 EXPORT_OPTIONS="$PROJECT_DIR/release/ExportOptions.plist"
@@ -89,7 +80,6 @@ if [ ! -d "$APP_PATH" ]; then
     exit 1
 fi
 
-# ── Step 3: Patch SDK version ──
 # macOS 15 refuses app extensions and Sparkle XPC services stamped sdk 26.x; rewrite to 15.0, then re-sign.
 
 echo "==> Patching SDK version..."
@@ -135,13 +125,9 @@ codesign --force --sign "Developer ID Application" --options runtime \
     --entitlements "$PROJECT_DIR/Sources/ReadDown.entitlements" \
     "$APP_PATH"
 
-# ── Step 4: Verify code signature ──
-
 echo "==> Verifying code signature..."
 codesign --verify --deep --strict "$APP_PATH"
 echo "    Signature OK."
-
-# ── Step 5: Notarize ──
 
 if [ "$SKIP_NOTARIZE" = false ]; then
     echo "==> Notarizing..."
@@ -154,20 +140,14 @@ if [ "$SKIP_NOTARIZE" = false ]; then
 
     rm -f "$NOTARIZE_ZIP"
 
-    # ── Step 6: Staple ──
-
     echo "==> Stapling notarization ticket..."
     xcrun stapler staple "$APP_PATH"
 else
     echo "==> Skipping notarization (--skip-notarize)"
 fi
 
-# ── Step 7: Validate release ──
-
 echo "==> Validating release..."
 "$SCRIPT_DIR/validate-release.sh" "$APP_PATH"
-
-# ── Step 8: Create DMG ──
 
 echo "==> Creating DMG..."
 rm -f "$DMG_PATH"
@@ -184,12 +164,9 @@ create-dmg \
     "$DMG_PATH" \
     "$APP_PATH"
 
-# ── Step 9: Sign the DMG ──
-
 echo "==> Signing DMG..."
 codesign --sign "Developer ID Application" "$DMG_PATH"
 
-# ── Step 9b: Notarize & staple the DMG ──
 # Gatekeeper checks the DMG itself on a manual download; a stapled app inside is not enough.
 
 if [ "$SKIP_NOTARIZE" = false ]; then
@@ -202,13 +179,10 @@ if [ "$SKIP_NOTARIZE" = false ]; then
     xcrun stapler staple "$DMG_PATH"
 fi
 
-# ── Step 10: Create Sparkle zip ──
 # Sparkle can only install from a zip, never a DMG.
 
 echo "==> Creating Sparkle zip..."
 ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
-
-# ── Step 11: Generate Sparkle appcast ──
 
 echo "==> Generating Sparkle appcast entry..."
 
@@ -315,12 +289,9 @@ APPCAST
     echo "    Version: $VERSION (build $BUILD)"
 fi
 
-# ── Step 12: Clean intermediate artifacts ──
 # Leftover .app bundles show up in Spotlight.
 
 rm -rf "$EXPORT_PATH" "$ARCHIVE_PATH"
-
-# ── Done ──
 
 echo ""
 echo "==> Release complete!"

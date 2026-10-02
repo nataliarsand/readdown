@@ -1,6 +1,5 @@
 import Foundation
 
-/// Drawn by SwiftUI in the header and as SVG in the page, so both match.
 enum CheckIcon {
     static let grid: CGFloat = 24
     static let points: [CGPoint] = [CGPoint(x: 20, y: 6), CGPoint(x: 9, y: 17), CGPoint(x: 4, y: 12)]
@@ -18,7 +17,6 @@ enum CopyIcon {
     static let strokeWidth: CGFloat = 2
     static let radius: CGFloat = 2.5
     static let front = CGRect(x: 8, y: 8, width: 13, height: 13)
-    /// The back square's visible edge, which starts and ends on the front square.
     static let backCorners: [CGPoint] = [CGPoint(x: 16, y: 8), CGPoint(x: 16, y: 3), CGPoint(x: 3, y: 3),
                                          CGPoint(x: 3, y: 16), CGPoint(x: 8, y: 16)]
 
@@ -817,7 +815,6 @@ enum HTMLTemplate {
             pieOuterStrokeColor: '#d0d7de',
             pieOpacity: '1'
         };
-        // Mermaid replaces the element's content with the rendered SVG.
         document.querySelectorAll('pre.mermaid').forEach(function(el) {
             el.setAttribute('data-rd-src', el.textContent);
         });

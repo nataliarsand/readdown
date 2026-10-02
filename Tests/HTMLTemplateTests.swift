@@ -28,14 +28,10 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(result.contains("task-item"))
     }
 
-    // MARK: - Theme stamp (drives Mermaid light/dark)
-
     func testStampsThemeOnBody() {
         XCTAssertTrue(HTMLTemplate.wrap(body: "", isDark: true).contains("data-rd-theme=\"dark\""))
         XCTAssertTrue(HTMLTemplate.wrap(body: "", isDark: false).contains("data-rd-theme=\"light\""))
     }
-
-    // MARK: - Header blur (main app only)
 
     func testHeaderBlurPresentInMainApp() {
         let result = HTMLTemplate.wrap(body: "")
@@ -47,8 +43,6 @@ final class HTMLTemplateTests: XCTestCase {
         let result = HTMLTemplate.wrap(body: "", compact: true)
         XCTAssertFalse(result.contains("backdrop-filter"))
     }
-
-    // MARK: - Print / Export as PDF contract
 
     func testPrintDisablesHeaderBlur() {
         // A fixed-position ::before would repeat on every printed page.
@@ -63,15 +57,11 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(result.contains("page-break-after: avoid"))
     }
 
-    // MARK: - Code-copy assets ship in the page
-
     func testCodeCopyAssetsPresent() {
         let result = HTMLTemplate.wrap(body: "")
         XCTAssertTrue(result.contains("rd-copy-btn"))
         XCTAssertTrue(result.contains("rd-codeblock"))
     }
-
-    // MARK: - Math (KaTeX)
 
     func testInjectsKaTeXWhenHasMath() {
         let result = HTMLTemplate.wrap(

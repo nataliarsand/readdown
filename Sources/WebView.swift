@@ -450,7 +450,6 @@ struct WebView: NSViewRepresentable {
     }
 }
 
-/// Offscreen light-themed render for print/PDF; calls back once Mermaid has laid out.
 private final class PrintRenderer: NSObject, WKNavigationDelegate {
     private let webView: WKWebView
     private let hasMermaid: Bool
