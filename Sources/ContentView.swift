@@ -49,6 +49,9 @@ enum ReaderTheme {
     static let headerEdgePadding: CGFloat = 12
 
     static let toastRadius: CGFloat = 12
+    static let toastSuccessText = Color(nsColor: dynamic(light: (0x56, 0xAC, 0x5F), dark: (0x6B, 0xC2, 0x74)))
+    static let toastSuccessFill = Color(nsColor: dynamic(light: (0xF2, 0xFA, 0xF5), dark: (0x14, 0x24, 0x1A)))
+    static let toastSuccessBorder = Color(nsColor: dynamic(light: (0xD6, 0xEB, 0xDA), dark: (0x25, 0x45, 0x2D)))
     static let toastSeconds: TimeInterval = 3
 
     private static func dynamic(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
@@ -354,10 +357,24 @@ struct Toast: Equatable {
     enum Kind {
         case success, info
 
-        var tint: Color {
+        var foreground: Color {
             switch self {
-            case .success: ReaderTheme.copyConfirm
+            case .success: ReaderTheme.toastSuccessText
             case .info: .primary
+            }
+        }
+
+        var fill: Color {
+            switch self {
+            case .success: ReaderTheme.toastSuccessFill
+            case .info: ReaderTheme.pill
+            }
+        }
+
+        var border: Color {
+            switch self {
+            case .success: ReaderTheme.toastSuccessBorder
+            case .info: ReaderTheme.hairline
             }
         }
 
@@ -382,7 +399,6 @@ private struct ToastView: View {
     }
 
     var body: some View {
-        let tint = toast.kind.tint
         HStack(spacing: 10) {
             Image(systemName: toast.kind.icon)
                 .font(.system(size: 15, weight: .medium))
@@ -397,15 +413,14 @@ private struct ToastView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Dismiss")
         }
-        .foregroundStyle(tint)
+        .foregroundStyle(toast.kind.foreground)
         .lineLimit(1)
         .fixedSize()
         .padding(.leading, 14)
         .padding(.trailing, 10)
         .frame(height: ReaderTheme.headerPillHeight)
-        .background(tint.opacity(0.08), in: shape)
-        .background(ReaderTheme.pill, in: shape)
-        .overlay(shape.strokeBorder(tint.opacity(toast.kind == .success ? 0.3 : 0.1)))
+        .background(toast.kind.fill, in: shape)
+        .overlay(shape.strokeBorder(toast.kind.border))
         .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
     }
 }
