@@ -69,7 +69,6 @@ extension View {
         background(fill, in: shape)
             .overlay(shape.strokeBorder(ReaderTheme.hairline))
             .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
-        .allowsHitTesting(false)
     }
 }
 
@@ -409,6 +408,7 @@ private struct ToastView: View {
         .background(ReaderTheme.pill, in: shape)
         .overlay(shape.strokeBorder(toast.kind.border))
         .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        .allowsHitTesting(false)
     }
 }
 
