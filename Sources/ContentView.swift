@@ -189,8 +189,10 @@ struct ContentView: View {
         .overlayPreferenceValue(HeaderTipAnchor.self) { anchor in
             GeometryReader { proxy in
                 if let anchor, let tip = tips.shown {
-                    HeaderTipPlacement(tip: tip, button: proxy[anchor], container: proxy.size)
-                        .transition(.opacity)
+                    HeaderTipLayout(button: proxy[anchor]) {
+                        HeaderTipBubble(tip: tip)
+                    }
+                    .transition(.opacity)
                 }
             }
             .allowsHitTesting(false)
@@ -500,6 +502,7 @@ final class HeaderTipState: ObservableObject {
     private static let delay: TimeInterval = 0.35
     /// Moving to the next button soon after shows its tip at once, as AppKit does.
     private static let warmWindow: TimeInterval = 0.5
+    private static let handoff: TimeInterval = 0.06
 
     @Published private(set) var shown: HeaderTip?
     private var hovered: HeaderTip?
@@ -509,24 +512,34 @@ final class HeaderTipState: ObservableObject {
 
     func hover(_ tip: HeaderTip, _ inside: Bool) {
         if inside {
-            hovered = tip
             pending?.cancel()
+            hovered = tip
             if shown != nil || Date().timeIntervalSince(lastHidden) < Self.warmWindow {
                 show(tip)
             } else {
-                let work = DispatchWorkItem { [weak self] in self?.show(tip) }
-                pending = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + Self.delay, execute: work)
+                schedule(after: Self.delay) { [weak self] in self?.show(tip) }
             }
         } else if hovered == tip {
+            pending?.cancel()
             hovered = nil
-            hide()
+            // Leaving one button fires just before entering the next; waiting lets the tip swap instead of blinking.
+            schedule(after: Self.handoff) { [weak self] in self?.hide() }
         }
+    }
+
+    private func schedule(after delay: TimeInterval, _ action: @escaping () -> Void) {
+        let work = DispatchWorkItem(block: action)
+        pending = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     private func show(_ tip: HeaderTip) {
         guard hovered == tip else { return }
-        withAnimation(.easeOut(duration: 0.12)) { shown = tip }
+        if shown == nil {
+            withAnimation(.easeOut(duration: 0.12)) { shown = tip }
+        } else {
+            shown = tip
+        }
         // A click opens a menu or changes the button; the tip would sit over it.
         clickMonitor = clickMonitor ?? NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
             self?.hovered = nil
@@ -537,6 +550,7 @@ final class HeaderTipState: ObservableObject {
 
     private func hide() {
         pending?.cancel()
+        guard hovered == nil else { return }
         if shown != nil { lastHidden = Date() }
         withAnimation(.easeIn(duration: 0.1)) { shown = nil }
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
@@ -573,23 +587,21 @@ extension View {
 }
 
 /// Centred under the button, but never past the pill's trailing edge.
-private struct HeaderTipPlacement: View {
-    let tip: HeaderTip
+/// A layout, not measured state, so a new tip is placed by its own width on its first frame.
+private struct HeaderTipLayout: Layout {
     let button: CGRect
-    let container: CGSize
-    @State private var width: CGFloat = 0
 
-    var body: some View {
-        HeaderTipBubble(tip: tip)
-            .background(GeometryReader { bubble in
-                Color.clear
-                    .onAppear { width = bubble.size.width }
-                    .onChange(of: bubble.size.width) { width = $0 }
-            })
-            .opacity(width == 0 ? 0 : 1)
-            .offset(x: min(button.midX - width / 2, container.width - width),
-                    y: container.height + HeaderTipBubble.gap)
-            .frame(width: container.width, height: container.height, alignment: .topLeading)
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            let x = min(button.midX - size.width / 2, bounds.width - size.width)
+            subview.place(at: CGPoint(x: bounds.minX + x, y: bounds.maxY + HeaderTipBubble.gap),
+                          proposal: ProposedViewSize(size))
+        }
     }
 }
 
