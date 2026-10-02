@@ -48,6 +48,9 @@ enum ReaderTheme {
     static let headerLeadingClearance: CGFloat = 76
     static let headerEdgePadding: CGFloat = 12
 
+    static let toastRadius: CGFloat = 12
+    static let toastSeconds: TimeInterval = 3
+
     private static func dynamic(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
         NSColor(name: nil) { appearance in
             let rgb = appearance.isDark ? dark : light
@@ -83,8 +86,8 @@ struct ContentView: View {
     let fileURL: URL?
     @StateObject private var findState = FindState()
     @State private var window: NSWindow?
-    @State private var pillText: String?
-    @State private var pillDismissWork: DispatchWorkItem?
+    @State private var toast: Toast?
+    @State private var toastDismissWork: DispatchWorkItem?
     @StateObject private var tips = HeaderTipState()
 
     init(document: MarkdownDocument, baseURL: URL?, fileURL: URL? = nil) {
@@ -107,16 +110,17 @@ struct ContentView: View {
                 HStack(spacing: 0) {
                     titlePill
                     Spacer(minLength: ReaderTheme.headerEdgePadding)
-                    if let pillText {
-                        StatusPill(text: pillText)
-                            .padding(.trailing, 8)
-                            .transition(.opacity)
-                    }
                     actionPill
                 }
                 .padding(.top, ReaderTheme.headerTopPadding)
                 .padding(.leading, ReaderTheme.headerLeadingClearance)
                 .padding(.trailing, ReaderTheme.headerEdgePadding)
+                // In the header row, which sits outside the safe area.
+                if let toast {
+                    ToastView(toast: toast, dismiss: dismissToast)
+                        .padding(.top, ReaderTheme.headerTopPadding)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
                 .ignoresSafeArea(.container, edges: .top)
                 .background(WindowAccessor { window in
@@ -147,11 +151,11 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .linkNotice)) { notification in
             guard notification.object as? NSWindow == window,
                   let text = notification.userInfo?["text"] as? String else { return }
-            showPill(text)
+            showToast(Toast(text: text, kind: .info))
         }
         .onChange(of: watcher.html) { _ in
             if watcher.lastChangeSource == .disk {
-                showPill("Updated")
+                showToast(Toast(text: "Updated", kind: .info))
             }
         }
     }
@@ -174,7 +178,7 @@ struct ContentView: View {
             CopyButton(text: { watcher.text },
                        html: { ClipboardExport.htmlFragment(fromRenderedBody: watcher.bodyHTML) }) {
                 UsageMetrics.record(.copyFile)
-                showPill("Full contents copied to clipboard")
+                showToast(Toast(text: "Full contents copied to clipboard", kind: .success))
             }
             PillIconButton(icon: "magnifyingglass", label: "Find in Document",
                            shortcut: AppShortcut.find, action: showFindBar)
@@ -211,7 +215,7 @@ struct ContentView: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(fileURL.path, forType: .string)
-        showPill("Path copied to clipboard")
+        showToast(Toast(text: "Path copied to clipboard", kind: .success))
     }
 
     private func showFindBar() {
@@ -222,18 +226,21 @@ struct ContentView: View {
         findState.focusRequest += 1
     }
 
-    private func showPill(_ text: String) {
+    private func showToast(_ new: Toast) {
         withAnimation(.easeOut(duration: 0.2)) {
-            pillText = text
+            toast = new
         }
-        pillDismissWork?.cancel()
-        let work = DispatchWorkItem {
-            withAnimation(.easeIn(duration: 0.4)) {
-                pillText = nil
-            }
+        toastDismissWork?.cancel()
+        let work = DispatchWorkItem { dismissToast() }
+        toastDismissWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + ReaderTheme.toastSeconds, execute: work)
+    }
+
+    private func dismissToast() {
+        toastDismissWork?.cancel()
+        withAnimation(.easeIn(duration: 0.25)) {
+            toast = nil
         }
-        pillDismissWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
     }
 
     /// No `NSToolbar`: on Tahoe even an empty one paints an opaque header over the pills.
@@ -343,23 +350,63 @@ extension CheckIcon {
     }
 }
 
-private struct StatusPill: View {
+struct Toast: Equatable {
+    enum Kind {
+        case success, info
+
+        var tint: Color {
+            switch self {
+            case .success: ReaderTheme.copyConfirm
+            case .info: .primary
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .success: "checkmark.circle"
+            case .info: "info.circle"
+            }
+        }
+    }
+
     let text: String
+    let kind: Kind
+}
+
+private struct ToastView: View {
+    let toast: Toast
+    let dismiss: () -> Void
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: ReaderTheme.toastRadius, style: .continuous)
+    }
 
     var body: some View {
-        HStack(spacing: 6) {
-            CheckIcon.View(size: 12)
-                .foregroundStyle(ReaderTheme.copyConfirm)
-            Text(text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        let tint = toast.kind.tint
+        HStack(spacing: 10) {
+            Image(systemName: toast.kind.icon)
+                .font(.system(size: 15, weight: .medium))
+            Text(toast.text)
+                .font(.system(size: 14, weight: .medium))
+            Button(action: dismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
         }
+        .foregroundStyle(tint)
         .lineLimit(1)
         .fixedSize()
-        .padding(.horizontal, 12)
+        .padding(.leading, 14)
+        .padding(.trailing, 10)
         .frame(height: ReaderTheme.headerPillHeight)
-        .floatingSurface(Capsule(), fill: ReaderTheme.pill)
-        .allowsHitTesting(false)
+        .background(tint.opacity(0.08), in: shape)
+        .background(ReaderTheme.pill, in: shape)
+        .overlay(shape.strokeBorder(tint.opacity(toast.kind == .success ? 0.3 : 0.1)))
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
     }
 }
 
