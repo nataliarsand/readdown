@@ -603,6 +603,22 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertFalse(result.contains("href"))
     }
 
+    func testControlCharacterPrefixedSchemeDropped() {
+        // Browsers strip leading C0 controls and spaces, so `\u{01}javascript:` navigates as `javascript:`.
+        let entity = MarkdownRenderer.render("<a href=\"&#1;javascript:alert(1)\">x</a>").html
+        XCTAssertFalse(entity.contains("href"))
+        let hexEntity = MarkdownRenderer.render("<a href=\"&#x1F;javascript:alert(1)\">x</a>").html
+        XCTAssertFalse(hexEntity.contains("href"))
+        let raw = MarkdownRenderer.render("[x](\u{01}javascript:alert(1))").html
+        XCTAssertFalse(raw.contains("href"))
+        let trailing = MarkdownRenderer.render("<a href=\"&#1;javascript:alert(1)&#1;\">x</a>").html
+        XCTAssertFalse(trailing.contains("href"))
+        let image = MarkdownRenderer.render("<img src=\"&#1;javascript:alert(1)\">").html
+        XCTAssertFalse(image.lowercased().contains("javascript"))
+        let denied = MarkdownRenderer.render("<a href=\"&#1;file:///etc/hosts\">x</a>").html
+        XCTAssertFalse(denied.contains("href"))
+    }
+
     func testIndentedTopLevelFenceDeindentsContent() {
         // CommonMark §6.7: content is de-indented by up to the opener's indent.
         let html = MarkdownRenderer.render("  ```\n  code\n  ```").html

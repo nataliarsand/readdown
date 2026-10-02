@@ -30,6 +30,7 @@ Each version's **Highlights** block is what appears in the in-app update dialog.
 - Syntax-highlighted code sat on a slightly lighter background than its block in light mode. Both now match.
 - A code fence indented four or more spaces was dropped from the page instead of showing as text.
 - Holding ⌘ while scrolling no longer zooms the page, so reaching for a shortcut mid-scroll can't change the text size. Pinch on the trackpad, or ⌘+, ⌘− and ⌘0, still zoom and reset. (Issue #30, thanks @max-jardetzky.)
+- A link whose address starts with an invisible control character is now checked the way the browser reads it, so it can no longer slip past the link safety rules.
 - Show in Finder and Copy Path share one folder button in the header; every header button shows a tooltip with its shortcut; confirmations and notices appear centred in the header.
 
 ## 1.17

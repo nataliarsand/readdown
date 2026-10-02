@@ -41,6 +41,8 @@ private let slugTagPattern = try! NSRegularExpression(pattern: "<[^>]+>")
 private let slugStripPattern = try! NSRegularExpression(pattern: "[^\\p{L}\\p{N}\\-_\\s]")
 private let slugSpacePattern = try! NSRegularExpression(pattern: "\\s")
 
+private let c0ControlOrSpace = CharacterSet(charactersIn: Unicode.Scalar(0x00)...Unicode.Scalar(0x20))
+
 private typealias RefDefs = [String: (url: String, title: String?)]
 
 /// Allowlist: any tag or attribute not listed is escaped to text, never emitted.
@@ -946,11 +948,9 @@ enum MarkdownRenderer {
     }
 
     private static func isSafeURL(_ url: String) -> Bool {
-        // Browsers strip tab/newline/CR before parsing, so `jav\tascript:` navigates as `javascript:`.
-        var trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.contains(where: { $0 == "\t" || $0 == "\n" || $0 == "\r" }) {
-            trimmed.removeAll(where: { $0 == "\t" || $0 == "\n" || $0 == "\r" })
-        }
+        // Mirrors the WHATWG URL parser: `\u{01}javascript:` and `jav\tascript:` both navigate as `javascript:`.
+        var trimmed = url.trimmingCharacters(in: c0ControlOrSpace.union(.whitespacesAndNewlines))
+        trimmed.removeAll(where: { $0 == "\t" || $0 == "\n" || $0 == "\r" })
         if trimmed.isEmpty || trimmed.hasPrefix("//") {
             return false
         }
