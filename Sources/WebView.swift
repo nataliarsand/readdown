@@ -22,21 +22,6 @@ final class ZoomableWebView: WKWebView {
     static let minZoom: CGFloat = 0.5
     static let maxZoom: CGFloat = 3.0
 
-    private var gestureStartedZooming = false
-
-    override func scrollWheel(with event: NSEvent) {
-        let command = event.modifierFlags.contains(.command)
-        if event.phase.contains(.began) {
-            gestureStartedZooming = command
-        }
-        let isWheel = event.phase.isEmpty && event.momentumPhase.isEmpty
-        if command, isWheel || gestureStartedZooming {
-            applyZoomDelta(event.scrollingDeltaY * 0.01)
-            return
-        }
-        super.scrollWheel(with: event)
-    }
-
     override func magnify(with event: NSEvent) {
         applyZoomDelta(event.magnification)
     }
@@ -67,7 +52,7 @@ struct WebView: NSViewRepresentable {
 
         let webView = ZoomableWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        // Pinch goes through ZoomableWebView so it shares the Cmd-scroll range.
+        // Pinch goes through ZoomableWebView so it shares the ⌘+/− range.
         webView.allowsMagnification = false
         webView.loadHTMLString(watcher.html, baseURL: baseURL)
         context.coordinator.webView = webView
