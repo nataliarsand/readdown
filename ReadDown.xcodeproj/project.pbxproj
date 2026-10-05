@@ -12,6 +12,8 @@
 		A100000000000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000003 /* ContentView.swift */; };
 		A100000000000000000004 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000004 /* WebView.swift */; };
 		A100000000000000000022 /* LinkScheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000022 /* LinkScheme.swift */; };
+		A100000000000000000023 /* SupportAsk.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000023 /* SupportAsk.swift */; };
+		A100000000000000000024 /* SupportAskWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000024 /* SupportAskWindow.swift */; };
 		A100000000000000000021 /* LocalLinkOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000021 /* LocalLinkOpener.swift */; };
 		A100000000000000000005 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000005 /* MarkdownRenderer.swift */; };
 		A100000000000000000006 /* HTMLTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000006 /* HTMLTemplate.swift */; };
@@ -39,6 +41,7 @@
 		A300000000000000000006 /* UsageMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000006 /* UsageMetricsTests.swift */; };
 		A300000000000000000007 /* LinkPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000007 /* LinkPolicyTests.swift */; };
 		A300000000000000000008 /* ClipboardExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000008 /* ClipboardExportTests.swift */; };
+		A300000000000000000009 /* SupportAskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300000000000000000009 /* SupportAskTests.swift */; };
 		A10000000000000000000D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P200000000000000000001 /* Sparkle */; };
 		A10000000000000000000E /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
 		A200000000000000000008 /* mermaid.min.js in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000D /* mermaid.min.js */; };
@@ -85,6 +88,8 @@
 		B100000000000000000003 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B100000000000000000004 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		B100000000000000000022 /* LinkScheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkScheme.swift; sourceTree = "<group>"; };
+		B100000000000000000023 /* SupportAsk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportAsk.swift; sourceTree = "<group>"; };
+		B100000000000000000024 /* SupportAskWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportAskWindow.swift; sourceTree = "<group>"; };
 		B100000000000000000021 /* LocalLinkOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLinkOpener.swift; sourceTree = "<group>"; };
 		B100000000000000000005 /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
 		B100000000000000000006 /* HTMLTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLTemplate.swift; sourceTree = "<group>"; };
@@ -115,6 +120,7 @@
 		B300000000000000000006 /* UsageMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMetricsTests.swift; sourceTree = "<group>"; };
 		B300000000000000000007 /* LinkPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPolicyTests.swift; sourceTree = "<group>"; };
 		B300000000000000000008 /* ClipboardExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardExportTests.swift; sourceTree = "<group>"; };
+		B300000000000000000009 /* SupportAskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportAskTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -161,6 +167,8 @@
 				B100000000000000000003 /* ContentView.swift */,
 				B100000000000000000004 /* WebView.swift */,
 				B100000000000000000022 /* LinkScheme.swift */,
+				B100000000000000000023 /* SupportAsk.swift */,
+				B100000000000000000024 /* SupportAskWindow.swift */,
 				B100000000000000000021 /* LocalLinkOpener.swift */,
 				B100000000000000000005 /* MarkdownRenderer.swift */,
 				B100000000000000000006 /* HTMLTemplate.swift */,
@@ -202,6 +210,7 @@
 				B300000000000000000006 /* UsageMetricsTests.swift */,
 				B300000000000000000007 /* LinkPolicyTests.swift */,
 				B300000000000000000008 /* ClipboardExportTests.swift */,
+				B300000000000000000009 /* SupportAskTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -386,6 +395,8 @@
 				A100000000000000000003 /* ContentView.swift in Sources */,
 				A100000000000000000004 /* WebView.swift in Sources */,
 				A100000000000000000022 /* LinkScheme.swift in Sources */,
+				A100000000000000000023 /* SupportAsk.swift in Sources */,
+				A100000000000000000024 /* SupportAskWindow.swift in Sources */,
 				A100000000000000000021 /* LocalLinkOpener.swift in Sources */,
 				A100000000000000000005 /* MarkdownRenderer.swift in Sources */,
 				A100000000000000000006 /* HTMLTemplate.swift in Sources */,
@@ -424,6 +435,7 @@
 				A300000000000000000006 /* UsageMetricsTests.swift in Sources */,
 				A300000000000000000007 /* LinkPolicyTests.swift in Sources */,
 				A300000000000000000008 /* ClipboardExportTests.swift in Sources */,
+				A300000000000000000009 /* SupportAskTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

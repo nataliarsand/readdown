@@ -18,6 +18,10 @@ enum UsageMetrics {
         case openLinkCancelled = "cancel_link"
         case documentOpened = "open_document"
         case consentGranted = "consent_granted"
+        case supportAskShown = "support_ask_shown"
+        case supportAskSupport = "support_ask_support"
+        case supportAskLater = "support_ask_later"
+        case supportAskAlready = "support_ask_already"
     }
 
     /// Overridable so tests don't touch the app's shared defaults.
@@ -35,6 +39,7 @@ enum UsageMetrics {
     static var hasConsent: Bool { store.bool(forKey: consentKey) }
     static var wasPrompted: Bool { store.bool(forKey: promptedKey) }
     static var isSuppressed: Bool { store.bool(forKey: devOptOutKey) }
+    static var isPromptDue: Bool { !wasPrompted && !hasConsent }
 
     static func setConsent(_ granted: Bool) {
         store.set(granted, forKey: consentKey)
@@ -84,7 +89,7 @@ enum UsageMetrics {
 
     /// Asks once; the Help-menu toggle takes over after any answer.
     static func promptForConsentIfNeeded() {
-        guard !wasPrompted, !hasConsent else { return }
+        guard isPromptDue else { return }
         store.set(true, forKey: promptedKey)
 
         let alert = NSAlert()

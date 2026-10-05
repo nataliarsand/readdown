@@ -109,15 +109,10 @@ struct WelcomeView: View {
     static let windowSize = CGSize(width: 320, height: 360)
 
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
-    @AppStorage("lastLaunchedBuild") private var lastLaunchedBuild = ""
     @State private var qlEnabled = false
     @State private var isPostUpdate = false
     @State private var isDefault = false
     let dismissWindow: () -> Void
-
-    private var currentBuild: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
-    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -142,9 +137,9 @@ struct WelcomeView: View {
     }
 
     private func onAppear() {
-        let isFreshInstall = lastLaunchedBuild.isEmpty && !hasPrompted
-        isPostUpdate = !isFreshInstall && lastLaunchedBuild != currentBuild
-        lastLaunchedBuild = currentBuild
+        let launch = LaunchHistory.current
+        let isFreshInstall = launch.isFreshInstall && !hasPrompted
+        isPostUpdate = launch.isUpdate
         refreshSetupStatus()
 
         if isFreshInstall && !isDefault && DefaultAppHelp.nativePromptLikelyWorks() {
@@ -262,10 +257,8 @@ struct WelcomeView: View {
             Link("readdown.app", destination: URL(string: "https://readdown.app")!)
                 .font(.caption)
             Spacer()
-            Link(destination: URL(string: "https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC")!) {
-                Text("Buy me a coffee \u{2615}")
-                    .font(.caption)
-            }
+            Link("Support Readdown", destination: URL(string: "https://readdown.app/support?src=welcome")!)
+                .font(.caption)
         }
     }
 

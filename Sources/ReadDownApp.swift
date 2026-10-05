@@ -19,16 +19,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             self?.updaterController.startUpdater()
         }
 
+        // Decided before the consent alert can mark itself prompted.
+        let showSupportAsk = SupportAsk.shouldShow(launch: LaunchHistory.current,
+                                                   installDate: SupportAsk.installDate,
+                                                   consentPromptDue: UsageMetrics.isPromptDue)
+
         // application(_:open:) can land after this callback; restoring synchronously would resurrect the old session over the opened file.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             guard let self else { return }
             self.dismissOpenPanels()
-            if self.launchedWithFiles || !NSDocumentController.shared.documents.isEmpty {
-                return
+            if !self.launchedWithFiles && NSDocumentController.shared.documents.isEmpty {
+                let restoredCount = DocumentSession.shared.restorePreviousSession()
+                if restoredCount == 0 && NSDocumentController.shared.documents.isEmpty && !showSupportAsk {
+                    self.showWelcomeWindow()
+                }
             }
-            let restoredCount = DocumentSession.shared.restorePreviousSession()
-            if restoredCount == 0 && NSDocumentController.shared.documents.isEmpty {
-                self.showWelcomeWindow()
+            if showSupportAsk {
+                let delay: TimeInterval = NSDocumentController.shared.documents.isEmpty ? 0 : 1.5
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    SupportAskWindow.shared.show()
+                }
             }
         }
 
@@ -295,6 +305,7 @@ struct ReadDownApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage(UsageMetrics.consentKey) private var shareUsageData = false
     @AppStorage(AppearanceMode.key) private var appearanceMode = AppearanceMode.system
+    @AppStorage(SupportAsk.enabledKey) private var showSupportAsk = true
 
     /// Applies on set rather than via `onChange`, which doesn't fire for a menu Picker.
     private var appearanceSelection: Binding<AppearanceMode> {
@@ -424,6 +435,7 @@ struct ReadDownApp: App {
                         shareUsageData = granted
                     }
                 ))
+                Toggle("Show Thank-You After Updates", isOn: $showSupportAsk)
             }
         }
     }
@@ -473,8 +485,8 @@ struct AboutView: View {
                                   url: "https://www.producthunt.com/products/readdown/reviews/new")
                 AboutActionButton(icon: "ladybug", title: "Report a Bug",
                                   url: "https://github.com/nataliarsand/readdown/issues")
-                AboutActionButton(icon: "cup.and.saucer", title: "Buy a Coffee",
-                                  url: "https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC")
+                AboutActionButton(icon: "heart", title: "Support",
+                                  url: "https://readdown.app/support?src=about")
             }
 
             Link("readdown.app", destination: URL(string: "https://readdown.app")!)

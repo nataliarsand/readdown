@@ -3,7 +3,11 @@ import SwiftUI
 
 enum ThanksPop {
 
-    static func show(centeredIn rect: NSRect) {
+    enum Style {
+        case celebrate, support
+    }
+
+    static func show(centeredIn rect: NSRect, style: Style = .celebrate) {
         let size = NSSize(width: 260, height: 100)
         let origin = NSPoint(
             x: rect.midX - size.width / 2,
@@ -20,7 +24,7 @@ enum ThanksPop {
         window.backgroundColor = .clear
         window.ignoresMouseEvents = true
         window.level = .statusBar
-        window.contentView = NSHostingView(rootView: ThanksPopView())
+        window.contentView = NSHostingView(rootView: ThanksPopView(style: style))
         window.orderFrontRegardless()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
@@ -35,19 +39,27 @@ enum ThanksPop {
 }
 
 private struct ThanksPopView: View {
+    let style: ThanksPop.Style
     @State private var shown = false
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "party.popper.fill")
-                .foregroundStyle(.orange)
+            switch style {
+            case .celebrate:
+                Image(systemName: "party.popper.fill")
+                    .foregroundStyle(.orange)
+            case .support:
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(ReaderTheme.success)
+            }
             Text("Thank you!")
                 .fontWeight(.semibold)
         }
         .font(.system(size: 15))
         .padding(.horizontal, 18)
         .padding(.vertical, 11)
-        .floatingSurface(Capsule(), fill: ReaderTheme.pill)
+        .floatingSurface(Capsule(), fill: ReaderTheme.pill,
+                         border: style == .support ? ReaderTheme.successBorder : ReaderTheme.hairline)
         .scaleEffect(shown ? 1 : 0.5)
         .opacity(shown ? 1 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
