@@ -292,6 +292,32 @@ final class FindInPageTests: XCTestCase {
         XCTAssertFalse(html.contains("hidden text"), "got: \(html)")
     }
 
+    func testFoldToggleHasComfortableHitArea() {
+        let webView = loadDocument("## A heading\n\ntext")
+        let result = evaluate(webView, """
+        (function() {
+            var btn = document.querySelector('.rd-fold');
+            var box = btn.getBoundingClientRect();
+            var icon = btn.querySelector('svg').getBoundingClientRect();
+            var text = document.createRange();
+            text.selectNodeContents(btn.parentElement.lastChild);
+            var hitNearEdge = document.elementFromPoint(box.left + 2, box.top + 2);
+            return [box.width, box.height, icon.width,
+                    text.getBoundingClientRect().left - box.right,
+                    !!(hitNearEdge && hitNearEdge.closest('.rd-fold'))].join(',');
+        })()
+        """) as? String ?? ""
+        let parts = result.split(separator: ",").map(String.init)
+        XCTAssertEqual(parts.count, 5, "got: \(result)")
+        guard parts.count == 5, let width = Double(parts[0]), let height = Double(parts[1]),
+              let icon = Double(parts[2]), let gap = Double(parts[3]) else { return }
+        XCTAssertGreaterThanOrEqual(width, 24)
+        XCTAssertGreaterThanOrEqual(height, 24)
+        XCTAssertEqual(icon, 14, accuracy: 0.5, "the arrow itself keeps its size")
+        XCTAssertGreaterThanOrEqual(gap, 0, "the target must not cover the heading text")
+        XCTAssertEqual(parts[4], "true", "clicks near the edge of the target land on it")
+    }
+
     func testCollapsedSelectionExportsNothing() {
         let webView = loadDocument("Some text")
         let result = evaluate(webView, """
