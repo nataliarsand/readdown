@@ -6,7 +6,7 @@
 
 <p align="center">
   The Markdown reader macOS never shipped.<br>
-  Double-click to read, spacebar to preview — nothing more.
+  Double-click to read, spacebar to preview. Nothing more.
 </p>
 
 <p align="center">
@@ -19,18 +19,22 @@
 
 ## Features
 
-- **Read-only** — No edits, no auto-formatting. Your files stay untouched.
-- **Quick Look** — Spacebar on any .md in Finder. Rendered, not raw.
-- **Lightweight** — Native Swift. Opens in under a second, stays out of your way.
-- **Syntax highlighting** — 19 languages auto-detected, or specify the language on your code fence.
-- **Math rendering** — Inline (`$x^2$`) and display (`$$\int f\,dx$$`) TeX equations via KaTeX, fully offline.
-- **Mermaid diagrams** — Flowcharts, sequence diagrams, pie charts, and more.
-- **Dark mode** — Follows your system appearance, or pick Light or Dark from the View menu.
-- **Default reader** — One click to replace Xcode or TextEdit as your .md handler.
+- **Read-only.** No edits, no auto-formatting. Your files stay untouched.
+- **Quick Look.** Spacebar on any .md in Finder. Rendered, not raw.
+- **Lightweight.** Native Swift. Opens in under a second, stays out of your way.
+- **Syntax highlighting.** 19 languages auto-detected, or specify the language on your code fence.
+- **Math rendering.** Inline (`$x^2$`) and display (`$$\int f\,dx$$`) TeX equations via KaTeX, fully offline.
+- **Mermaid diagrams.** Flowcharts, sequence diagrams, pie charts, and more.
+- **Dark mode.** Follows your system appearance, or pick Light or Dark from the View menu.
+- **Default reader.** One click to replace Xcode or TextEdit as your .md handler.
 
-## Quick Look Setup
+## Setup
 
-On first launch, Readdown walks you through this — but here are the manual steps:
+On first launch, Readdown offers to become your default Markdown reader and walks you through Quick Look. If you skipped either, here are the manual steps.
+
+**Default reader:** right-click any .md file in Finder, then **Get Info > Open With > Readdown > Change All**.
+
+**Quick Look:**
 
 1. Open **System Settings > General > Login Items & Extensions**
 2. Click **i** next to **Quick Look**
@@ -38,7 +42,7 @@ On first launch, Readdown walks you through this — but here are the manual ste
 
 ## Download
 
-Get the latest release from [GitHub Releases](https://github.com/nataliarsand/readdown/releases/latest/download/Readdown.dmg).
+Get the latest release from [GitHub Releases](https://github.com/nataliarsand/readdown/releases/latest/download/Readdown.dmg). See what's new in the [changelog](https://readdown.app/changelog).
 
 Requires macOS 13 Ventura or later.
 
@@ -50,7 +54,7 @@ Requires macOS 13 Ventura or later.
 
 ## Feedback
 
-Found a bug or have a feature request? [Open an issue](https://github.com/nataliarsand/readdown/issues).
+Something not working? Most answers are in the [FAQ](https://readdown.app/help). Found a bug or have a feature request? [Open an issue](https://github.com/nataliarsand/readdown/issues).
 
 Want to send a fix? Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Security issues go through [SECURITY.md](SECURITY.md), not the public tracker.
 
