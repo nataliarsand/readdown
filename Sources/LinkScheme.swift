@@ -33,6 +33,21 @@ enum LinkScheme {
         return deniedSchemes.contains(s) || deniedPrefixes.contains { s.hasPrefix($0) }
     }
 
+    /// Apps that run code or automation, whatever scheme reaches them (`workflow://` opens Shortcuts).
+    static let refusedHandlers: Set<String> = [
+        "com.apple.shortcuts", "com.apple.Terminal", "com.apple.ScriptEditor2",
+        "com.apple.Automator", "com.apple.systempreferences",
+        "com.googlecode.iterm2", "com.mitchellh.ghostty", "dev.warp.Warp-Stable",
+        "net.kovidgoyal.kitty", "org.alacritty", "com.raycast.macos",
+        "com.runningwithcrayons.Alfred", "com.stairways.keyboardmaestro.engine",
+        "org.hammerspoon.Hammerspoon", "com.hegenberg.BetterTouchTool"
+    ]
+
+    static func isRefusedHandler(_ appURL: URL) -> Bool {
+        guard let id = Bundle(url: appURL)?.bundleIdentifier else { return true }
+        return refusedHandlers.contains(id)
+    }
+
     /// CommonMark's autolink scheme: 2–32 chars, letter first, then letters, digits, `+`, `.`, `-`.
     /// Anything shorter is a Windows drive letter, not a scheme.
     static func scheme(of url: String) -> String? {

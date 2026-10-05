@@ -45,15 +45,30 @@ final class LinkPolicyTests: XCTestCase {
         )
     }
 
-    func testDialogURLIsMiddleTruncated() {
+    func testDialogURLIsTailTruncated() {
         let short = "codex://open?file=a.md"
-        XCTAssertEqual(ReadDown.WebView.Coordinator.middleTruncated(short, limit: 120), short)
+        XCTAssertEqual(ReadDown.WebView.Coordinator.tailTruncated(short, limit: 120), short)
+        // A spliced middle could read as a different link; only a true prefix is shown.
         let long = "codex://open?" + String(repeating: "a", count: 200) + "&end=1"
-        let shown = ReadDown.WebView.Coordinator.middleTruncated(long, limit: 120)
+        let shown = ReadDown.WebView.Coordinator.tailTruncated(long, limit: 120)
         XCTAssertEqual(shown.count, 120)
-        XCTAssertTrue(shown.hasPrefix("codex://open?"))
-        XCTAssertTrue(shown.hasSuffix("&end=1"))
-        XCTAssertTrue(shown.contains("…"))
+        XCTAssertTrue(shown.hasSuffix("…"))
+        XCTAssertTrue(long.hasPrefix(shown.dropLast()))
+    }
+
+    func testAutomationAppsAreRefusedWhateverTheScheme() throws {
+        let shortcuts = try XCTUnwrap(NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.shortcuts"))
+        XCTAssertTrue(LinkScheme.isRefusedHandler(shortcuts))
+        let terminal = try XCTUnwrap(NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal"))
+        XCTAssertTrue(LinkScheme.isRefusedHandler(terminal))
+        let safari = try XCTUnwrap(NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Safari"))
+        XCTAssertFalse(LinkScheme.isRefusedHandler(safari))
+    }
+
+    func testWorkflowSchemeResolvesToARefusedApp() throws {
+        // `workflow://` isn't on the scheme denylist; Launch Services hands it to Shortcuts.
+        let app = try XCTUnwrap(NSWorkspace.shared.urlForApplication(toOpen: URL(string: "workflow://")!))
+        XCTAssertTrue(LinkScheme.isRefusedHandler(app))
     }
 
     func testLocalMarkdownAndTextRevealInFinder() {
@@ -133,6 +148,31 @@ final class LinkPolicyTests: XCTestCase {
         let (_, saved) = loadedWebView("hi", baseURL: URL(fileURLWithPath: "/tmp/", isDirectory: true))
         XCTAssertEqual(saved.answers.first?.url, "file:///tmp/")
         XCTAssertEqual(saved.answers.first?.policy, .allow)
+    }
+
+    func testOnlyTheDocumentItselfIsAnOwnLoad() {
+        typealias C = ReadDown.WebView.Coordinator
+        let folder = URL(fileURLWithPath: "/tmp/", isDirectory: true)
+        XCTAssertTrue(C.isOwnLoad(URL(string: "file:///tmp/")!, document: folder))
+        XCTAssertTrue(C.isOwnLoad(URL(string: "file:///tmp/#top")!, document: folder))
+        XCTAssertTrue(C.isOwnLoad(URL(string: "about:blank")!, document: nil))
+        XCTAssertFalse(C.isOwnLoad(URL(string: "file:///etc/passwd")!, document: folder))
+        XCTAssertFalse(C.isOwnLoad(URL(string: "file:///tmp/other.md")!, document: folder))
+        XCTAssertFalse(C.isOwnLoad(URL(string: "about:blank")!, document: folder))
+        XCTAssertFalse(C.isOwnLoad(URL(string: "about:srcdoc")!, document: nil))
+        XCTAssertFalse(C.isOwnLoad(URL(string: "file:///etc/passwd")!, document: nil))
+    }
+
+    func testScriptedNavigationToAboutPagesIsCancelled() {
+        let folder = URL(fileURLWithPath: "/tmp/", isDirectory: true)
+        for target in ["about:srcdoc", "about:blank"] {
+            let (webView, coordinator) = loadedWebView("hi", baseURL: folder)
+            coordinator.answers.removeAll()
+            webView.evaluateJavaScript("location.href = '\(target)'")
+            pump(until: { !coordinator.answers.isEmpty })
+            XCTAssertEqual(coordinator.answers.first?.url, target)
+            XCTAssertEqual(coordinator.answers.first?.policy, .cancel, target)
+        }
     }
 
     func testClickOnCustomSchemeLinkIsCancelledInTheWebView() {

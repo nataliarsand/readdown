@@ -336,9 +336,9 @@ struct WebView: NSViewRepresentable {
                 decisionHandler(.cancel)
                 return
             }
-            // Anything that isn't a click is our own `loadHTMLString`; it never leaves the document.
+            // The only non-click navigation we make is our own `loadHTMLString`; it never leaves the document.
             if navigationAction.navigationType != .linkActivated {
-                decisionHandler(Coordinator.isOwnLoad(url) ? .allow : .cancel)
+                decisionHandler(Coordinator.isOwnLoad(url, document: baseURL) ? .allow : .cancel)
                 return
             }
             switch Coordinator.linkDecision(for: url, page: webView.url) {
@@ -358,8 +358,16 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        static func isOwnLoad(_ url: URL) -> Bool {
-            url.isFileURL || url.scheme == "about"
+        /// `loadHTMLString` reports the baseURL, or `about:blank` without one; nothing else is ours.
+        static func isOwnLoad(_ url: URL, document: URL?) -> Bool {
+            let own = document ?? URL(string: "about:blank")
+            return withoutFragment(url) == own.map(withoutFragment)
+        }
+
+        private static func withoutFragment(_ url: URL) -> String {
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.fragment = nil
+            return components?.string ?? url.absoluteString
         }
 
         enum LinkDecision: Equatable {
@@ -378,12 +386,13 @@ struct WebView: NSViewRepresentable {
                                                 userInfo: ["text": "No app on this Mac opens \(scheme) links"])
                 return
             }
+            guard !LinkScheme.isRefusedHandler(appURL) else { return }
             var appName = FileManager.default.displayName(atPath: appURL.path)
             if appName.hasSuffix(".app") { appName.removeLast(4) }
 
             let alert = NSAlert()
             alert.messageText = "Open this link in \(appName)?"
-            alert.informativeText = Self.middleTruncated(url.absoluteString, limit: 120)
+            alert.informativeText = Self.tailTruncated(url.absoluteString, limit: 120)
             alert.addButton(withTitle: "Open")
             alert.addButton(withTitle: "Cancel")
             alert.beginSheetModal(for: window) { response in
@@ -396,11 +405,10 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        static func middleTruncated(_ text: String, limit: Int) -> String {
+        /// A spliced middle could read as a different link; only a true prefix is shown.
+        static func tailTruncated(_ text: String, limit: Int) -> String {
             guard text.count > limit else { return text }
-            let head = limit / 2
-            let tail = limit - head - 1
-            return text.prefix(head) + "…" + text.suffix(tail)
+            return text.prefix(limit - 1) + "…"
         }
 
         static func linkDecision(for url: URL, page: URL?) -> LinkDecision {
