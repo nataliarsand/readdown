@@ -60,7 +60,7 @@ Source-available. You may view, study, and contribute, but redistribution is not
 
 ## Support
 
-If you find Readdown useful, you can [buy me a coffee](https://www.paypal.com/donate/?hosted_button_id=EFG82PKZJU3RC).
+Readdown is free, with no ads and no account. If it's useful to you, you can [support it](https://readdown.app/support?src=readme), once, monthly, or as a founding member. Everyone who helps is on the [thanks wall](https://readdown.app/thanks).
 
 ## Sponsor a release
 
