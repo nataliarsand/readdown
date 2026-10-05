@@ -209,7 +209,7 @@ struct WelcomeView: View {
                 VersionBadge()
             }
 
-            Link(destination: URL(string: "https://readdown.app/#changelog")!) {
+            Link(destination: URL(string: "https://readdown.app/changelog")!) {
                 Text("See what's new \u{2192}")
                     .font(.subheadline)
             }

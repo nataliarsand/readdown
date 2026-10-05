@@ -4,7 +4,7 @@ import SwiftUI
 /// Shown on this release's update screen; empty hides the list.
 enum ReleaseHighlights {
     static let items: [String] = []
-    static let changelogURL = URL(string: "https://readdown.app/#changelog")!
+    static let changelogURL = URL(string: "https://readdown.app/changelog")!
 }
 
 final class SupportAskWindow: NSObject, NSWindowDelegate {
