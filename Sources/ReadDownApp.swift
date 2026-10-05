@@ -413,7 +413,7 @@ struct ReadDownApp: App {
             }
             CommandGroup(replacing: .help) {
                 Button("Readdown Help") {
-                    NSWorkspace.shared.open(URL(string: "https://readdown.app/#faq")!)
+                    NSWorkspace.shared.open(URL(string: "https://readdown.app/help")!)
                 }
                 Button("Keyboard Shortcuts…") {
                     ShortcutsHelp.show()
