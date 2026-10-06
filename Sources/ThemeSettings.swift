@@ -305,6 +305,7 @@ final class ThemePreferences: ObservableObject {
     static let appearanceKey = "readerAppearanceMode"
     static let lightThemeKey = "readerLightTheme"
     static let darkThemeKey = "readerDarkTheme"
+    private static let legacyAppearanceKey = "appearanceMode"
 
     @Published var appearanceMode: ReaderAppearanceMode {
         didSet {
@@ -336,8 +337,11 @@ final class ThemePreferences: ObservableObject {
     init(store: UserDefaults = .standard, appliesApplicationAppearance: Bool = true) {
         self.store = store
         self.appliesApplicationAppearance = appliesApplicationAppearance
+        let storedAppearance = store.string(forKey: Self.appearanceKey)
+        let legacyAppearance = store.string(forKey: Self.legacyAppearanceKey)
+        let migratedAppearance = legacyAppearance == "system" ? "automatic" : legacyAppearance
         appearanceMode = ReaderAppearanceMode(
-            rawValue: store.string(forKey: Self.appearanceKey) ?? ""
+            rawValue: storedAppearance ?? migratedAppearance ?? ""
         ) ?? .automatic
         lightTheme = ReaderThemeFamily(
             rawValue: store.string(forKey: Self.lightThemeKey) ?? ""
@@ -645,11 +649,7 @@ private struct PaletteSwatches: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            ForEach(
-                [palette.background, palette.text, palette.link,
-                 palette.purple, palette.green, palette.orange],
-                id: \.self
-            ) { color in
+            ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
                 Circle()
                     .fill(color.color)
                     .frame(width: 10, height: 10)
@@ -657,6 +657,11 @@ private struct PaletteSwatches: View {
             }
         }
         .accessibilityLabel("\(palette.displayName) palette preview")
+    }
+
+    private var colors: [ReaderColor] {
+        [palette.background, palette.text, palette.link,
+         palette.purple, palette.green, palette.orange]
     }
 }
 

@@ -40,6 +40,27 @@ final class ThemeSettingsTests: XCTestCase {
         XCTAssertEqual(restored.palette(for: .dark).displayName, "Nord Polar Night")
     }
 
+    func testMigratesTheExistingAppearancePreference() {
+        store.set("system", forKey: "appearanceMode")
+        XCTAssertEqual(
+            ThemePreferences(store: store, appliesApplicationAppearance: false).appearanceMode,
+            .automatic
+        )
+
+        store.set("dark", forKey: "appearanceMode")
+        XCTAssertEqual(
+            ThemePreferences(store: store, appliesApplicationAppearance: false).appearanceMode,
+            .dark
+        )
+
+        store.set("light", forKey: ThemePreferences.appearanceKey)
+        XCTAssertEqual(
+            ThemePreferences(store: store, appliesApplicationAppearance: false).appearanceMode,
+            .light,
+            "The new preference must take precedence after migration"
+        )
+    }
+
     func testAutomaticFollowsSystemAppearance() {
         let preferences = ThemePreferences(store: store, appliesApplicationAppearance: false)
         XCTAssertEqual(preferences.resolvedScheme(systemIsDark: false), .light)
