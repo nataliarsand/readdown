@@ -473,7 +473,7 @@ struct AboutView: View {
 
             Divider().frame(width: 160)
 
-            Text("Built by Natalia at [Eixo.design](https://eixo.design/?utm_source=readdown&utm_medium=app&utm_campaign=about) with help from its [contributors](https://github.com/nataliarsand/readdown/graphs/contributors).")
+            Text("Built by Natalia at [Eixo.design](https://eixo.design/?utm_source=readdown&utm_medium=app&utm_campaign=about) with help from its [contributors and sponsors](https://readdown.app/thanks).")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .tint(.primary)
