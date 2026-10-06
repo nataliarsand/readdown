@@ -2,6 +2,23 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.18.1
+
+A small update that makes links in documents safer. Nothing changes in how you use Readdown.
+
+### Fixed
+- Safer handling of links in documents
+- Updated the built-in updater
+
+### Details
+
+A small update that makes links in documents safer. Nothing changes in how you use Readdown.
+
+**Fixed**
+
+- Safer handling of links in documents.
+- Sparkle, the framework that delivers updates, is updated to 2.10.
+
 ## 1.18
 
 ### New
