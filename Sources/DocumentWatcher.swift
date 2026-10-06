@@ -20,17 +20,38 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
     var presentedItemURL: URL? { fileURL }
     let presentedItemOperationQueue: OperationQueue = .main
 
-    private var isDark: Bool
+    private var palette: ReaderThemePalette
+    private let themeProvider: (Bool) -> ReaderThemePalette
     private var isRegistered = false
     private var reloadWorkItem: DispatchWorkItem?
     private var appearanceObservation: NSKeyValueObservation?
     private var lastResult: MarkdownRenderer.Result
+    private var themeObservation: NSObjectProtocol?
 
-    init(initialText: String, fileURL: URL?, isDark: Bool) {
+    convenience init(initialText: String, fileURL: URL?, isDark: Bool) {
+        let provider: (Bool) -> ReaderThemePalette = { dark in
+            ReaderThemeCatalog.palette(for: .default, scheme: dark ? .dark : .light)
+        }
+        self.init(
+            initialText: initialText,
+            fileURL: fileURL,
+            initialPalette: provider(isDark),
+            themeProvider: provider
+        )
+    }
+
+    init(initialText: String, fileURL: URL?, initialPalette: ReaderThemePalette,
+         themeProvider: @escaping (Bool) -> ReaderThemePalette) {
         let result = MarkdownRenderer.render(initialText)
-        self.isDark = isDark
-        self.lastResult = result
-        self.html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
+        palette = initialPalette
+        self.themeProvider = themeProvider
+        lastResult = result
+        html = HTMLTemplate.wrap(
+            body: result.html,
+            hasMermaid: result.hasMermaid,
+            hasMath: result.hasMath,
+            palette: initialPalette
+        )
         self.text = initialText
         self.fileURL = fileURL
         super.init()
@@ -45,11 +66,23 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
                 self?.appearanceDidChange(isDark: dark)
             }
         }
+        themeObservation = NotificationCenter.default.addObserver(
+            forName: .readerThemeDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            let dark = NSApplication.shared.effectiveAppearance.isDark
+            self.applyTheme(self.themeProvider(dark))
+        }
     }
 
     deinit {
         if isRegistered {
             NSFileCoordinator.removeFilePresenter(self)
+        }
+        if let themeObservation {
+            NotificationCenter.default.removeObserver(themeObservation)
         }
     }
 
@@ -76,7 +109,12 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
         if decodedText != text { text = decodedText }
         let result = MarkdownRenderer.render(decodedText)
         lastResult = result
-        let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
+        let next = HTMLTemplate.wrap(
+            body: result.html,
+            hasMermaid: result.hasMermaid,
+            hasMath: result.hasMath,
+            palette: palette
+        )
         if next != html {
             lastChangeSource = .disk
             html = next
@@ -85,9 +123,23 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
 
     /// Internal so tests can drive a theme change without flipping the system.
     func appearanceDidChange(isDark dark: Bool) {
-        guard dark != isDark else { return }
-        isDark = dark
+        applyTheme(themeProvider(dark))
+    }
+
+    /// Internal so tests can verify a family change without mutating shared defaults.
+    func themeDidChange(to palette: ReaderThemePalette) {
+        applyTheme(palette)
+    }
+
+    private func applyTheme(_ nextPalette: ReaderThemePalette) {
+        guard nextPalette != palette else { return }
+        palette = nextPalette
         lastChangeSource = .appearance
-        html = HTMLTemplate.wrap(body: lastResult.html, hasMermaid: lastResult.hasMermaid, hasMath: lastResult.hasMath, isDark: dark)
+        html = HTMLTemplate.wrap(
+            body: lastResult.html,
+            hasMermaid: lastResult.hasMermaid,
+            hasMath: lastResult.hasMath,
+            palette: nextPalette
+        )
     }
 }

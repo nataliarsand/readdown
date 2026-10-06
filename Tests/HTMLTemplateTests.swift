@@ -12,9 +12,10 @@ final class HTMLTemplateTests: XCTestCase {
     }
 
     func testIncludesDarkModeSupport() {
-        let result = HTMLTemplate.wrap(body: "")
-        XCTAssertTrue(result.contains("prefers-color-scheme: dark"))
-        XCTAssertTrue(result.contains("color-scheme\" content=\"light dark"))
+        XCTAssertTrue(HTMLTemplate.wrap(body: "", isDark: false)
+            .contains("color-scheme\" content=\"light"))
+        XCTAssertTrue(HTMLTemplate.wrap(body: "", isDark: true)
+            .contains("color-scheme\" content=\"dark"))
     }
 
     func testIncludesCharsetMeta() {
@@ -33,6 +34,24 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(HTMLTemplate.wrap(body: "", isDark: false).contains("data-rd-theme=\"light\""))
     }
 
+    func testInjectsSelectedThemePalette() {
+        let palette = ReaderThemeCatalog.palette(for: .catppuccin, scheme: .light)
+        let result = HTMLTemplate.wrap(body: "", palette: palette)
+        XCTAssertTrue(result.contains("data-rd-theme-family=\"catppuccin\""))
+        XCTAssertTrue(result.contains("--bg: #EFF1F5"))
+        XCTAssertTrue(result.contains("--text: #4C4F69"))
+        XCTAssertTrue(result.contains("--syntax-keyword: #8839EF"))
+    }
+
+    func testSyntaxHighlightUsesThemeVariables() {
+        let result = HTMLTemplate.wrap(body: "<pre><code class=\"language-swift\">let x = 1</code></pre>")
+        XCTAssertTrue(result.contains(".hljs-keyword"))
+        XCTAssertTrue(result.contains("color: var(--syntax-keyword)"))
+        XCTAssertTrue(result.contains("background: var(--code-bg)"))
+    }
+
+    // MARK: - Header blur (main app only)
+
     func testHeaderBlurPresentInMainApp() {
         let result = HTMLTemplate.wrap(body: "")
         XCTAssertTrue(result.contains("backdrop-filter"))
@@ -43,6 +62,43 @@ final class HTMLTemplateTests: XCTestCase {
         let result = HTMLTemplate.wrap(body: "", compact: true)
         XCTAssertFalse(result.contains("backdrop-filter"))
     }
+
+    // MARK: - Table of contents (main app only)
+
+    func testTableOfContentsAssetsPresentInMainApp() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("rd-table-of-contents"))
+        XCTAssertTrue(result.contains("window.__rdTableOfContents"))
+        XCTAssertTrue(result.contains("data-rd-search-exclude"))
+    }
+
+    func testTableOfContentsUsesReaderHairlineBorder() {
+        let light = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        let dark = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>", isDark: true)
+        XCTAssertTrue(light.contains("--hairline: rgba(31, 35, 40, 0.08)"))
+        XCTAssertTrue(dark.contains("--hairline: rgba(230, 237, 243, 0.08)"))
+        XCTAssertTrue(light.contains("border: 1px solid var(--hairline)"))
+        XCTAssertTrue(light.contains("border-bottom: 1px solid var(--hairline)"))
+    }
+
+    func testTableOfContentsMatchesReaderChromeGeometry() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("right: 2px"))
+        XCTAssertTrue(result.contains("border-radius: 17px"))
+    }
+
+    func testTableOfContentsAbsentInQuickLook() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>", compact: true)
+        XCTAssertFalse(result.contains("rd-table-of-contents"))
+        XCTAssertFalse(result.contains("window.__rdTableOfContents"))
+    }
+
+    func testPrintHidesTableOfContents() {
+        let result = HTMLTemplate.wrap(body: "<h1 id=\"intro\">Intro</h1>")
+        XCTAssertTrue(result.contains("#rd-table-of-contents { display: none !important; }"))
+    }
+
+    // MARK: - Print / Export as PDF contract
 
     func testPrintDisablesHeaderBlur() {
         // A fixed-position ::before would repeat on every printed page.

@@ -34,6 +34,41 @@ final class DocumentWatcherTests: XCTestCase {
         XCTAssertEqual(watcher.html, before)
     }
 
+    func testThemeFamilyChangeReRendersWithoutChangingText() {
+        let watcher = DocumentWatcher(initialText: "# Hi\n\nBody", fileURL: nil, isDark: false)
+        let palette = ReaderThemeCatalog.palette(for: .nord, scheme: .light)
+        watcher.themeDidChange(to: palette)
+        XCTAssertTrue(watcher.html.contains("data-rd-theme-family=\"nord\""))
+        XCTAssertTrue(watcher.html.contains("--bg: #ECEFF4"))
+        XCTAssertEqual(watcher.text, "# Hi\n\nBody")
+        XCTAssertEqual(watcher.lastChangeSource, .appearance)
+    }
+
+    func testPreferenceNotificationReRendersCurrentThemeFamily() {
+        let suiteName = "com.heya.readdown.document-watcher-theme-tests"
+        let store = UserDefaults(suiteName: suiteName)!
+        store.removePersistentDomain(forName: suiteName)
+        defer { store.removePersistentDomain(forName: suiteName) }
+        let preferences = ThemePreferences(store: store, appliesApplicationAppearance: false)
+        preferences.appearanceMode = .light
+        let provider: (Bool) -> ReaderThemePalette = { dark in
+            preferences.palette(systemIsDark: dark)
+        }
+        let watcher = DocumentWatcher(
+            initialText: "# Hi",
+            fileURL: nil,
+            initialPalette: provider(false),
+            themeProvider: provider
+        )
+
+        preferences.lightTheme = .ayu
+
+        XCTAssertTrue(watcher.html.contains("data-rd-theme-family=\"ayu\""))
+        XCTAssertTrue(watcher.html.contains("--bg: #FAFAFA"))
+    }
+
+    // MARK: - Disk reload (feeds auto-refresh and Copy to Clipboard)
+
     func testDiskChangeUpdatesHtmlAndText() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)

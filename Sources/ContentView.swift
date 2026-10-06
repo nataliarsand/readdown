@@ -4,42 +4,17 @@ extension NSAppearance {
     var isDark: Bool { bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
 }
 
-/// Applied app-wide: `DocumentWatcher` observes `effectiveAppearance` and restamps the page.
-enum AppearanceMode: String, CaseIterable, Identifiable {
-    case system, light, dark
-
-    static let key = "appearanceMode"
-    static var current: AppearanceMode {
-        AppearanceMode(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .system
-    }
-
-    var id: String { rawValue }
-    var label: String {
-        switch self {
-        case .system: "System"
-        case .light: "Light"
-        case .dark: "Dark"
-        }
-    }
-
-    func apply() {
-        NSApp.appearance = switch self {
-        case .system: nil
-        case .light: NSAppearance(named: .aqua)
-        case .dark: NSAppearance(named: .darkAqua)
-        }
-    }
-}
-
 enum ReaderTheme {
-    /// Matches the page `--bg`.
-    static let pageBackground = dynamic(light: (0xFC, 0xFC, 0xFB), dark: (0x0D, 0x11, 0x17))
-    static let pill = Color(nsColor: dynamic(light: (0xFF, 0xFF, 0xFF), dark: (0x16, 0x1B, 0x22)))
-    /// Matches the page `--success`.
-    static let success = Color(nsColor: dynamic(light: (0x1F, 0x96, 0x2C), dark: (0x2E, 0xBE, 0x3D)))
+    static var activePalette: ReaderThemePalette {
+        ThemePreferences.shared.palette(systemIsDark: NSApp.effectiveAppearance.isDark)
+    }
+
+    static var pageBackground: NSColor { activePalette.background.nsColor }
+    static var pill: Color { activePalette.surface.color }
+    static var success: Color { activePalette.green.color }
     static var successFill: Color { success.opacity(0.1) }
     static var successBorder: Color { success.opacity(0.25) }
-    static let hairline = Color.primary.opacity(0.08)
+    static var hairline: Color { activePalette.text.color.opacity(0.08) }
     static let hoverFill = Color.primary.opacity(0.07)
 
     static let controlRadius: CGFloat = 8
@@ -56,17 +31,6 @@ enum ReaderTheme {
     static let headerLeadingClearance: CGFloat = 76
     static let headerEdgePadding: CGFloat = 12
 
-    private static func dynamic(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
-        NSColor(name: nil) { appearance in
-            let rgb = appearance.isDark ? dark : light
-            return NSColor(
-                srgbRed: CGFloat(rgb.0) / 255,
-                green: CGFloat(rgb.1) / 255,
-                blue: CGFloat(rgb.2) / 255,
-                alpha: 1
-            )
-        }
-    }
 }
 
 extension View {
@@ -88,6 +52,8 @@ final class FindState: ObservableObject {
 
 struct ContentView: View {
     @StateObject private var watcher: DocumentWatcher
+    @ObservedObject private var themePreferences = ThemePreferences.shared
+    @Environment(\.colorScheme) private var colorScheme
     let baseURL: URL?
     let fileURL: URL?
     @StateObject private var findState = FindState()
@@ -99,7 +65,15 @@ struct ContentView: View {
     init(document: MarkdownDocument, baseURL: URL?, fileURL: URL? = nil) {
         // Appearance source of truth is `NSAppearance`; WebKit's media query is unreliable here.
         let isDark = NSApp.effectiveAppearance.isDark
-        _watcher = StateObject(wrappedValue: DocumentWatcher(initialText: document.text, fileURL: fileURL, isDark: isDark))
+        let provider: (Bool) -> ReaderThemePalette = { systemIsDark in
+            ThemePreferences.shared.palette(systemIsDark: systemIsDark)
+        }
+        _watcher = StateObject(wrappedValue: DocumentWatcher(
+            initialText: document.text,
+            fileURL: fileURL,
+            initialPalette: provider(isDark),
+            themeProvider: provider
+        ))
         self.baseURL = baseURL
         self.fileURL = fileURL
     }
@@ -161,6 +135,12 @@ struct ContentView: View {
             if watcher.lastChangeSource == .disk {
                 showToast(Toast(text: "Updated", kind: .info))
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .readerThemeDidChange)) { _ in
+            window?.backgroundColor = ReaderTheme.pageBackground
+        }
+        .onChange(of: colorScheme) { _ in
+            window?.backgroundColor = ReaderTheme.pageBackground
         }
     }
 
