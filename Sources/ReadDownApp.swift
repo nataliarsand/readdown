@@ -500,7 +500,7 @@ private struct AboutActionButton: View {
             .frame(height: 60)
             .background(
                 RoundedRectangle(cornerRadius: ReaderTheme.controlRadius, style: .continuous)
-                    .fill(Color.primary.opacity(hovered ? 0.10 : 0.05))
+                    .fill(hovered ? ReaderTheme.tileHoverFill : ReaderTheme.tileFill)
             )
         }
         .buttonStyle(.plain)

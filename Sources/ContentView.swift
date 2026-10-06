@@ -41,6 +41,8 @@ enum ReaderTheme {
     static var successBorder: Color { success.opacity(0.25) }
     static let hairline = Color.primary.opacity(0.08)
     static let hoverFill = Color.primary.opacity(0.07)
+    static let tileFill = Color.primary.opacity(0.08)
+    static let tileHoverFill = Color.primary.opacity(0.13)
 
     static let controlRadius: CGFloat = 8
     static let panelRadius: CGFloat = 12
