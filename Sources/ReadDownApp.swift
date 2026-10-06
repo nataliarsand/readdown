@@ -110,7 +110,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             return
         }
         let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: AboutView.windowSize),
+            contentRect: NSRect(x: 0, y: 0, width: WindowLayout.width, height: 0),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -119,8 +119,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
-        window.center()
         window.contentView = NSHostingView(rootView: AboutView())
+        window.setContentSize(window.contentView?.fittingSize ?? .zero)
+        window.center()
         window.makeKeyAndOrderFront(nil)
         aboutWindow = window
     }
@@ -443,44 +444,26 @@ struct ReadDownApp: App {
 }
 
 struct AboutView: View {
-    static let windowSize = NSSize(width: 380, height: 452)
-
     private var version: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "\(short) (\(build))"
     }
 
+    private var year: String { String(Calendar.current.component(.year, from: Date())) }
+
     var body: some View {
-        VStack(spacing: 16) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 76, height: 76)
+        VStack(spacing: WindowLayout.spacing) {
+            WindowHeader(version: version)
 
-            VStack(spacing: 3) {
-                Text("Readdown")
-                    .font(.system(size: 22, weight: .semibold))
-                Text("Version \(version)")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            Divider()
 
-            Text("A clean, fast Markdown reader for macOS. Just open or hit space on any .md file to read it.")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            WindowMessage(
+                title: "A clean, fast Markdown reader.",
+                message: "Just open or hit space on any .md file to read it. Built by Natalia at [Eixo.design](https://eixo.design/?utm_source=readdown&utm_medium=app&utm_campaign=about) with help from its [contributors and sponsors](https://readdown.app/thanks)."
+            )
 
-            Divider().frame(width: 160)
-
-            Text("Built by Natalia at [Eixo.design](https://eixo.design/?utm_source=readdown&utm_medium=app&utm_campaign=about) with help from its [contributors and sponsors](https://readdown.app/thanks).")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .tint(.primary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 AboutActionButton(icon: "star.bubble", title: "Feedback",
                                   url: "https://www.producthunt.com/products/readdown/reviews/new")
                 AboutActionButton(icon: "ladybug", title: "Report a Bug",
@@ -489,13 +472,12 @@ struct AboutView: View {
                                   url: "https://readdown.app/support?src=about")
             }
 
-            Link("readdown.app", destination: URL(string: "https://readdown.app")!)
-                .font(.caption)
+            WindowFooter {
+                Text("\u{00A9} \(year) Readdown")
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 36)
-        .padding(.bottom, 24)
-        .frame(width: AboutView.windowSize.width)
+        .windowContent()
     }
 }
 
@@ -511,12 +493,13 @@ private struct AboutActionButton: View {
                 Image(systemName: icon)
                     .font(.system(size: 17))
                 Text(title)
-                    .font(.caption2)
+                    .font(WindowType.tile)
             }
             .foregroundStyle(.primary)
-            .frame(width: 92, height: 60)
+            .frame(maxWidth: .infinity)
+            .frame(height: 60)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: ReaderTheme.controlRadius, style: .continuous)
                     .fill(Color.primary.opacity(hovered ? 0.10 : 0.05))
             )
         }

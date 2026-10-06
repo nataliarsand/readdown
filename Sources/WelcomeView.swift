@@ -1,22 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct VersionBadge: View {
-    var version: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-
-    var body: some View {
-        Text(version)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color(nsColor: .quaternaryLabelColor))
-            )
-    }
-}
-
 enum ShortcutsHelp {
     static func show() {
         let alert = NSAlert()

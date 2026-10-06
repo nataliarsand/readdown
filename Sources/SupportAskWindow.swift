@@ -9,7 +9,6 @@ enum ReleaseHighlights {
 
 final class SupportAskWindow: NSObject, NSWindowDelegate {
     static let shared = SupportAskWindow()
-    static let width: CGFloat = 380
 
     private var window: NSWindow?
     private var answered = false
@@ -18,7 +17,7 @@ final class SupportAskWindow: NSObject, NSWindowDelegate {
         guard window == nil else { return }
         answered = false
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 0),
+            contentRect: NSRect(x: 0, y: 0, width: WindowLayout.width, height: 0),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -70,37 +69,25 @@ private struct SupportAskView: View {
     let answer: (SupportAsk.Answer) -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 64, height: 64)
+        VStack(spacing: WindowLayout.spacing) {
+            WindowHeader(showsWhatsNew: ReleaseHighlights.items.isEmpty)
 
-            HStack(spacing: 6) {
-                Text("Readdown")
-                    .font(.headline)
-                VersionBadge()
-            }
+            Divider()
 
-            whatsNew
+            highlights
 
-            VStack(spacing: 4) {
-                Text("Thanks for reading with Readdown.")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("It's free and built independently in my spare time. No ads, no account, your docs never leave your Mac.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("Natalia")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            WindowMessage(
+                title: "Thanks for reading with Readdown.",
+                message: "It's free and built independently in my spare time. No ads, no account, your docs never leave your Mac.",
+                signature: "Natalia"
+            )
 
             VStack(spacing: 8) {
                 Button {
                     answer(.support)
                 } label: {
-                    Label("Support Readdown", systemImage: "cup.and.saucer")
+                    Label("Support Readdown", systemImage: "heart")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -110,32 +97,22 @@ private struct SupportAskView: View {
                     answer(.later)
                 }
                 .buttonStyle(.link)
-                .font(.system(size: 12))
+                .font(WindowType.body)
                 .keyboardShortcut(.cancelAction)
             }
 
-            Divider()
-
-            HStack {
-                Spacer()
+            WindowFooter {
                 Button("I already chipped in") {
                     answer(.alreadySupported)
                 }
                 .buttonStyle(.link)
-                .font(.caption)
             }
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 36)
-        .padding(.bottom, 18)
-        .frame(width: SupportAskWindow.width)
+        .windowContent()
     }
 
-    @ViewBuilder private var whatsNew: some View {
-        if ReleaseHighlights.items.isEmpty {
-            Link("See what's new \u{2192}", destination: ReleaseHighlights.changelogURL)
-                .font(.subheadline)
-        } else {
+    @ViewBuilder private var highlights: some View {
+        if !ReleaseHighlights.items.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text("NEW IN THIS VERSION")
                     .font(.caption2)
