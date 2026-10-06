@@ -12,7 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // Skip the launch sequence when hosting the test runner.
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
 
-        AppearanceMode.current.apply()
+        ThemePreferences.shared.applyApplicationAppearance()
         resetQuickLook()
         _ = checkForUpdatesViewModel // eager: the Check for Updates menu item won't render if this resolves later
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -293,14 +293,14 @@ struct CheckForUpdatesView: View {
 @main
 struct ReadDownApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var themePreferences = ThemePreferences.shared
+    @StateObject private var typographyPreferences = TypographyPreferences.shared
     @AppStorage(UsageMetrics.consentKey) private var shareUsageData = false
-    @AppStorage(AppearanceMode.key) private var appearanceMode = AppearanceMode.system
 
-    /// Applies on set rather than via `onChange`, which doesn't fire for a menu Picker.
-    private var appearanceSelection: Binding<AppearanceMode> {
-        Binding(get: { appearanceMode }, set: { mode in
-            appearanceMode = mode
-            mode.apply()
+    /// Shares one preference source with Settings so the View menu and reader palette cannot diverge.
+    private var appearanceSelection: Binding<ReaderAppearanceMode> {
+        Binding(get: { themePreferences.appearanceMode }, set: { mode in
+            themePreferences.appearanceMode = mode
             UsageMetrics.record(.appearance)
         })
     }
@@ -362,8 +362,8 @@ struct ReadDownApp: App {
             }
             CommandGroup(after: .toolbar) {
                 Picker("Appearance", selection: appearanceSelection) {
-                    ForEach(AppearanceMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
+                    ForEach(ReaderAppearanceMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
                     }
                 }
 
@@ -425,6 +425,20 @@ struct ReadDownApp: App {
                     }
                 ))
             }
+        }
+
+        Settings {
+            TabView {
+                ThemeSettingsView(
+                    preferences: themePreferences,
+                    typographyPreferences: typographyPreferences
+                )
+                    .tabItem { Label("Themes", systemImage: "paintpalette") }
+                TypographySettingsView(preferences: typographyPreferences)
+                    .tabItem { Label("Typography", systemImage: "textformat") }
+            }
+            .font(typographyPreferences.typography.ui.swiftUIFont)
+            .frame(width: 560, height: 460)
         }
     }
 

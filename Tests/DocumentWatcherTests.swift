@@ -34,6 +34,56 @@ final class DocumentWatcherTests: XCTestCase {
         XCTAssertEqual(watcher.html, before)
     }
 
+    func testThemeFamilyChangeReRendersWithoutChangingText() {
+        let watcher = DocumentWatcher(initialText: "# Hi\n\nBody", fileURL: nil, isDark: false)
+        let palette = ReaderThemeCatalog.palette(for: .nord, scheme: .light)
+        watcher.themeDidChange(to: palette)
+        XCTAssertTrue(watcher.html.contains("data-rd-theme-family=\"nord\""))
+        XCTAssertTrue(watcher.html.contains("--bg: #ECEFF4"))
+        XCTAssertEqual(watcher.text, "# Hi\n\nBody")
+        XCTAssertEqual(watcher.lastChangeSource, .appearance)
+    }
+
+    func testPreferenceNotificationReRendersCurrentThemeFamily() {
+        let suiteName = "com.heya.readdown.document-watcher-theme-tests"
+        let store = UserDefaults(suiteName: suiteName)!
+        store.removePersistentDomain(forName: suiteName)
+        defer { store.removePersistentDomain(forName: suiteName) }
+        let preferences = ThemePreferences(store: store, appliesApplicationAppearance: false)
+        preferences.appearanceMode = .light
+        let provider: (Bool) -> ReaderThemePalette = { dark in
+            preferences.palette(systemIsDark: dark)
+        }
+        let watcher = DocumentWatcher(
+            initialText: "# Hi",
+            fileURL: nil,
+            initialPalette: provider(false),
+            themeProvider: provider
+        )
+
+        preferences.lightTheme = .ayu
+
+        XCTAssertTrue(watcher.html.contains("data-rd-theme-family=\"ayu\""))
+        XCTAssertTrue(watcher.html.contains("--bg: #FAFAFA"))
+    }
+
+    func testTypographyChangeReRendersWithoutChangingText() {
+        let watcher = DocumentWatcher(initialText: "# Hi\n\nBody", fileURL: nil, isDark: false)
+        let typography = ReaderTypography(
+            ui: .defaultUI,
+            body: ReaderFontSelection(family: "Avenir Next", weight: .medium, size: 19),
+            code: ReaderFontSelection(family: "Menlo", weight: .regular, size: 15)
+        )
+        watcher.typographyDidChange(to: typography)
+        XCTAssertTrue(watcher.html.contains("--body-font-family: \"Avenir Next\""))
+        XCTAssertTrue(watcher.html.contains("--body-font-size: 19px"))
+        XCTAssertTrue(watcher.html.contains("--code-font-family: \"Menlo\""))
+        XCTAssertEqual(watcher.text, "# Hi\n\nBody")
+        XCTAssertEqual(watcher.lastChangeSource, .appearance)
+    }
+
+    // MARK: - Disk reload (feeds auto-refresh and Copy to Clipboard)
+
     func testDiskChangeUpdatesHtmlAndText() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)

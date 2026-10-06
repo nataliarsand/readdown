@@ -55,7 +55,15 @@ enum HTMLTemplate {
         return css
     }()
 
-    static func wrap(body: String, hasMermaid: Bool = false, hasMath: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
+    static func wrap(body: String, hasMermaid: Bool = false, hasMath: Bool = false,
+                     compact: Bool = false, isDark: Bool = false,
+                     palette customPalette: ReaderThemePalette? = nil,
+                     typography: ReaderTypography = .default) -> String {
+        let palette = customPalette ?? ReaderThemeCatalog.palette(
+            for: .default,
+            scheme: isDark ? .dark : .light
+        )
+        let rendersDark = palette.scheme.isDark
         let fontSize = compact ? "14px" : "16px"
         // Extra clearance for the floating header; Quick Look (compact) has none.
         let topPadding = compact ? "32px" : "64px"
@@ -81,38 +89,12 @@ enum HTMLTemplate {
         <head>
         <meta charset="utf-8">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src file: data: https: http:; font-src \(hasMath ? "data:" : "'none'"); connect-src 'none'; form-action 'none';">
-        <meta name="color-scheme" content="light dark">
+        <meta name="color-scheme" content="\(rendersDark ? "dark" : "light")">
         <style>
         :root {
-            --text: #1f2328;
-            --bg: #fcfcfb;              /* must match ReaderTheme.pageBackground */
-            --muted: #57606a;
-            --code-bg: #eef1f5;
-            --border: #d0d7de;
-            --link: #0969da;
-            --success: #1f962c;         /* must match ReaderTheme.success */
-            --link-underline: rgba(9, 105, 218, 0.35);
-            --blockquote-border: #d0d7de;
-            --table-stripe: #f2f4f7;
-            --table-header: #eef1f5;
-            --scrollbar-thumb: rgba(0, 0, 0, 0.32);
-        }
-
-        @media screen and (prefers-color-scheme: dark) {
-            :root {
-                --text: #e6edf3;
-                --bg: #0d1117;
-                --muted: #9198a1;       /* WCAG AA against --bg */
-                --code-bg: #161b22;
-                --border: #3d444d;
-                --link: #58a6ff;
-                --success: #2ebe3d;
-                --link-underline: rgba(88, 166, 255, 0.40);
-                --blockquote-border: #30363d;
-                --table-stripe: #161b22;
-                --table-header: #252c35;
-                --scrollbar-thumb: rgba(255, 255, 255, 0.32);
-            }
+            color-scheme: \(rendersDark ? "dark" : "light");
+            \(palette.cssVariables)
+            \(typography.cssVariables)
         }
 
         * {
@@ -126,9 +108,9 @@ enum HTMLTemplate {
         \(headerBlur)
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-                         "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji";
-            font-size: \(fontSize);
+            font-family: var(--body-font-family), "Apple Color Emoji";
+            font-size: \(compact ? fontSize : "var(--body-font-size)");
+            font-weight: var(--body-font-weight);
             line-height: 1.6;
             color: var(--text);
             background: var(--bg);
@@ -202,8 +184,9 @@ enum HTMLTemplate {
         }
 
         code {
-            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-            font-size: 0.875em;
+            font-family: var(--code-font-family);
+            font-size: var(--code-font-size);
+            font-weight: var(--code-font-weight);
             padding: 0.15em 0.35em;
             background: var(--code-bg);
             border-radius: 4px;
@@ -212,7 +195,9 @@ enum HTMLTemplate {
         pre {
             padding: 16px 20px;
             overflow: auto;
-            font-size: 0.875em;
+            font-family: var(--code-font-family);
+            font-size: var(--code-font-size);
+            font-weight: var(--code-font-weight);
             line-height: 1.55;
             background: var(--code-bg);
             border-radius: 8px;
@@ -409,16 +394,13 @@ enum HTMLTemplate {
         .katex-display { margin: 0 !important; }
         .rd-math-error,
         .katex-error {
-            color: #cf222e;
+            color: var(--danger);
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
             font-size: 0.875em;
             white-space: pre-wrap;
         }
-        @media screen and (prefers-color-scheme: dark) {
-            .rd-math-error,
-            .katex-error { color: #ff7b72; }
-        }
-        /* Scrollbar shows only while body.rd-scrolling is set by script. */
+        /* Autohide scrollbar: invisible by default, fades in while scrolling.
+           Thin Bear-style: ~6px visible thumb (10px track, 2px transparent border). */
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -437,21 +419,39 @@ enum HTMLTemplate {
             background-clip: content-box;
         }
         mark.rd-find {
-            background: #fff59d;
+            background: var(--find-bg);
             color: inherit;
             padding: 0;
             border-radius: 2px;
         }
         mark.rd-find-current {
-            background: #ffa726;
+            background: var(--find-current-bg);
             color: inherit;
-            box-shadow: 0 0 0 2px #f57c00;
-        }
-        @media (prefers-color-scheme: dark) {
-            mark.rd-find { background: #5d4037; color: #fff; }
-            mark.rd-find-current { background: #ef6c00; color: #fff; }
+            box-shadow: 0 0 0 2px var(--syntax-built-in);
         }
         \(SyntaxHighlight.css)
+        /* Theme-aware overrides for the bundled Highlight.js token classes. */
+        .hljs { color: var(--syntax-text); background: var(--code-bg); }
+        .hljs-doctag, .hljs-keyword, .hljs-meta .hljs-keyword,
+        .hljs-template-tag, .hljs-template-variable, .hljs-type,
+        .hljs-variable.language_ { color: var(--syntax-keyword); }
+        .hljs-title, .hljs-title.class_, .hljs-title.class_.inherited__,
+        .hljs-title.function_ { color: var(--syntax-title); }
+        .hljs-attr, .hljs-attribute, .hljs-literal, .hljs-meta, .hljs-number,
+        .hljs-operator, .hljs-selector-attr, .hljs-selector-class,
+        .hljs-selector-id, .hljs-variable { color: var(--syntax-literal); }
+        .hljs-meta .hljs-string, .hljs-regexp, .hljs-string { color: var(--syntax-string); }
+        .hljs-built_in, .hljs-symbol { color: var(--syntax-built-in); }
+        .hljs-code, .hljs-comment, .hljs-formula { color: var(--syntax-comment); }
+        .hljs-name, .hljs-quote, .hljs-selector-pseudo,
+        .hljs-selector-tag { color: var(--syntax-tag); }
+        .hljs-subst, .hljs-emphasis, .hljs-strong { color: var(--syntax-text); }
+        .hljs-section { color: var(--link); font-weight: 700; }
+        .hljs-bullet { color: var(--syntax-built-in); }
+        .hljs-emphasis { font-style: italic; }
+        .hljs-strong { font-weight: 700; }
+        .hljs-addition { color: var(--success); background-color: var(--syntax-addition-bg); }
+        .hljs-deletion { color: var(--danger); background-color: var(--syntax-deletion-bg); }
         @media print {
             body {
                 padding: 0;
@@ -473,7 +473,7 @@ enum HTMLTemplate {
         }
         </style>
         </head>
-        <body data-rd-theme="\(isDark ? "dark" : "light")">
+        <body data-rd-theme="\(rendersDark ? "dark" : "light")" data-rd-theme-family="\(palette.family.rawValue)">
         \(body)
         <script>\(SyntaxHighlight.js)</script>
         <script>
@@ -792,27 +792,57 @@ enum HTMLTemplate {
         <script>
         // Swift stamps data-rd-theme; matchMedia and getComputedStyle report stale values in WKWebView.
         const dark = document.body.dataset.rdTheme === 'dark';
-        // Keep to a built-in theme with these few overrides: `theme: 'base'` or a wider
-        // themeVariables set silently drops per-diagram styling under WKWebView.
-        const themeVars = dark ? {
-            edgeLabelBackground: '#0d1117',
-            pie1: '#58a6ff', pie2: '#f59e0b', pie3: '#34d399',
-            pie4: '#a78bfa', pie5: '#f87171',
-            pieTitleTextColor: '#e6edf3',
-            pieSectionTextColor: '#0d1117',
-            pieLegendTextColor: '#e6edf3',
-            pieStrokeColor: '#0d1117',
-            pieOuterStrokeColor: '#3d444d',
-            pieOpacity: '1'
-        } : {
-            edgeLabelBackground: '#fcfcfb',
-            pie1: '#0969da', pie2: '#f59e0b', pie3: '#10b981',
-            pie4: '#8b5cf6', pie5: '#ef4444',
-            pieTitleTextColor: '#1f2328',
-            pieSectionTextColor: '#ffffff',
-            pieLegendTextColor: '#1f2328',
-            pieStrokeColor: '#ffffff',
-            pieOuterStrokeColor: '#d0d7de',
+        // Keep the named built-in theme as a rendering baseline, then replace
+        // its semantic colors with the selected reader palette. Author-level
+        // Mermaid `style` / `classDef` directives still take precedence.
+        const themeVars = {
+            background: '\(palette.background.cssHex)',
+            textColor: '\(palette.text.cssHex)',
+            primaryColor: '\(palette.surface.cssHex)',
+            primaryTextColor: '\(palette.text.cssHex)',
+            primaryBorderColor: '\(palette.border.cssHex)',
+            secondaryColor: '\(palette.codeBackground.cssHex)',
+            secondaryTextColor: '\(palette.text.cssHex)',
+            secondaryBorderColor: '\(palette.border.cssHex)',
+            tertiaryColor: '\(palette.tableHeader.cssHex)',
+            tertiaryTextColor: '\(palette.text.cssHex)',
+            tertiaryBorderColor: '\(palette.border.cssHex)',
+            lineColor: '\(palette.muted.cssHex)',
+            mainBkg: '\(palette.surface.cssHex)',
+            secondBkg: '\(palette.codeBackground.cssHex)',
+            nodeBorder: '\(palette.border.cssHex)',
+            nodeTextColor: '\(palette.text.cssHex)',
+            clusterBkg: '\(palette.tableHeader.cssHex)',
+            clusterBorder: '\(palette.border.cssHex)',
+            defaultLinkColor: '\(palette.muted.cssHex)',
+            titleColor: '\(palette.text.cssHex)',
+            edgeLabelBackground: '\(palette.background.cssHex)',
+            actorBkg: '\(palette.surface.cssHex)',
+            actorBorder: '\(palette.border.cssHex)',
+            actorTextColor: '\(palette.text.cssHex)',
+            actorLineColor: '\(palette.muted.cssHex)',
+            signalColor: '\(palette.muted.cssHex)',
+            signalTextColor: '\(palette.text.cssHex)',
+            labelBoxBkgColor: '\(palette.codeBackground.cssHex)',
+            labelBoxBorderColor: '\(palette.border.cssHex)',
+            labelTextColor: '\(palette.text.cssHex)',
+            loopTextColor: '\(palette.text.cssHex)',
+            activationBorderColor: '\(palette.border.cssHex)',
+            activationBkgColor: '\(palette.tableHeader.cssHex)',
+            sequenceNumberColor: '\(palette.background.cssHex)',
+            noteBkgColor: '\(palette.tableHeader.cssHex)',
+            noteTextColor: '\(palette.text.cssHex)',
+            noteBorderColor: '\(palette.border.cssHex)',
+            labelColor: '\(palette.text.cssHex)',
+            altBackground: '\(palette.codeBackground.cssHex)',
+            classText: '\(palette.text.cssHex)',
+            pie1: '\(palette.blue.cssHex)', pie2: '\(palette.orange.cssHex)', pie3: '\(palette.green.cssHex)',
+            pie4: '\(palette.purple.cssHex)', pie5: '\(palette.red.cssHex)',
+            pieTitleTextColor: '\(palette.text.cssHex)',
+            pieSectionTextColor: '\(palette.background.cssHex)',
+            pieLegendTextColor: '\(palette.text.cssHex)',
+            pieStrokeColor: '\(palette.background.cssHex)',
+            pieOuterStrokeColor: '\(palette.border.cssHex)',
             pieOpacity: '1'
         };
         document.querySelectorAll('pre.mermaid').forEach(function(el) {

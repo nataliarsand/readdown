@@ -12,9 +12,10 @@ final class HTMLTemplateTests: XCTestCase {
     }
 
     func testIncludesDarkModeSupport() {
-        let result = HTMLTemplate.wrap(body: "")
-        XCTAssertTrue(result.contains("prefers-color-scheme: dark"))
-        XCTAssertTrue(result.contains("color-scheme\" content=\"light dark"))
+        XCTAssertTrue(HTMLTemplate.wrap(body: "", isDark: false)
+            .contains("color-scheme\" content=\"light"))
+        XCTAssertTrue(HTMLTemplate.wrap(body: "", isDark: true)
+            .contains("color-scheme\" content=\"dark"))
     }
 
     func testIncludesCharsetMeta() {
@@ -33,6 +34,40 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(HTMLTemplate.wrap(body: "", isDark: false).contains("data-rd-theme=\"light\""))
     }
 
+    func testInjectsSelectedThemePalette() {
+        let palette = ReaderThemeCatalog.palette(for: .catppuccin, scheme: .light)
+        let result = HTMLTemplate.wrap(body: "", palette: palette)
+        XCTAssertTrue(result.contains("data-rd-theme-family=\"catppuccin\""))
+        XCTAssertTrue(result.contains("--bg: #EFF1F5"))
+        XCTAssertTrue(result.contains("--text: #4C4F69"))
+        XCTAssertTrue(result.contains("--syntax-keyword: #8839EF"))
+    }
+
+    func testSyntaxHighlightUsesThemeVariables() {
+        let result = HTMLTemplate.wrap(body: "<pre><code class=\"language-swift\">let x = 1</code></pre>")
+        XCTAssertTrue(result.contains(".hljs-keyword"))
+        XCTAssertTrue(result.contains("color: var(--syntax-keyword)"))
+        XCTAssertTrue(result.contains("background: var(--code-bg)"))
+    }
+
+    func testInjectsIndependentTypographyVariables() {
+        let typography = ReaderTypography(
+            ui: ReaderFontSelection(family: "Helvetica Neue", weight: .medium, size: 14),
+            body: ReaderFontSelection(family: "Avenir Next", weight: .regular, size: 18),
+            code: ReaderFontSelection(family: "Menlo", weight: .semibold, size: 15)
+        )
+        let result = HTMLTemplate.wrap(body: "<p>Body</p><code>Code</code>", typography: typography)
+        XCTAssertTrue(result.contains("--ui-font-size: 14px"))
+        XCTAssertTrue(result.contains("--body-font-family: \"Avenir Next\""))
+        XCTAssertTrue(result.contains("--body-font-size: 18px"))
+        XCTAssertTrue(result.contains("--code-font-family: \"Menlo\""))
+        XCTAssertTrue(result.contains("--code-font-weight: 600"))
+        XCTAssertTrue(result.contains("font-family: var(--body-font-family)"))
+        XCTAssertTrue(result.contains("font-family: var(--code-font-family)"))
+    }
+
+    // MARK: - Header blur (main app only)
+
     func testHeaderBlurPresentInMainApp() {
         let result = HTMLTemplate.wrap(body: "")
         XCTAssertTrue(result.contains("backdrop-filter"))
@@ -43,6 +78,8 @@ final class HTMLTemplateTests: XCTestCase {
         let result = HTMLTemplate.wrap(body: "", compact: true)
         XCTAssertFalse(result.contains("backdrop-filter"))
     }
+
+    // MARK: - Print / Export as PDF contract
 
     func testPrintDisablesHeaderBlur() {
         // A fixed-position ::before would repeat on every printed page.

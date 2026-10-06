@@ -2,6 +2,17 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.19
+
+### New
+- Make Readdown your own with independent light and dark themes, plus separate fonts for the app, document body, and code
+
+### Details
+
+**New**
+
+- **Themes and typography.** Choose Default, Catppuccin, Nord, One, GitHub, Xcode, Notion, Material, or Ayu independently for light and dark appearance. A live preview shows the palette before you use it, and Mermaid diagrams and code highlighting follow the selected theme. UI, body, and code fonts each have their own family, weight, and size controls.
+
 ## 1.18
 
 ### New
