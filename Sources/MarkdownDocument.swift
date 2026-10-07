@@ -27,4 +27,11 @@ struct MarkdownDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         throw CocoaError(.fileWriteNoPermission)
     }
+
+    static func chooseFile() -> URL? {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.markdown]
+        panel.allowsMultipleSelection = false
+        return panel.runModal() == .OK ? panel.url : nil
+    }
 }

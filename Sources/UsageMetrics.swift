@@ -33,7 +33,7 @@ enum UsageMetrics {
     private static let lastSendKey = "usageMetricsLastSend"
     // Per-machine opt-out: `defaults write com.heya.readdown usageMetricsDevOptOut -bool YES`
     private static let devOptOutKey = "usageMetricsDevOptOut"
-    private static let endpoint = URL(string: "https://readdown.app/api/track-usage")!
+    private static let endpoint = URL(literal: "https://readdown.app/api/track-usage")
     private static let sendInterval: TimeInterval = 24 * 60 * 60
 
     static var hasConsent: Bool { store.bool(forKey: consentKey) }

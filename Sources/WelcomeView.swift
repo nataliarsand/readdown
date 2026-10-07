@@ -98,7 +98,6 @@ struct WelcomeView: View {
 
     @AppStorage("hasPromptedDefault") private var hasPrompted = false
     @State private var qlEnabled = false
-    @State private var isPostUpdate = false
     @State private var isDefault = false
     let dismissWindow: () -> Void
 
@@ -108,11 +107,7 @@ struct WelcomeView: View {
                 .resizable()
                 .frame(width: 80, height: 80)
 
-            if isPostUpdate {
-                postUpdateContent
-            } else {
-                freshInstallContent
-            }
+            freshInstallContent
         }
         .padding(.horizontal, 30)
         .padding(.top, 20)
@@ -127,7 +122,6 @@ struct WelcomeView: View {
     private func onAppear() {
         let launch = LaunchHistory.current
         let isFreshInstall = launch.isFreshInstall && !hasPrompted
-        isPostUpdate = launch.isUpdate
         refreshSetupStatus()
 
         if isFreshInstall && !isDefault && DefaultAppHelp.nativePromptLikelyWorks() {
@@ -189,63 +183,12 @@ struct WelcomeView: View {
         }
     }
 
-    private var postUpdateContent: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 6) {
-                Text("Readdown")
-                    .font(.headline)
-                VersionBadge()
-            }
-
-            Link(destination: URL(string: "https://readdown.app/changelog")!) {
-                Text("See what's new \u{2192}")
-                    .font(.subheadline)
-            }
-
-            Button("Open a .md File") {
-                openMarkdownFile()
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .padding(.top, 2)
-
-            Spacer(minLength: 0)
-
-            if !qlEnabled {
-                VStack(spacing: 4) {
-                    Text("Preview .md files with Space in Finder")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
-                    Button("Enable Quick Look") {
-                        openExtensionsSettings()
-                    }
-                    .font(.caption)
-                    .buttonStyle(.link)
-                }
-            }
-
-            VStack(spacing: 2) {
-                Text("Found something off?")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                Link("Report an issue on GitHub",
-                     destination: URL(string: "https://github.com/nataliarsand/readdown/issues/new")!)
-                    .font(.caption)
-            }
-
-            Divider()
-
-            footerLinks
-        }
-    }
-
     private var footerLinks: some View {
         HStack {
-            Link("readdown.app", destination: URL(string: "https://readdown.app")!)
+            Link("readdown.app", destination: AppLink.site)
                 .font(.caption)
             Spacer()
-            Link("Support Readdown", destination: URL(string: "https://readdown.app/support?src=welcome")!)
+            Link("Support Readdown", destination: URL(literal: "https://readdown.app/support?src=welcome"))
                 .font(.caption)
         }
     }
@@ -260,13 +203,9 @@ struct WelcomeView: View {
     }
 
     private func openMarkdownFile() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.markdown]
-        panel.allowsMultipleSelection = false
-        if panel.runModal() == .OK, let url = panel.url {
-            dismissWindow()
-            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
-        }
+        guard let url = MarkdownDocument.chooseFile() else { return }
+        dismissWindow()
+        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
     }
 
     private func requestDefaultAppChange() {
@@ -329,7 +268,7 @@ struct WelcomeView: View {
                 return
             }
         }
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preferences")!)
+        NSWorkspace.shared.open(URL(literal: "x-apple.systempreferences:com.apple.preferences"))
     }
 }
 

@@ -1,6 +1,22 @@
 import AppKit
 import SwiftUI
 
+extension URL {
+    /// For links fixed in source; a typo fails on first use rather than shipping a dead link.
+    init(literal: StaticString) {
+        guard let url = URL(string: "\(literal)") else { preconditionFailure("Invalid URL: \(literal)") }
+        self = url
+    }
+}
+
+enum AppLink {
+    static let site = URL(literal: "https://readdown.app")
+    static let help = URL(literal: "https://readdown.app/help")
+    static let changelog = URL(literal: "https://readdown.app/changelog")
+    static let issues = URL(literal: "https://github.com/nataliarsand/readdown/issues")
+    static let review = URL(literal: "https://www.producthunt.com/products/readdown/reviews/new")
+}
+
 enum WindowLayout {
     static let width: CGFloat = 380
     static let iconSize: CGFloat = 64
@@ -31,7 +47,6 @@ struct VersionBadge: View {
 
 struct WindowHeader: View {
     var version: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-    var showsWhatsNew = true
 
     var body: some View {
         VStack(spacing: 10) {
@@ -43,10 +58,8 @@ struct WindowHeader: View {
                     .font(WindowType.name)
                 VersionBadge(version: version)
             }
-            if showsWhatsNew {
-                Link("See what's new \u{2192}", destination: ReleaseHighlights.changelogURL)
-                    .font(WindowType.body)
-            }
+            Link("See what's new \u{2192}", destination: AppLink.changelog)
+                .font(WindowType.body)
         }
     }
 }
@@ -82,7 +95,7 @@ struct WindowFooter<Trailing: View>: View {
         VStack(spacing: 12) {
             Divider()
             HStack {
-                Link("readdown.app", destination: URL(string: "https://readdown.app")!)
+                Link("readdown.app", destination: AppLink.site)
                 Spacer()
                 trailing
             }

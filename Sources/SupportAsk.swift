@@ -7,7 +7,7 @@ enum SupportAsk {
         case support, later, alreadySupported
     }
 
-    static let supportURL = URL(string: "https://readdown.app/support?src=update")!
+    static let supportURL = URL(literal: "https://readdown.app/support?src=update")
 
     /// Overridable so tests don't touch the app's shared defaults.
     static var store: UserDefaults = .standard

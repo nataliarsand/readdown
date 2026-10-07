@@ -13,7 +13,7 @@
 		A100000000000000000004 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000004 /* WebView.swift */; };
 		A100000000000000000022 /* LinkScheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000022 /* LinkScheme.swift */; };
 		A100000000000000000023 /* SupportAsk.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000023 /* SupportAsk.swift */; };
-		A100000000000000000024 /* SupportAskWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000024 /* SupportAskWindow.swift */; };
+		A100000000000000000024 /* AfterUpdateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000024 /* AfterUpdateWindow.swift */; };
 		A100000000000000000025 /* WindowParts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000025 /* WindowParts.swift */; };
 		A100000000000000000021 /* LocalLinkOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000021 /* LocalLinkOpener.swift */; };
 		A100000000000000000005 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000005 /* MarkdownRenderer.swift */; };
@@ -90,7 +90,7 @@
 		B100000000000000000004 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 		B100000000000000000022 /* LinkScheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkScheme.swift; sourceTree = "<group>"; };
 		B100000000000000000023 /* SupportAsk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportAsk.swift; sourceTree = "<group>"; };
-		B100000000000000000024 /* SupportAskWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportAskWindow.swift; sourceTree = "<group>"; };
+		B100000000000000000024 /* AfterUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AfterUpdateWindow.swift; sourceTree = "<group>"; };
 		B100000000000000000025 /* WindowParts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowParts.swift; sourceTree = "<group>"; };
 		B100000000000000000021 /* LocalLinkOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLinkOpener.swift; sourceTree = "<group>"; };
 		B100000000000000000005 /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
@@ -170,7 +170,7 @@
 				B100000000000000000004 /* WebView.swift */,
 				B100000000000000000022 /* LinkScheme.swift */,
 				B100000000000000000023 /* SupportAsk.swift */,
-				B100000000000000000024 /* SupportAskWindow.swift */,
+				B100000000000000000024 /* AfterUpdateWindow.swift */,
 				B100000000000000000025 /* WindowParts.swift */,
 				B100000000000000000021 /* LocalLinkOpener.swift */,
 				B100000000000000000005 /* MarkdownRenderer.swift */,
@@ -399,7 +399,7 @@
 				A100000000000000000004 /* WebView.swift in Sources */,
 				A100000000000000000022 /* LinkScheme.swift in Sources */,
 				A100000000000000000023 /* SupportAsk.swift in Sources */,
-				A100000000000000000024 /* SupportAskWindow.swift in Sources */,
+				A100000000000000000024 /* AfterUpdateWindow.swift in Sources */,
 				A100000000000000000025 /* WindowParts.swift in Sources */,
 				A100000000000000000021 /* LocalLinkOpener.swift in Sources */,
 				A100000000000000000005 /* MarkdownRenderer.swift in Sources */,

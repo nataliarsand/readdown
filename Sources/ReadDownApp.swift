@@ -19,8 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             self?.updaterController.startUpdater()
         }
 
+        let launch = LaunchHistory.current
         // Decided before the consent alert can mark itself prompted.
-        let showSupportAsk = SupportAsk.shouldShow(launch: LaunchHistory.current,
+        let showSupportAsk = SupportAsk.shouldShow(launch: launch,
                                                    installDate: SupportAsk.installDate,
                                                    consentPromptDue: UsageMetrics.isPromptDue)
 
@@ -28,17 +29,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             guard let self else { return }
             self.dismissOpenPanels()
+            var nothingOpen = false
             if !self.launchedWithFiles && NSDocumentController.shared.documents.isEmpty {
                 let restoredCount = DocumentSession.shared.restorePreviousSession()
-                if restoredCount == 0 && NSDocumentController.shared.documents.isEmpty && !showSupportAsk {
-                    self.showWelcomeWindow()
-                }
+                nothingOpen = restoredCount == 0 && NSDocumentController.shared.documents.isEmpty
             }
             if showSupportAsk {
                 let delay: TimeInterval = NSDocumentController.shared.documents.isEmpty ? 0 : 1.5
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    SupportAskWindow.shared.show()
+                    AfterUpdateWindow.shared.show(asksForSupport: true)
                 }
+            } else if nothingOpen && launch.isUpdate {
+                AfterUpdateWindow.shared.show(asksForSupport: false)
+            } else if nothingOpen {
+                self.showWelcomeWindow()
             }
         }
 
@@ -294,7 +298,7 @@ struct CheckForUpdatesView: View {
     @ObservedObject var viewModel: CheckForUpdatesViewModel
 
     var body: some View {
-        Button("Check for Updates...") {
+        Button("Check for Updates…") {
             viewModel.checkForUpdates()
         }
         .disabled(!viewModel.canCheckForUpdates)
@@ -326,6 +330,7 @@ struct ReadDownApp: App {
             )
                 .onAppear {
                     appDelegate.dismissWelcomeWindow()
+                    AfterUpdateWindow.shared.dismissNote()
                     UsageMetrics.record(.documentOpened)
                     if let url = file.fileURL {
                         DocumentSession.shared.register(url)
@@ -360,14 +365,14 @@ struct ReadDownApp: App {
                 .keyboardShortcut("c", modifiers: [.command, .option])
             }
             CommandGroup(replacing: .printItem) {
-                Button("Export as PDF...") {
+                Button("Export as PDF…") {
                     NotificationCenter.default.post(name: .exportPDF, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
 
                 Divider()
 
-                Button("Print...") {
+                Button("Print…") {
                     NotificationCenter.default.post(name: .printDocument, object: nil)
                 }
                 .keyboardShortcut("p", modifiers: .command)
@@ -381,15 +386,7 @@ struct ReadDownApp: App {
 
                 Divider()
 
-                Button("Table of Contents") {
-                    NotificationCenter.default.post(name: .toggleTableOfContents, object: nil)
-                }
-                .keyboardShortcut(AppShortcut.tableOfContents)
-
-                Button("Back") {
-                    NotificationCenter.default.post(name: .navigateBack, object: nil)
-                }
-                .keyboardShortcut(AppShortcut.back)
+                PageNavigationCommands()
 
                 Divider()
 
@@ -409,7 +406,7 @@ struct ReadDownApp: App {
                 .keyboardShortcut("0", modifiers: .command)
             }
             CommandGroup(replacing: .textEditing) {
-                Button("Find...") {
+                Button("Find…") {
                     NotificationCenter.default.post(name: .findInDocument, object: nil)
                 }
                 .keyboardShortcut(AppShortcut.find)
@@ -426,7 +423,7 @@ struct ReadDownApp: App {
             }
             CommandGroup(replacing: .help) {
                 Button("Readdown Help") {
-                    NSWorkspace.shared.open(URL(string: "https://readdown.app/help")!)
+                    NSWorkspace.shared.open(AppLink.help)
                 }
                 Button("Keyboard Shortcuts…") {
                     ShortcutsHelp.show()
@@ -434,8 +431,8 @@ struct ReadDownApp: App {
                 Button("Set as Default Markdown Reader…") {
                     DefaultAppHelp.show()
                 }
-                Button("Send Feedback...") {
-                    NSWorkspace.shared.open(URL(string: "https://github.com/nataliarsand/readdown/issues")!)
+                Button("Send Feedback…") {
+                    NSWorkspace.shared.open(AppLink.issues)
                 }
 
                 Divider()
@@ -453,6 +450,26 @@ struct ReadDownApp: App {
         }
     }
 
+}
+
+/// Reads the key document window's state; disabled when no document is focused.
+private struct PageNavigationCommands: View {
+    @FocusedObject private var tableOfContents: TableOfContentsState?
+    @FocusedObject private var back: BackState?
+
+    var body: some View {
+        Button(tableOfContents?.menuTitle ?? "Show Table of Contents") {
+            NotificationCenter.default.post(name: .toggleTableOfContents, object: nil)
+        }
+        .keyboardShortcut(AppShortcut.tableOfContents)
+        .disabled(tableOfContents?.isAvailable != true)
+
+        Button("Back") {
+            NotificationCenter.default.post(name: .navigateBack, object: nil)
+        }
+        .keyboardShortcut(AppShortcut.back)
+        .disabled(back?.canGoBack != true)
+    }
 }
 
 struct AboutView: View {
@@ -477,11 +494,11 @@ struct AboutView: View {
 
             HStack(spacing: 8) {
                 AboutActionButton(icon: "star.bubble", title: "Feedback",
-                                  url: "https://www.producthunt.com/products/readdown/reviews/new")
+                                  url: AppLink.review)
                 AboutActionButton(icon: "ladybug", title: "Report a Bug",
-                                  url: "https://github.com/nataliarsand/readdown/issues")
+                                  url: AppLink.issues)
                 AboutActionButton(icon: "heart", title: "Support",
-                                  url: "https://readdown.app/support?src=about")
+                                  url: URL(literal: "https://readdown.app/support?src=about"))
             }
 
             WindowFooter {
@@ -496,14 +513,16 @@ struct AboutView: View {
 private struct AboutActionButton: View {
     let icon: String
     let title: String
-    let url: String
+    let url: URL
     @State private var hovered = false
 
     var body: some View {
-        Link(destination: URL(string: url)!) {
+        Link(destination: url) {
             VStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 17))
+                    .foregroundStyle(ReaderTheme.link)
+                    .frame(height: 20)
                 Text(title)
                     .font(WindowType.tile)
             }
