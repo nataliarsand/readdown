@@ -89,8 +89,6 @@ final class FindInPageTests: XCTestCase {
     func testSearchExcludesTableOfContentsCopies() {
         let webView = loadDocument("# Unique Heading")
         waitUntilTrue(webView, "typeof window.__rdTableOfContents === 'object'")
-        // The title exists once in the document and once in the generated outline,
-        // but Find in Document must count only the readable document occurrence.
         XCTAssertEqual(findCounts(webView, "search('Unique Heading')").total, 1)
     }
 

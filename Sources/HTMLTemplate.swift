@@ -77,14 +77,12 @@ enum HTMLTemplate {
         @media print { body::before { display: none; } }
         """
         let tableOfContentsCSS = compact ? "" : """
-        /* Table of contents. It lives inside the rendered page so a normal
-           full-page live reload rebuilds it from the new heading DOM. */
+        /* In the page, so a live reload rebuilds it from the new headings. */
         #rd-table-of-contents {
             position: fixed;
             z-index: 20;
             top: 58px;
-            /* The page viewport ends before its 10px scrollbar gutter. Together,
-               2px here and that gutter match the native header's 12pt edge inset. */
+            /* Plus the 10px scrollbar gutter, matches the header's 12pt inset. */
             right: 2px;
             bottom: 12px;
             width: 260px;
@@ -204,8 +202,8 @@ enum HTMLTemplate {
             --muted: #57606a;
             --code-bg: #eef1f5;
             --border: #d0d7de;
-            --hairline: rgba(31, 35, 40, 0.08); /* matches ReaderTheme.hairline */
-            --pill: #ffffff;            /* ReaderTheme floating chrome below: pill, hoverFill, radii, shadow */
+            --hairline: rgba(31, 35, 40, 0.08); /* through --panel-shadow, must match ReaderTheme */
+            --pill: #ffffff;
             --hover-fill: rgba(31, 35, 40, 0.07);
             --control-radius: 8px;
             --panel-radius: 12px;
@@ -874,9 +872,7 @@ enum HTMLTemplate {
         })();
         </script>
         <script nonce="\(nonce)">
-        // Build the table of contents from the final heading DOM rather than
-        // parsing Markdown a second time. This keeps setext headings, inline
-        // formatting, duplicate slugs, and live reloads aligned with the renderer.
+        // Built from the rendered headings, so slugs and setext headings match the renderer.
         (function() {
             var headings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6'))
                 .filter(function(h) {
@@ -983,8 +979,7 @@ enum HTMLTemplate {
                     if (typeof state.tableOfContentsVisible === 'boolean') {
                         setVisible(state.tableOfContentsVisible, false);
                     }
-                    // Two frames let the new page and its outline layout settle
-                    // before the heading-relative reading position is restored.
+                    // Two frames, so layout settles before restoring.
                     window.requestAnimationFrame(function() {
                         window.requestAnimationFrame(function() {
                             restorePosition(state);

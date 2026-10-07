@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// The parts every small Readdown window (About, the post-update note) is built from,
-/// so they share one header, message style and footer.
 enum WindowLayout {
     static let width: CGFloat = 380
     static let iconSize: CGFloat = 64

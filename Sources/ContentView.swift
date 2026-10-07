@@ -88,9 +88,6 @@ final class FindState: ObservableObject {
     @Published var focusRequest = 0
 }
 
-/// Availability and visibility reported by the table-of-contents script in the
-/// WebView. Keeping this as host state lets the native header button stay in sync
-/// when the page reloads after an external edit.
 final class TableOfContentsState: ObservableObject {
     @Published var isAvailable = false
     @Published var isVisible = false
