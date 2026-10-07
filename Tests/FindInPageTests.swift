@@ -183,6 +183,94 @@ final class FindInPageTests: XCTestCase {
         XCTAssertEqual(evaluate(webView, "document.querySelector('pre.mermaid').getAttribute('data-rd-src').includes('A-->B')") as? Bool, true)
     }
 
+    func testBackReportsHistoryToTheApp() {
+        let backState = BackState()
+        let coordinator = WebView.Coordinator(
+            baseURL: nil, findState: FindState(), tableOfContentsState: TableOfContentsState(),
+            backState: backState, watcher: DocumentWatcher(initialText: "", fileURL: nil, isDark: false)
+        )
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(WebView.WeakScriptMessageHandler(coordinator), name: "rdBack")
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), configuration: config)
+        let filler = String(repeating: "Line.\n\n", count: 200)
+        let result = MarkdownRenderer.render("[Jump](#end)\n\n\(filler)# End")
+        webView.loadHTMLString(HTMLTemplate.wrap(body: result.html), baseURL: nil)
+        waitUntilTrue(webView, "typeof window.__rdBack === 'object'")
+        XCTAssertFalse(backState.canGoBack)
+
+        _ = evaluate(webView, "document.querySelector('a[href=\"#end\"]').click()")
+        waitFor { backState.canGoBack }
+        _ = evaluate(webView, "window.__rdBack.back()")
+        waitFor { !backState.canGoBack }
+    }
+
+    private func waitFor(_ condition: () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
+        let deadline = Date().addingTimeInterval(5)
+        while !condition() && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertTrue(condition(), file: file, line: line)
+    }
+
+    // MARK: - Folded sections
+
+    private func toggleFold(_ webView: WKWebView, heading id: String) {
+        _ = evaluate(webView, "document.getElementById('\(id)').querySelector('.rd-fold').click()")
+    }
+
+    private func isHidden(_ webView: WKWebView, _ selector: String) -> Bool? {
+        evaluate(webView, "document.querySelector('\(selector)').getClientRects().length === 0") as? Bool
+    }
+
+    func testFoldToggleIsAKeyboardButton() {
+        let webView = loadDocument("# One\n\ntext")
+        XCTAssertEqual(evaluate(webView, "document.querySelector('.rd-fold').tagName") as? String, "BUTTON")
+        XCTAssertEqual(evaluate(webView, "document.querySelector('.rd-fold').getAttribute('aria-expanded')") as? String, "true")
+        toggleFold(webView, heading: "one")
+        XCTAssertEqual(evaluate(webView, "document.querySelector('.rd-fold').getAttribute('aria-expanded')") as? String, "false")
+    }
+
+    func testTableOfContentsJumpOpensFoldedSection() {
+        let webView = loadDocument("# Outer\n\n## Inner\n\ntext\n\n# Next")
+        waitUntilTrue(webView, "document.querySelectorAll('.rd-toc-link').length === 3")
+        toggleFold(webView, heading: "outer")
+        XCTAssertEqual(isHidden(webView, "#inner"), true)
+
+        _ = evaluate(webView, "document.querySelector('.rd-toc-link[href=\"#inner\"]').click()")
+        XCTAssertEqual(isHidden(webView, "#inner"), false)
+        XCTAssertEqual(evaluate(webView, "document.getElementById('outer').classList.contains('rd-collapsed')") as? Bool, false)
+    }
+
+    func testFindOpensFoldedSectionHoldingTheMatch() {
+        let webView = loadDocument("# Folded\n\nneedle\n\n# Open")
+        toggleFold(webView, heading: "folded")
+        XCTAssertEqual(findCounts(webView, "search('needle')").total, 1)
+        XCTAssertEqual(isHidden(webView, "mark.rd-find-current"), false)
+    }
+
+    func testExpandingKeepsAnInnerFoldClosed() {
+        let webView = loadDocument("# Outer\n\n## Inner\n\ninner text\n\n## Sibling\n\nsibling text")
+        toggleFold(webView, heading: "inner")
+        toggleFold(webView, heading: "outer")
+        toggleFold(webView, heading: "outer")
+        XCTAssertEqual(isHidden(webView, "#inner"), false)
+        XCTAssertEqual(isHidden(webView, "#inner + p"), true)
+        XCTAssertEqual(isHidden(webView, "#sibling"), false)
+        XCTAssertEqual(isHidden(webView, "#sibling + p"), false)
+    }
+
+    func testExportHidesTheContentsPanelAndItsGutter() {
+        let webView = loadDocument("# Intro\n\ntext")
+        waitUntilTrue(webView, "typeof window.__rdTableOfContents === 'object'")
+        _ = evaluate(webView, "window.__rdTableOfContents.toggle()")
+        let gutter = "getComputedStyle(document.body).paddingRight === getComputedStyle(document.body).paddingLeft"
+        XCTAssertEqual(evaluate(webView, gutter) as? Bool, false)
+
+        _ = evaluate(webView, "document.documentElement.classList.add('rd-exporting')")
+        XCTAssertEqual(evaluate(webView, gutter) as? Bool, true)
+        XCTAssertEqual(isHidden(webView, "#rd-table-of-contents"), true)
+    }
+
     // MARK: - Code-block copy buttons
 
     func testCopyButtonInjectedPerFencedBlock() {

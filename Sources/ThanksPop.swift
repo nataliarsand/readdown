@@ -40,6 +40,7 @@ enum ThanksPop {
 
 private struct ThanksPopView: View {
     let style: ThanksPop.Style
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
     var body: some View {
@@ -60,11 +61,11 @@ private struct ThanksPopView: View {
         .padding(.vertical, 11)
         .floatingSurface(Capsule(), fill: ReaderTheme.pill,
                          border: style == .support ? ReaderTheme.successBorder : ReaderTheme.hairline)
-        .scaleEffect(shown ? 1 : 0.5)
+        .scaleEffect(shown || reduceMotion ? 1 : 0.5)
         .opacity(shown ? 1 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
+            withAnimation(reduceMotion ? ReaderTheme.appear : .spring(response: 0.35, dampingFraction: 0.55)) {
                 shown = true
             }
         }

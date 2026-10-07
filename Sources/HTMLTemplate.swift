@@ -173,7 +173,7 @@ enum HTMLTemplate {
             color: var(--link);
             font-weight: 600;
         }
-        @media (min-width: 720px) {
+        @media screen and (min-width: 720px) {
             body.rd-table-of-contents-open {
                 padding-right: calc(clamp(28px, 5vw, 96px) + 280px);
             }
@@ -187,6 +187,8 @@ enum HTMLTemplate {
         @media print {
             #rd-table-of-contents { display: none !important; }
         }
+        html.rd-exporting #rd-table-of-contents { display: none !important; }
+        html.rd-exporting body.rd-table-of-contents-open { padding-right: clamp(28px, 5vw, 96px); }
         """
         return """
         <!DOCTYPE html>
@@ -208,7 +210,7 @@ enum HTMLTemplate {
             --control-radius: 8px;
             --panel-radius: 12px;
             --panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-            --link: #0969da;
+            --link: #0969da;            /* must match ReaderTheme.link */
             --success: #1f962c;         /* must match ReaderTheme.success */
             --link-underline: rgba(9, 105, 218, 0.35);
             --blockquote-border: #d0d7de;
@@ -243,6 +245,10 @@ enum HTMLTemplate {
 
         html {
             scroll-behavior: smooth;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after { transition: none !important; }
         }
 
         \(headerBlur)
@@ -283,6 +289,11 @@ enum HTMLTemplate {
             width: 26px;
             height: 28px;
             padding: 7px 4px 7px 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            border: 0;
+            border-radius: var(--control-radius);
+            background: transparent;
             color: var(--muted);
             opacity: 0;
             cursor: default;
@@ -293,8 +304,9 @@ enum HTMLTemplate {
         .rd-fold svg { width: 100%; height: 100%; display: block; transition: transform 0.15s ease; }
         h1:hover > .rd-fold, h2:hover > .rd-fold, h3:hover > .rd-fold,
         h4:hover > .rd-fold, h5:hover > .rd-fold, h6:hover > .rd-fold { opacity: 0.3; }
-        .rd-fold:hover { opacity: 0.7; }
-        .rd-collapsed > .rd-fold { opacity: 0.28; }
+        .rd-fold:hover, .rd-fold:focus-visible { opacity: 0.7; }
+        .rd-fold:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+        :is(h1, h2, h3, h4, h5, h6).rd-collapsed > .rd-fold { opacity: 1; }
         .rd-collapsed > .rd-fold svg { transform: rotate(-90deg); }
         .rd-fold-hidden { display: none !important; }
         @media print {
@@ -375,8 +387,8 @@ enum HTMLTemplate {
             padding: 0;
             color: var(--muted);
             background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            border: 1px solid var(--hairline);
+            border-radius: var(--control-radius);
             cursor: default;
             opacity: 0;
             transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
@@ -798,7 +810,8 @@ enum HTMLTemplate {
                 const all = document.querySelectorAll('mark.' + MATCH);
                 if (index < 0 || index >= all.length) return;
                 all[index].classList.add(CURRENT);
-                all[index].scrollIntoView({ block: 'center', behavior: 'smooth' });
+                if (window.__rdFold) window.__rdFold.reveal(all[index]);
+                all[index].scrollIntoView({ block: 'center' });
             }
             window.__rdFind = {
                 search(q) {
@@ -856,19 +869,27 @@ enum HTMLTemplate {
         <script nonce="\(nonce)">
         (function() {
             var stack = [];
+            function notifyHost() {
+                try {
+                    window.webkit.messageHandlers.rdBack.postMessage(stack.length > 0);
+                } catch (e) {}
+            }
             document.addEventListener('click', function(event) {
                 var link = event.target.closest && event.target.closest('a[href^="#"]');
                 if (!link || link.getAttribute('href').length < 2) return;
                 stack.push(window.scrollY);
                 if (stack.length > 50) stack.shift();
+                notifyHost();
             }, true);
             window.__rdBack = {
                 back: function() {
                     if (stack.length === 0) return false;
                     window.scrollTo(0, stack.pop());
+                    notifyHost();
                     return true;
                 }
             };
+            notifyHost();
         })();
         </script>
         <script nonce="\(nonce)">
@@ -1029,7 +1050,8 @@ enum HTMLTemplate {
                 link.style.paddingLeft = (9 + (level - minimumLevel) * 12) + 'px';
                 link.addEventListener('click', function(event) {
                     event.preventDefault();
-                    heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (window.__rdFold) window.__rdFold.reveal(heading);
+                    heading.scrollIntoView({ block: 'start' });
                     if (window.innerWidth < 720) setVisible(false, false);
                 });
                 links.set(heading, link);
@@ -1063,28 +1085,50 @@ enum HTMLTemplate {
             function level(el) {
                 return el && el.tagName && /^H[1-6]$/.test(el.tagName) ? +el.tagName.charAt(1) : 0;
             }
-            document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h) {
+            // Expanding leaves sections under a still-collapsed heading hidden.
+            function setCollapsed(h, collapsed) {
                 var lvl = level(h);
-                var btn = document.createElement('span');
+                h.classList.toggle('rd-collapsed', collapsed);
+                var btn = h.querySelector(':scope > .rd-fold');
+                btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                btn.setAttribute('aria-label', collapsed ? 'Expand section' : 'Collapse section');
+                var hiddenBelow = 0;
+                for (var el = h.nextElementSibling; el; el = el.nextElementSibling) {
+                    var l = level(el);
+                    if (l > 0 && l <= lvl) break;
+                    if (l > 0 && hiddenBelow && l <= hiddenBelow) hiddenBelow = 0;
+                    el.classList.toggle('rd-fold-hidden', collapsed || hiddenBelow > 0);
+                    if (!collapsed && !hiddenBelow && l > 0 && el.classList.contains('rd-collapsed')) hiddenBelow = l;
+                }
+            }
+            document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
                 btn.className = 'rd-fold';
                 btn.innerHTML = CH;
-                btn.setAttribute('role', 'button');
+                btn.setAttribute('aria-expanded', 'true');
                 btn.setAttribute('aria-label', 'Collapse section');
                 h.insertBefore(btn, h.firstChild);
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    var collapsed = h.classList.toggle('rd-collapsed');
-                    btn.setAttribute('aria-label', collapsed ? 'Expand section' : 'Collapse section');
-                    var el = h.nextElementSibling;
-                    while (el) {
-                        var l = level(el);
-                        if (l > 0 && l <= lvl) break;
-                        el.classList.toggle('rd-fold-hidden', collapsed);
-                        el = el.nextElementSibling;
-                    }
+                    setCollapsed(h, !h.classList.contains('rd-collapsed'));
                 });
             });
+            window.__rdFold = {
+                reveal: function(target) {
+                    for (var node = target; node && node !== document.body; node = node.parentElement) {
+                        var min = level(node) || 7;
+                        for (var s = node.previousElementSibling; s && min > 1; s = s.previousElementSibling) {
+                            var l = level(s);
+                            if (l > 0 && l < min) {
+                                if (s.classList.contains('rd-collapsed')) setCollapsed(s, false);
+                                min = l;
+                            }
+                        }
+                    }
+                }
+            };
         })();
         </script>
         """)

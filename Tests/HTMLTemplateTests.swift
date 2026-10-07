@@ -93,6 +93,17 @@ final class HTMLTemplateTests: XCTestCase {
         XCTAssertTrue(result.contains("page-break-after: avoid"))
     }
 
+    func testContentsGutterIsScreenOnly() {
+        let result = HTMLTemplate.wrap(body: "")
+        XCTAssertTrue(result.contains("@media screen and (min-width: 720px)"))
+    }
+
+    func testReducedMotionStopsSmoothScrollAndTransitions() {
+        let result = HTMLTemplate.wrap(body: "")
+        XCTAssertTrue(result.contains("@media (prefers-reduced-motion: reduce)"))
+        XCTAssertFalse(result.contains("behavior: 'smooth'"), "explicit smooth scrolling ignores the setting")
+    }
+
     func testCodeCopyAssetsPresent() {
         let result = HTMLTemplate.wrap(body: "")
         XCTAssertTrue(result.contains("rd-copy-btn"))

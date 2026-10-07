@@ -42,11 +42,12 @@ struct WebView: NSViewRepresentable {
     let baseURL: URL?
     @ObservedObject var findState: FindState
     @ObservedObject var tableOfContentsState: TableOfContentsState
+    @ObservedObject var backState: BackState
     @ObservedObject var watcher: DocumentWatcher
 
     func makeCoordinator() -> Coordinator {
         Coordinator(baseURL: baseURL, findState: findState,
-                    tableOfContentsState: tableOfContentsState, watcher: watcher)
+                    tableOfContentsState: tableOfContentsState, backState: backState, watcher: watcher)
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -55,6 +56,7 @@ struct WebView: NSViewRepresentable {
         let messageHandler = WeakScriptMessageHandler(context.coordinator)
         config.userContentController.add(messageHandler, name: "rdUsage")
         config.userContentController.add(messageHandler, name: "rdTableOfContents")
+        config.userContentController.add(messageHandler, name: "rdBack")
 
         let webView = ZoomableWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -96,6 +98,8 @@ struct WebView: NSViewRepresentable {
                       let visible = state["visible"] as? Bool {
                 tableOfContentsState.isAvailable = available
                 tableOfContentsState.isVisible = visible
+            } else if message.name == "rdBack", let canGoBack = message.body as? Bool {
+                backState.canGoBack = canGoBack
             }
         }
 
@@ -103,6 +107,7 @@ struct WebView: NSViewRepresentable {
         weak var webView: WKWebView?
         let findState: FindState
         let tableOfContentsState: TableOfContentsState
+        let backState: BackState
         let watcher: DocumentWatcher
         private var observers: [Any] = []
         private var findStateObserver: AnyCancellable?
@@ -135,11 +140,12 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        init(baseURL: URL?, findState: FindState,
-             tableOfContentsState: TableOfContentsState, watcher: DocumentWatcher) {
+        init(baseURL: URL?, findState: FindState, tableOfContentsState: TableOfContentsState,
+             backState: BackState = BackState(), watcher: DocumentWatcher) {
             self.baseURL = baseURL
             self.findState = findState
             self.tableOfContentsState = tableOfContentsState
+            self.backState = backState
             self.watcher = watcher
             super.init()
             observe(.printDocument) { $0.handlePrint() }
@@ -336,24 +342,30 @@ struct WebView: NSViewRepresentable {
                     let continuous = layoutPicker.indexOfSelectedItem == 0
                     self.printSource { source in
                         if continuous {
-                            let config = WKPDFConfiguration()
-                            source.createPDF(configuration: config) { result in
-                                DispatchQueue.main.async {
-                                    switch result {
-                                    case .success(let data):
-                                        do {
-                                            try data.write(to: url)
-                                        } catch {
-                                            self.showExportError(error.localizedDescription, window: window)
-                                        }
-                                    case .failure(let error):
-                                        self.showExportError(error.localizedDescription, window: window)
-                                    }
-                                }
-                            }
+                            self.exportContinuousPDF(webView: source, to: url, window: window)
                         } else {
                             self.exportPaginatedPDF(webView: source, to: url, window: window)
                         }
+                    }
+                }
+            }
+        }
+
+        /// Renders screen media, so the contents panel is hidden for the capture.
+        private func exportContinuousPDF(webView: WKWebView, to url: URL, window: NSWindow) {
+            let exporting = "document.documentElement.classList.toggle('rd-exporting', %@)"
+            webView.evaluateJavaScript(String(format: exporting, "true")) { _, _ in
+                webView.createPDF(configuration: WKPDFConfiguration()) { result in
+                    webView.evaluateJavaScript(String(format: exporting, "false"), completionHandler: nil)
+                    switch result {
+                    case .success(let data):
+                        do {
+                            try data.write(to: url)
+                        } catch {
+                            self.showExportError(error.localizedDescription, window: window)
+                        }
+                    case .failure(let error):
+                        self.showExportError(error.localizedDescription, window: window)
                     }
                 }
             }

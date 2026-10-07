@@ -35,6 +35,8 @@ enum ReaderTheme {
     /// Matches the page `--bg`.
     static let pageBackground = dynamic(light: (0xFC, 0xFC, 0xFB), dark: (0x0D, 0x11, 0x17))
     static let pill = Color(nsColor: dynamic(light: (0xFF, 0xFF, 0xFF), dark: (0x16, 0x1B, 0x22)))
+    /// Matches the page `--link`.
+    static let link = Color(nsColor: dynamic(light: (0x09, 0x69, 0xDA), dark: (0x58, 0xA6, 0xFF)))
     /// Matches the page `--success`.
     static let success = Color(nsColor: dynamic(light: (0x1F, 0x96, 0x2C), dark: (0x2E, 0xBE, 0x3D)))
     static var successFill: Color { success.opacity(0.1) }
@@ -91,6 +93,12 @@ final class FindState: ObservableObject {
 final class TableOfContentsState: ObservableObject {
     @Published var isAvailable = false
     @Published var isVisible = false
+
+    var menuTitle: String { isVisible ? "Hide Table of Contents" : "Show Table of Contents" }
+}
+
+final class BackState: ObservableObject {
+    @Published var canGoBack = false
 }
 
 struct ContentView: View {
@@ -99,6 +107,8 @@ struct ContentView: View {
     let fileURL: URL?
     @StateObject private var findState = FindState()
     @StateObject private var tableOfContentsState = TableOfContentsState()
+    @StateObject private var backState = BackState()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var window: NSWindow?
     @State private var toast: Toast?
     @State private var toastDismissWork: DispatchWorkItem?
@@ -117,7 +127,7 @@ struct ContentView: View {
             // The pills float in the title-bar row; the container extends behind it.
             ZStack(alignment: .top) {
                 WebView(baseURL: baseURL, findState: findState,
-                        tableOfContentsState: tableOfContentsState, watcher: watcher)
+                        tableOfContentsState: tableOfContentsState, backState: backState, watcher: watcher)
                     .frame(minWidth: 500, minHeight: 400)
                 WindowDragArea()
                     .frame(height: ReaderTheme.headerStripHeight)
@@ -131,17 +141,23 @@ struct ContentView: View {
                 .padding(.leading, ReaderTheme.headerLeadingClearance)
                 .padding(.trailing, ReaderTheme.headerEdgePadding)
                 if findState.isVisible {
-                    FindBar(state: findState)
-                        .padding(.top, ReaderTheme.headerStripHeight + 4)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                    GeometryReader { proxy in
+                        FindBar(state: findState)
+                            .padding(.trailing, findBarTrailingInset(width: proxy.size.width))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .padding(.top, ReaderTheme.headerStripHeight + 4)
+                    .transition(dropIn)
                 }
                 if let toast {
                     ToastView(toast: toast)
                         .padding(.top, ReaderTheme.headerTopPadding)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .transition(dropIn)
                 }
             }
                 .ignoresSafeArea(.container, edges: .top)
+                .focusedSceneObject(tableOfContentsState)
+                .focusedSceneObject(backState)
                 .background(WindowAccessor { window in
                     self.window = window
                     WindowCascader.shared.cascade(window)
@@ -168,7 +184,7 @@ struct ContentView: View {
         }
         .onChange(of: watcher.html) { _ in
             if watcher.lastChangeSource == .disk {
-                showToast(Toast(text: "Updated", kind: .info))
+                showToast(Toast(text: "File changed on disk, showing the latest", kind: .info))
             }
         }
     }
@@ -197,10 +213,10 @@ struct ContentView: View {
                            shortcut: AppShortcut.find, action: showFindBar)
             PillIconButton(
                 icon: "list.bullet.indent",
-                label: tableOfContentsState.isVisible
-                    ? "Hide Table of Contents" : "Show Table of Contents",
-                shortcut: AppShortcut.tableOfContents,
-                tint: tableOfContentsState.isVisible ? .accentColor : nil,
+                label: tableOfContentsState.isAvailable
+                    ? tableOfContentsState.menuTitle : "No headings to list",
+                shortcut: tableOfContentsState.isAvailable ? AppShortcut.tableOfContents : nil,
+                tint: tableOfContentsState.isVisible ? ReaderTheme.link : nil,
                 disabled: !tableOfContentsState.isAvailable
             ) {
                 NotificationCenter.default.post(name: .toggleTableOfContents, object: nil)
@@ -224,6 +240,16 @@ struct ContentView: View {
             }
             .allowsHitTesting(false)
         }
+    }
+
+    private var dropIn: AnyTransition {
+        reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity)
+    }
+
+    /// Clears the open contents panel, which sits beside the page only from 720pt.
+    private func findBarTrailingInset(width: CGFloat) -> CGFloat {
+        guard tableOfContentsState.isVisible, width >= 720 else { return 0 }
+        return 260 + ReaderTheme.headerEdgePadding
     }
 
     private func revealInFinder() {
@@ -436,12 +462,8 @@ private struct ToastView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            switch toast.kind {
-            case .success:
+            if toast.kind == .success {
                 CheckIcon.View(size: 14)
-            case .info:
-                Image(systemName: "info.circle")
-                    .font(.system(size: 15, weight: .medium))
             }
             Text(toast.text)
                 .font(.system(size: 14, weight: .medium))
@@ -451,8 +473,8 @@ private struct ToastView: View {
         .fixedSize()
         .padding(.horizontal, 14)
         .frame(height: ReaderTheme.headerPillHeight)
-        .background(toast.kind.fill, in: ReaderTheme.panelShape)
-        .floatingSurface(ReaderTheme.panelShape, fill: ReaderTheme.pill, border: toast.kind.border)
+        .background(toast.kind.fill, in: Capsule())
+        .floatingSurface(Capsule(), fill: ReaderTheme.pill, border: toast.kind.border)
         .allowsHitTesting(false)
     }
 }
@@ -743,7 +765,7 @@ struct FindBar: View {
 
             if !state.searchText.isEmpty {
                 Text(matchStatus)
-                    .font(.caption)
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .monospacedDigit()
             }
