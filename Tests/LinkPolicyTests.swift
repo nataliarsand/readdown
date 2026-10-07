@@ -126,7 +126,8 @@ final class LinkPolicyTests: XCTestCase {
 
     private func loadedWebView(_ markdown: String, baseURL: URL? = nil) -> (WKWebView, SpyCoordinator) {
         let watcher = DocumentWatcher(initialText: markdown, fileURL: nil, isDark: false)
-        let coordinator = SpyCoordinator(baseURL: baseURL, findState: FindState(), watcher: watcher)
+        let coordinator = SpyCoordinator(baseURL: baseURL, findState: FindState(),
+                                         tableOfContentsState: TableOfContentsState(), watcher: watcher)
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         webView.navigationDelegate = coordinator
         webView.loadHTMLString(watcher.html, baseURL: baseURL)

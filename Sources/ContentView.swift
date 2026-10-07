@@ -88,11 +88,20 @@ final class FindState: ObservableObject {
     @Published var focusRequest = 0
 }
 
+/// Availability and visibility reported by the table-of-contents script in the
+/// WebView. Keeping this as host state lets the native header button stay in sync
+/// when the page reloads after an external edit.
+final class TableOfContentsState: ObservableObject {
+    @Published var isAvailable = false
+    @Published var isVisible = false
+}
+
 struct ContentView: View {
     @StateObject private var watcher: DocumentWatcher
     let baseURL: URL?
     let fileURL: URL?
     @StateObject private var findState = FindState()
+    @StateObject private var tableOfContentsState = TableOfContentsState()
     @State private var window: NSWindow?
     @State private var toast: Toast?
     @State private var toastDismissWork: DispatchWorkItem?
@@ -110,7 +119,8 @@ struct ContentView: View {
         ZStack(alignment: .top) {
             // The pills float in the title-bar row; the container extends behind it.
             ZStack(alignment: .top) {
-                WebView(baseURL: baseURL, findState: findState, watcher: watcher)
+                WebView(baseURL: baseURL, findState: findState,
+                        tableOfContentsState: tableOfContentsState, watcher: watcher)
                     .frame(minWidth: 500, minHeight: 400)
                 WindowDragArea()
                     .frame(height: ReaderTheme.headerStripHeight)
@@ -188,6 +198,16 @@ struct ContentView: View {
             }
             PillIconButton(icon: "magnifyingglass", label: "Find in Document",
                            shortcut: AppShortcut.find, action: showFindBar)
+            PillIconButton(
+                icon: "list.bullet.indent",
+                label: tableOfContentsState.isVisible
+                    ? "Hide Table of Contents" : "Show Table of Contents",
+                shortcut: AppShortcut.tableOfContents,
+                tint: tableOfContentsState.isVisible ? .accentColor : nil,
+                disabled: !tableOfContentsState.isAvailable
+            ) {
+                NotificationCenter.default.post(name: .toggleTableOfContents, object: nil)
+            }
             PillMenu(icon: "folder", label: "File Location", disabled: fileURL == nil) {
                 Button("Show in Finder", action: revealInFinder)
                 Button("Copy Path", action: copyFilePath)
@@ -556,6 +576,8 @@ private struct CopyButton: View {
 
 enum AppShortcut {
     static let find = KeyboardShortcut("f", modifiers: .command)
+    static let tableOfContents = KeyboardShortcut("t", modifiers: [.command, .option])
+    static let back = KeyboardShortcut("[", modifiers: .command)
 }
 
 extension KeyboardShortcut {

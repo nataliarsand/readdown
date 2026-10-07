@@ -75,6 +75,120 @@ enum HTMLTemplate {
         }
         @media print { body::before { display: none; } }
         """
+        let tableOfContentsCSS = compact ? "" : """
+        /* Table of contents. It lives inside the rendered page so a normal
+           full-page live reload rebuilds it from the new heading DOM. */
+        #rd-table-of-contents {
+            position: fixed;
+            z-index: 20;
+            top: 58px;
+            /* The page viewport ends before its 10px scrollbar gutter. Together,
+               2px here and that gutter match the native header's 12pt edge inset. */
+            right: 2px;
+            bottom: 12px;
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            color: var(--text);
+            background: var(--pill);
+            border: 1px solid var(--hairline);
+            border-radius: var(--panel-radius);
+            box-shadow: var(--panel-shadow);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateX(12px);
+            transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+            overflow: hidden;
+        }
+        body.rd-table-of-contents-open #rd-table-of-contents {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+        .rd-toc-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex: 0 0 auto;
+            min-height: 42px;
+            padding: 6px 8px 6px 14px;
+            border-bottom: 1px solid var(--hairline);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: var(--muted);
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .rd-toc-close {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 0;
+            border-radius: var(--control-radius);
+            color: var(--muted);
+            background: transparent;
+            font: inherit;
+            font-size: 17px;
+            line-height: 28px;
+            cursor: default;
+        }
+        .rd-toc-close:hover,
+        .rd-toc-close:focus-visible {
+            color: var(--text);
+            background: var(--hover-fill);
+            outline: none;
+        }
+        .rd-toc-list {
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 8px;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .rd-toc-link {
+            display: block;
+            padding-top: 5px;
+            padding-right: 9px;
+            padding-bottom: 5px;
+            border-radius: var(--control-radius);
+            color: var(--text);
+            font-size: 12px;
+            line-height: 1.35;
+            text-decoration: none;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+            cursor: default;
+        }
+        .rd-toc-link:not(.rd-toc-active):hover,
+        .rd-toc-link:not(.rd-toc-active):focus-visible {
+            color: var(--text);
+            background: var(--hover-fill);
+            outline: none;
+            text-decoration: none;
+        }
+        .rd-toc-link.rd-toc-active {
+            color: var(--link);
+            font-weight: 600;
+        }
+        @media (min-width: 720px) {
+            body.rd-table-of-contents-open {
+                padding-right: calc(clamp(28px, 5vw, 96px) + 280px);
+            }
+        }
+        @media (max-width: 640px) {
+            #rd-table-of-contents {
+                left: 12px;
+                width: auto;
+            }
+        }
+        @media print {
+            #rd-table-of-contents { display: none !important; }
+        }
+        """
         return """
         <!DOCTYPE html>
         <html>
@@ -89,6 +203,12 @@ enum HTMLTemplate {
             --muted: #57606a;
             --code-bg: #eef1f5;
             --border: #d0d7de;
+            --hairline: rgba(31, 35, 40, 0.08); /* matches ReaderTheme.hairline */
+            --pill: #ffffff;            /* ReaderTheme floating chrome below: pill, hoverFill, radii, shadow */
+            --hover-fill: rgba(31, 35, 40, 0.07);
+            --control-radius: 8px;
+            --panel-radius: 12px;
+            --panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
             --link: #0969da;
             --success: #1f962c;         /* must match ReaderTheme.success */
             --link-underline: rgba(9, 105, 218, 0.35);
@@ -105,6 +225,9 @@ enum HTMLTemplate {
                 --muted: #9198a1;       /* WCAG AA against --bg */
                 --code-bg: #161b22;
                 --border: #3d444d;
+                --hairline: rgba(230, 237, 243, 0.08);
+                --pill: #161b22;
+                --hover-fill: rgba(230, 237, 243, 0.07);
                 --link: #58a6ff;
                 --success: #2ebe3d;
                 --link-underline: rgba(88, 166, 255, 0.40);
@@ -124,6 +247,7 @@ enum HTMLTemplate {
         }
 
         \(headerBlur)
+        \(tableOfContentsCSS)
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
@@ -682,7 +806,7 @@ enum HTMLTemplate {
                     clear();
                     if (!q) return { total: 0, current: 0 };
                     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-                        acceptNode: (n) => n.parentElement && n.parentElement.closest('script,style') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+                        acceptNode: (n) => n.parentElement && n.parentElement.closest('script,style,[data-rd-search-exclude]') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
                     });
                     const nodes = [];
                     let n;
@@ -729,6 +853,202 @@ enum HTMLTemplate {
             };
         })();
         </script>
+        \(compact ? "" : """
+        <script>
+        (function() {
+            var stack = [];
+            document.addEventListener('click', function(event) {
+                var link = event.target.closest && event.target.closest('a[href^="#"]');
+                if (!link || link.getAttribute('href').length < 2) return;
+                stack.push(window.scrollY);
+                if (stack.length > 50) stack.shift();
+            }, true);
+            window.__rdBack = {
+                back: function() {
+                    if (stack.length === 0) return false;
+                    window.scrollTo(0, stack.pop());
+                    return true;
+                }
+            };
+        })();
+        </script>
+        <script>
+        // Build the table of contents from the final heading DOM rather than
+        // parsing Markdown a second time. This keeps setext headings, inline
+        // formatting, duplicate slugs, and live reloads aligned with the renderer.
+        (function() {
+            var headings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+                .filter(function(h) {
+                    return !h.closest('[data-rd-search-exclude]')
+                        && h.id && h.textContent.trim().length > 0;
+                });
+            var panel = null;
+            var links = new Map();
+            var updateScheduled = false;
+
+            function visibleHeadings() {
+                return headings.filter(function(h) { return h.getClientRects().length > 0; });
+            }
+
+            function capturePosition() {
+                var candidates = visibleHeadings();
+                var anchor = candidates.length > 0 ? candidates[0] : null;
+                for (var i = 0; i < candidates.length; i++) {
+                    if (candidates[i].getBoundingClientRect().top <= 80) {
+                        anchor = candidates[i];
+                    } else {
+                        break;
+                    }
+                }
+                return {
+                    scrollY: window.scrollY,
+                    anchorID: anchor ? anchor.id : null,
+                    anchorOffset: anchor ? anchor.getBoundingClientRect().top : null
+                };
+            }
+
+            function restorePosition(state) {
+                var anchor = state.anchorID ? document.getElementById(state.anchorID) : null;
+                if (anchor && typeof state.anchorOffset === 'number') {
+                    window.scrollBy(0, anchor.getBoundingClientRect().top - state.anchorOffset);
+                } else if (typeof state.scrollY === 'number') {
+                    window.scrollTo(0, state.scrollY);
+                }
+            }
+
+            function isVisible() {
+                return !!panel && document.body.classList.contains('rd-table-of-contents-open');
+            }
+
+            function notifyHost() {
+                var state = { available: headings.length > 0, visible: isVisible() };
+                try {
+                    window.webkit.messageHandlers.rdTableOfContents.postMessage(state);
+                } catch (e) {}
+            }
+
+            function updateActive() {
+                updateScheduled = false;
+                var candidates = visibleHeadings();
+                if (candidates.length === 0) return;
+                var active = candidates[0];
+                for (var i = 0; i < candidates.length; i++) {
+                    if (candidates[i].getBoundingClientRect().top <= 96) {
+                        active = candidates[i];
+                    } else {
+                        break;
+                    }
+                }
+                if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+                    active = candidates[candidates.length - 1];
+                }
+                links.forEach(function(link, heading) {
+                    var selected = heading === active;
+                    link.classList.toggle('rd-toc-active', selected);
+                    if (selected) link.setAttribute('aria-current', 'location');
+                    else link.removeAttribute('aria-current');
+                });
+            }
+
+            function scheduleActiveUpdate() {
+                if (updateScheduled) return;
+                updateScheduled = true;
+                window.requestAnimationFrame(updateActive);
+            }
+
+            function setVisible(visible, preservePosition) {
+                if (!panel) return false;
+                var position = preservePosition ? capturePosition() : null;
+                document.body.classList.toggle('rd-table-of-contents-open', !!visible);
+                panel.setAttribute('aria-hidden', visible ? 'false' : 'true');
+                if (position) {
+                    window.requestAnimationFrame(function() {
+                        restorePosition(position);
+                        scheduleActiveUpdate();
+                    });
+                }
+                notifyHost();
+                return isVisible();
+            }
+
+            window.__rdTableOfContents = {
+                toggle: function() { return setVisible(!isVisible(), true); },
+                capture: function() {
+                    var state = capturePosition();
+                    state.tableOfContentsVisible = isVisible();
+                    return state;
+                },
+                restore: function(state) {
+                    if (typeof state.tableOfContentsVisible === 'boolean') {
+                        setVisible(state.tableOfContentsVisible, false);
+                    }
+                    // Two frames let the new page and its outline layout settle
+                    // before the heading-relative reading position is restored.
+                    window.requestAnimationFrame(function() {
+                        window.requestAnimationFrame(function() {
+                            restorePosition(state);
+                            scheduleActiveUpdate();
+                        });
+                    });
+                }
+            };
+
+            if (headings.length === 0) {
+                notifyHost();
+                return;
+            }
+
+            panel = document.createElement('aside');
+            panel.id = 'rd-table-of-contents';
+            panel.setAttribute('aria-label', 'Table of Contents');
+            panel.setAttribute('aria-hidden', 'true');
+            panel.setAttribute('data-rd-search-exclude', '');
+
+            var header = document.createElement('div');
+            header.className = 'rd-toc-header';
+            var title = document.createElement('span');
+            title.textContent = 'Contents';
+            var close = document.createElement('button');
+            close.type = 'button';
+            close.className = 'rd-toc-close';
+            close.setAttribute('aria-label', 'Close Table of Contents');
+            close.textContent = '×';
+            close.addEventListener('click', function() { setVisible(false, true); });
+            header.appendChild(title);
+            header.appendChild(close);
+            panel.appendChild(header);
+
+            var list = document.createElement('nav');
+            list.className = 'rd-toc-list';
+            var minimumLevel = headings.reduce(function(minimum, h) {
+                return Math.min(minimum, Number(h.tagName.substring(1)));
+            }, 6);
+
+            headings.forEach(function(heading) {
+                var link = document.createElement('a');
+                var level = Number(heading.tagName.substring(1));
+                link.className = 'rd-toc-link';
+                link.href = '#' + encodeURIComponent(heading.id);
+                link.textContent = heading.textContent.trim();
+                link.style.paddingLeft = (9 + (level - minimumLevel) * 12) + 'px';
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (window.innerWidth < 720) setVisible(false, false);
+                });
+                links.set(heading, link);
+                list.appendChild(link);
+            });
+            panel.appendChild(list);
+            document.body.appendChild(panel);
+
+
+            window.addEventListener('scroll', scheduleActiveUpdate, { passive: true });
+            setVisible(false, false);
+            updateActive();
+        })();
+        </script>
+        """)
         <script>
         (function() {
             let timer;

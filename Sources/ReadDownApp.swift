@@ -381,6 +381,18 @@ struct ReadDownApp: App {
 
                 Divider()
 
+                Button("Table of Contents") {
+                    NotificationCenter.default.post(name: .toggleTableOfContents, object: nil)
+                }
+                .keyboardShortcut(AppShortcut.tableOfContents)
+
+                Button("Back") {
+                    NotificationCenter.default.post(name: .navigateBack, object: nil)
+                }
+                .keyboardShortcut(AppShortcut.back)
+
+                Divider()
+
                 Button("Zoom In") {
                     NotificationCenter.default.post(name: .zoomIn, object: nil)
                 }
