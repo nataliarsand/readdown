@@ -487,10 +487,11 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.contains("Tom &amp; Jerry"))
     }
 
-    func testHTMLCommentPreserved() {
+    func testHTMLCommentRemoved() {
         let result = MarkdownRenderer.render("Before <!-- hidden --> after").html
-        XCTAssertTrue(result.contains("<!-- hidden -->"))
-        XCTAssertFalse(result.contains("&lt;!--"))
+        XCTAssertFalse(result.contains("hidden"))
+        XCTAssertTrue(result.contains("Before"))
+        XCTAssertTrue(result.contains("after"))
     }
 
     func testBlockLevelScriptIsEscaped() {
@@ -679,11 +680,10 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertTrue(result.hasMermaid)
     }
 
-    func testMermaidBlockNotEscaped() {
+    func testMermaidSourceEscaped() {
         let md = "```mermaid\ngraph TD\n    A-->B\n```"
         let result = MarkdownRenderer.render(md).html
-        XCTAssertTrue(result.contains("A-->B"))
-        XCTAssertFalse(result.contains("&gt;"))
+        XCTAssertTrue(result.contains("A--&gt;B"))
     }
 
     func testMermaidCaseInsensitive() {
