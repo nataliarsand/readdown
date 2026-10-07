@@ -2,6 +2,17 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.18.2
+
+### Fixed
+- Stricter handling of document content in the app and in Quick Look
+
+### Details
+
+**Security**
+
+- Stricter handling of document content in the app and in Quick Look. Security fixes ship on their own, as soon as they're ready.
+
 ## 1.18.1
 
 A small update that makes links in documents safer. Nothing changes in how you use Readdown.
