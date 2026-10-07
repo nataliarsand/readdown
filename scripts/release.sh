@@ -275,6 +275,10 @@ else
             <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:phasedRolloutInterval>86400</sparkle:phasedRolloutInterval>
+            <link>https://github.com/nataliarsand/readdown/releases/latest/download/Readdown.dmg</link>
+            <sparkle:informationalUpdate>
+                <sparkle:belowVersion>7</sparkle:belowVersion>
+            </sparkle:informationalUpdate>
 ${DESCRIPTION_TAG}
             <enclosure url="${ZIP_URL}"
                        length="${ZIP_SIZE}"
