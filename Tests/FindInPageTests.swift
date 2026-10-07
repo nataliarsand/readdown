@@ -86,6 +86,12 @@ final class FindInPageTests: XCTestCase {
         XCTAssertEqual(marks, 0)
     }
 
+    func testMermaidStillRendersFromEscapedSource() {
+        let webView = loadDocument("```mermaid\ngraph TD\n    A-->B\n```")
+        waitUntilTrue(webView, "!!document.querySelector('pre.mermaid svg')")
+        XCTAssertEqual(evaluate(webView, "document.querySelector('pre.mermaid').getAttribute('data-rd-src').includes('A-->B')") as? Bool, true)
+    }
+
     func testCopyButtonInjectedPerFencedBlock() {
         let webView = loadDocument("""
         ```swift

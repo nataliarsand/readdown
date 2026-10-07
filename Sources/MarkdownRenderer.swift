@@ -291,7 +291,7 @@ enum MarkdownRenderer {
 
     /// Escapes, rather than drops, any tag outside the allowlist.
     private static func sanitizeHTMLTag(_ tag: String) -> String {
-        if tag.hasPrefix("<!--") { return tag }
+        if tag.hasPrefix("<!--") { return "" }
         var s = Substring(tag)
         guard s.first == "<" else { return escapeHTML(tag) }
         s = s.dropFirst()
@@ -785,7 +785,7 @@ enum MarkdownRenderer {
                 break
             }
             let content = dropIndent(l, openerIndent)
-            code.append(isMermaid ? content : escapeHTML(content))
+            code.append(escapeHTML(content))
             i += 1
         }
         if isMermaid {

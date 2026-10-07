@@ -56,6 +56,7 @@ enum HTMLTemplate {
     }()
 
     static func wrap(body: String, hasMermaid: Bool = false, hasMath: Bool = false, compact: Bool = false, isDark: Bool = false) -> String {
+        let nonce = UUID().uuidString
         let fontSize = compact ? "14px" : "16px"
         // Extra clearance for the floating header; Quick Look (compact) has none.
         let topPadding = compact ? "32px" : "64px"
@@ -80,7 +81,7 @@ enum HTMLTemplate {
         <html>
         <head>
         <meta charset="utf-8">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src file: data: https: http:; font-src \(hasMath ? "data:" : "'none'"); connect-src 'none'; form-action 'none';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-\(nonce)'; style-src 'unsafe-inline'; img-src file: data: https: http:; font-src \(hasMath ? "data:" : "'none'"); connect-src 'none'; form-action 'none';">
         <meta name="color-scheme" content="light dark">
         <style>
         :root {
@@ -475,8 +476,8 @@ enum HTMLTemplate {
         </head>
         <body data-rd-theme="\(isDark ? "dark" : "light")">
         \(body)
-        <script>\(SyntaxHighlight.js)</script>
-        <script>
+        <script nonce="\(nonce)">\(SyntaxHighlight.js)</script>
+        <script nonce="\(nonce)">
         hljs.configure({ languages: [
             'bash', 'c', 'cpp', 'css', 'diff', 'go', 'java', 'javascript',
             'json', 'kotlin', 'python', 'ruby', 'rust', 'shell', 'sql',
@@ -484,7 +485,7 @@ enum HTMLTemplate {
         ]});
         hljs.highlightAll();
         </script>
-        <script>
+        <script nonce="\(nonce)">
         // Runs after highlightAll; Mermaid <pre>s have no <code> child, so `pre > code` skips them.
         (function() {
             const COPY_ICON = '\(CopyIcon.svg)';
@@ -550,7 +551,7 @@ enum HTMLTemplate {
             });
         })();
         </script>
-        <script>
+        <script nonce="\(nonce)">
         // Rewrites Cmd+C: WebKit's default serialization bakes computed styles into the paste.
         (function() {
             // Null prototype so inherited names can't pass the allowlist.
@@ -652,7 +653,7 @@ enum HTMLTemplate {
             });
         })();
         </script>
-        <script>
+        <script nonce="\(nonce)">
         (function() {
             const MATCH = 'rd-find';
             const CURRENT = 'rd-find-current';
@@ -725,7 +726,7 @@ enum HTMLTemplate {
             };
         })();
         </script>
-        <script>
+        <script nonce="\(nonce)">
         (function() {
             let timer;
             window.addEventListener('scroll', () => {
@@ -736,7 +737,7 @@ enum HTMLTemplate {
         })();
         </script>
         \(compact ? "" : """
-        <script>
+        <script nonce="\(nonce)">
         // Headings are flat siblings, so a section runs to the next same-or-higher heading.
         (function() {
             var CH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
@@ -770,8 +771,8 @@ enum HTMLTemplate {
         """)
         \(hasMath && katexJS != nil && katexCSS != nil ? """
         <style>\(katexCSS!)</style>
-        <script>\(katexJS!)</script>
-        <script>
+        <script nonce="\(nonce)">\(katexJS!)</script>
+        <script nonce="\(nonce)">
         // Only renderer-emitted .rd-math nodes; a document-wide scan would eat stray `$` in prose and code.
         (function() {
             var nodes = document.querySelectorAll('.rd-math');
@@ -788,8 +789,8 @@ enum HTMLTemplate {
         </script>
         """ : "")
         \(hasMermaid && mermaidJS != nil ? """
-        <script>\(mermaidJS!)</script>
-        <script>
+        <script nonce="\(nonce)">\(mermaidJS!)</script>
+        <script nonce="\(nonce)">
         // Swift stamps data-rd-theme; matchMedia and getComputedStyle report stale values in WKWebView.
         const dark = document.body.dataset.rdTheme === 'dark';
         // Keep to a built-in theme with these few overrides: `theme: 'base'` or a wider
