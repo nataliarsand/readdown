@@ -1022,7 +1022,7 @@ enum HTMLTemplate {
 
 
             window.addEventListener('scroll', scheduleActiveUpdate, { passive: true });
-            setVisible(window.innerWidth >= 1000, false);
+            setVisible(false, false);
             updateActive();
         })();
         </script>
