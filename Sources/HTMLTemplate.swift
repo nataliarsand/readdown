@@ -90,11 +90,10 @@ enum HTMLTemplate {
             display: flex;
             flex-direction: column;
             color: var(--text);
-            background: var(--bg);
+            background: var(--pill);
             border: 1px solid var(--hairline);
-            /* The native action panel is a 34pt-high Capsule: 34 / 2 = 17. */
-            border-radius: 17px;
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+            border-radius: var(--panel-radius);
+            box-shadow: var(--panel-shadow);
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -128,7 +127,7 @@ enum HTMLTemplate {
             height: 28px;
             padding: 0;
             border: 0;
-            border-radius: 6px;
+            border-radius: var(--control-radius);
             color: var(--muted);
             background: transparent;
             font: inherit;
@@ -139,7 +138,7 @@ enum HTMLTemplate {
         .rd-toc-close:hover,
         .rd-toc-close:focus-visible {
             color: var(--text);
-            background: var(--code-bg);
+            background: var(--hover-fill);
             outline: none;
         }
         .rd-toc-list {
@@ -154,8 +153,8 @@ enum HTMLTemplate {
             padding-top: 5px;
             padding-right: 9px;
             padding-bottom: 5px;
-            border-radius: 6px;
-            color: var(--muted);
+            border-radius: var(--control-radius);
+            color: var(--text);
             font-size: 12px;
             line-height: 1.35;
             text-decoration: none;
@@ -167,13 +166,12 @@ enum HTMLTemplate {
         .rd-toc-link:hover,
         .rd-toc-link:focus-visible {
             color: var(--text);
-            background: var(--code-bg);
+            background: var(--hover-fill);
             outline: none;
             text-decoration: none;
         }
         .rd-toc-link.rd-toc-active {
             color: var(--link);
-            background: var(--code-bg);
             font-weight: 600;
         }
         @media (min-width: 720px) {
@@ -206,6 +204,11 @@ enum HTMLTemplate {
             --code-bg: #eef1f5;
             --border: #d0d7de;
             --hairline: rgba(31, 35, 40, 0.08); /* matches ReaderTheme.hairline */
+            --pill: #ffffff;            /* ReaderTheme floating chrome below: pill, hoverFill, radii, shadow */
+            --hover-fill: rgba(31, 35, 40, 0.07);
+            --control-radius: 8px;
+            --panel-radius: 12px;
+            --panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
             --link: #0969da;
             --success: #1f962c;         /* must match ReaderTheme.success */
             --link-underline: rgba(9, 105, 218, 0.35);
@@ -223,6 +226,8 @@ enum HTMLTemplate {
                 --code-bg: #161b22;
                 --border: #3d444d;
                 --hairline: rgba(230, 237, 243, 0.08);
+                --pill: #161b22;
+                --hover-fill: rgba(230, 237, 243, 0.07);
                 --link: #58a6ff;
                 --success: #2ebe3d;
                 --link-underline: rgba(88, 166, 255, 0.40);
@@ -1003,7 +1008,6 @@ enum HTMLTemplate {
                 link.className = 'rd-toc-link';
                 link.href = '#' + encodeURIComponent(heading.id);
                 link.textContent = heading.textContent.trim();
-                link.title = link.textContent;
                 link.style.paddingLeft = (9 + (level - minimumLevel) * 12) + 'px';
                 link.addEventListener('click', function(event) {
                     event.preventDefault();
@@ -1015,6 +1019,7 @@ enum HTMLTemplate {
             });
             panel.appendChild(list);
             document.body.appendChild(panel);
+
 
             window.addEventListener('scroll', scheduleActiveUpdate, { passive: true });
             setVisible(window.innerWidth >= 1000, false);
