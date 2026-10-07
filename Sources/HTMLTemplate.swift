@@ -163,8 +163,8 @@ enum HTMLTemplate {
             overflow: hidden;
             cursor: default;
         }
-        .rd-toc-link:hover,
-        .rd-toc-link:focus-visible {
+        .rd-toc-link:not(.rd-toc-active):hover,
+        .rd-toc-link:not(.rd-toc-active):focus-visible {
             color: var(--text);
             background: var(--hover-fill);
             outline: none;
