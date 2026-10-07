@@ -12,9 +12,8 @@ set -euo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 REPO="nataliarsand/readdown"
-DIR="$(cd "$(dirname "$0")/.." && pwd)"
-CSV="$DIR/metrics/downloads.csv"
-mkdir -p "$DIR/metrics"
+CSV="${SNAPSHOT_CSV:?Set SNAPSHOT_CSV to the CSV file to append to}"
+mkdir -p "$(dirname "$CSV")"
 
 if [[ "${1:-}" == "--report" ]]; then
     if [[ ! -f "$CSV" ]]; then
