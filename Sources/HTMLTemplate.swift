@@ -151,24 +151,28 @@ enum HTMLTemplate {
             scroll-margin-top: 56px;
             position: relative;
         }
+        /* A 14px arrow inside a larger target; padding grows the hit area without moving the arrow. */
         .rd-fold {
             position: absolute;
-            left: -1.15rem;
-            top: 0.42em;
-            width: 14px;
-            height: 14px;
+            box-sizing: border-box;
+            left: calc(-1.15rem - 8px);
+            top: calc(0.42em - 7px);
+            width: 26px;
+            height: 28px;
+            padding: 7px 4px 7px 8px;
             color: var(--muted);
             opacity: 0;
             cursor: default;
-            transition: opacity 0.15s ease, transform 0.15s ease;
+            transition: opacity 0.15s ease;
             -webkit-user-select: none;
             user-select: none;
         }
-        .rd-fold svg { width: 100%; height: 100%; display: block; }
+        .rd-fold svg { width: 100%; height: 100%; display: block; transition: transform 0.15s ease; }
         h1:hover > .rd-fold, h2:hover > .rd-fold, h3:hover > .rd-fold,
         h4:hover > .rd-fold, h5:hover > .rd-fold, h6:hover > .rd-fold { opacity: 0.3; }
         .rd-fold:hover { opacity: 0.7; }
-        .rd-collapsed > .rd-fold { transform: rotate(-90deg); opacity: 0.28; }
+        .rd-collapsed > .rd-fold { opacity: 0.28; }
+        .rd-collapsed > .rd-fold svg { transform: rotate(-90deg); }
         .rd-fold-hidden { display: none !important; }
         @media print {
             .rd-fold { display: none; }
