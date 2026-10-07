@@ -45,11 +45,15 @@ private struct ShortcutsListView: View {
             ("⇧⌘G", "Find previous"),
             ("Esc", "Close find bar"),
         ]),
+        ("Navigate", [
+            ("⌥⌘T", "Table of contents"),
+            ("⌘[", "Back"),
+        ]),
         ("Zoom", [
             ("⌘=", "Zoom in"),
             ("⌘-", "Zoom out"),
             ("⌘0", "Actual size"),
-            ("⌘ + scroll", "Zoom (pinch also works)"),
+            ("Pinch", "Zoom with the trackpad"),
         ]),
         ("Export", [
             ("⌘P", "Print"),
