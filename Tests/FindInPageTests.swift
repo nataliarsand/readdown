@@ -164,6 +164,21 @@ final class FindInPageTests: XCTestCase {
         waitUntilTrue(webView, "document.body.classList.contains('rd-table-of-contents-open')")
     }
 
+    // MARK: - Back
+
+    func testBackReturnsToPositionBeforeAnchorJump() {
+        let filler = String(repeating: "Line.\n\n", count: 200)
+        let webView = loadDocument("[Jump](#end)\n\n\(filler)# End\n\n\(filler)")
+        waitUntilTrue(webView, "typeof window.__rdBack === 'object'")
+
+        _ = evaluate(webView, "document.querySelector('a[href=\"#end\"]').click()")
+        waitUntilTrue(webView, "Math.abs(document.getElementById('end').getBoundingClientRect().top) < 100")
+
+        XCTAssertEqual(evaluate(webView, "window.__rdBack.back()") as? Bool, true)
+        waitUntilTrue(webView, "window.scrollY === 0")
+        XCTAssertEqual(evaluate(webView, "window.__rdBack.back()") as? Bool, false)
+    }
+
     // MARK: - Code-block copy buttons
 
     func testCopyButtonInjectedPerFencedBlock() {

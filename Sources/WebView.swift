@@ -16,6 +16,7 @@ extension Notification.Name {
     static let findPrevious = Notification.Name("findPrevious")
     static let linkNotice = Notification.Name("linkNotice")
     static let toggleTableOfContents = Notification.Name("toggleTableOfContents")
+    static let navigateBack = Notification.Name("navigateBack")
 }
 
 /// `pageZoom`, not `setMagnification`: WebKit clamps magnification at 1.0, so it can't zoom out.
@@ -149,6 +150,7 @@ struct WebView: NSViewRepresentable {
             observe(.findNext) { $0.findCurrent(backwards: false) }
             observe(.findPrevious) { $0.findCurrent(backwards: true) }
             observe(.toggleTableOfContents) { $0.toggleTableOfContents() }
+            observe(.navigateBack) { $0.navigateBack() }
         }
 
         deinit {
@@ -202,6 +204,11 @@ struct WebView: NSViewRepresentable {
             guard let webView, webView.window == NSApp.keyWindow else { return }
             webView.evaluateJavaScript(
                 "window.__rdTableOfContents.toggle()", completionHandler: nil)
+        }
+
+        private func navigateBack() {
+            guard let webView, webView.window == NSApp.keyWindow else { return }
+            webView.evaluateJavaScript("window.__rdBack && window.__rdBack.back()", completionHandler: nil)
         }
 
         private func findCurrent(backwards: Bool) {

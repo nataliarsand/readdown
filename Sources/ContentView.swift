@@ -575,6 +575,7 @@ private struct CopyButton: View {
 enum AppShortcut {
     static let find = KeyboardShortcut("f", modifiers: .command)
     static let tableOfContents = KeyboardShortcut("t", modifiers: [.command, .option])
+    static let back = KeyboardShortcut("[", modifiers: .command)
 }
 
 extension KeyboardShortcut {

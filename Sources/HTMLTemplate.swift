@@ -851,6 +851,24 @@ enum HTMLTemplate {
         </script>
         \(compact ? "" : """
         <script>
+        (function() {
+            var stack = [];
+            document.addEventListener('click', function(event) {
+                var link = event.target.closest && event.target.closest('a[href^="#"]');
+                if (!link || link.getAttribute('href').length < 2) return;
+                stack.push(window.scrollY);
+                if (stack.length > 50) stack.shift();
+            }, true);
+            window.__rdBack = {
+                back: function() {
+                    if (stack.length === 0) return false;
+                    window.scrollTo(0, stack.pop());
+                    return true;
+                }
+            };
+        })();
+        </script>
+        <script>
         // Build the table of contents from the final heading DOM rather than
         // parsing Markdown a second time. This keeps setext headings, inline
         // formatting, duplicate slugs, and live reloads aligned with the renderer.

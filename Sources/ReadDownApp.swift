@@ -374,6 +374,11 @@ struct ReadDownApp: App {
                 }
                 .keyboardShortcut(AppShortcut.tableOfContents)
 
+                Button("Back") {
+                    NotificationCenter.default.post(name: .navigateBack, object: nil)
+                }
+                .keyboardShortcut(AppShortcut.back)
+
                 Divider()
 
                 Button("Zoom In") {
