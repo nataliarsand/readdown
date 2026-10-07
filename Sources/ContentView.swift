@@ -200,6 +200,7 @@ struct ContentView: View {
                 icon: "list.bullet.indent",
                 label: tableOfContentsState.isVisible
                     ? "Hide Table of Contents" : "Show Table of Contents",
+                shortcut: AppShortcut.tableOfContents,
                 tint: tableOfContentsState.isVisible ? .accentColor : nil,
                 disabled: !tableOfContentsState.isAvailable
             ) {
@@ -573,6 +574,7 @@ private struct CopyButton: View {
 
 enum AppShortcut {
     static let find = KeyboardShortcut("f", modifiers: .command)
+    static let tableOfContents = KeyboardShortcut("t", modifiers: [.command, .option])
 }
 
 extension KeyboardShortcut {
