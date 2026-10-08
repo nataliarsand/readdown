@@ -185,7 +185,7 @@ struct ContentView: View {
         }
         .onChange(of: watcher.html) { _ in
             if watcher.lastChangeSource == .disk {
-                showToast(Toast(text: "File changed on disk, showing the latest", kind: .info))
+                showToast(Toast(text: "File updated with latest changes", kind: .info))
             }
         }
     }
