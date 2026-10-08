@@ -131,7 +131,7 @@ final class LinkPolicyTests: XCTestCase {
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         webView.navigationDelegate = coordinator
         webView.loadHTMLString(watcher.html, baseURL: baseURL)
-        // A cold WebContent process on CI can take seconds; a late own-load answer would pass for the test's.
+        // Cold WebContent launches on CI take seconds.
         pump(seconds: 10, until: { !coordinator.answers.isEmpty && webView.isLoading == false })
         XCTAssertFalse(coordinator.answers.isEmpty, "the page never loaded")
         return (webView, coordinator)

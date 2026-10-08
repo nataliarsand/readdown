@@ -246,7 +246,6 @@ struct ContentView: View {
         reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity)
     }
 
-    /// Clears the open contents panel, which sits beside the page only from 720pt.
     private func findBarTrailingInset(width: CGFloat) -> CGFloat {
         guard tableOfContentsState.isVisible, width >= 720 else { return 0 }
         return 260 + ReaderTheme.headerEdgePadding

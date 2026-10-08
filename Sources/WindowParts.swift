@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 
 extension URL {
-    /// For links fixed in source; a typo fails on first use rather than shipping a dead link.
     init(literal: StaticString) {
         guard let url = URL(string: "\(literal)") else { preconditionFailure("Invalid URL: \(literal)") }
         self = url

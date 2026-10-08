@@ -1085,7 +1085,6 @@ enum HTMLTemplate {
             function level(el) {
                 return el && el.tagName && /^H[1-6]$/.test(el.tagName) ? +el.tagName.charAt(1) : 0;
             }
-            // Expanding leaves sections under a still-collapsed heading hidden.
             function setCollapsed(h, collapsed) {
                 var lvl = level(h);
                 h.classList.toggle('rd-collapsed', collapsed);

@@ -351,7 +351,6 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        /// Renders screen media, so the contents panel is hidden for the capture.
         private func exportContinuousPDF(webView: WKWebView, to url: URL, window: NSWindow) {
             let exporting = "document.documentElement.classList.toggle('rd-exporting', %@)"
             webView.evaluateJavaScript(String(format: exporting, "true")) { _, _ in
