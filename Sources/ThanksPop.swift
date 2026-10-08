@@ -53,8 +53,7 @@ private struct ThanksPopView: View {
                 Image(systemName: "heart.fill")
                     .foregroundStyle(ReaderTheme.success)
             case .updated:
-                Image(systemName: "heart.fill")
-                    .foregroundStyle(ReaderTheme.link)
+                EmptyView()
             }
             Text(style == .updated ? "Update completed! Happy reading \u{2728}" : "Thank you!")
                 .fontWeight(.semibold)
