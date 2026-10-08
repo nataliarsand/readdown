@@ -4,7 +4,7 @@ import SwiftUI
 enum ThanksPop {
 
     enum Style {
-        case celebrate, support
+        case celebrate, support, updated
     }
 
     static func show(centeredIn rect: NSRect, style: Style = .celebrate) {
@@ -52,8 +52,11 @@ private struct ThanksPopView: View {
             case .support:
                 Image(systemName: "heart.fill")
                     .foregroundStyle(ReaderTheme.success)
+            case .updated:
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(ReaderTheme.link)
             }
-            Text("Thank you!")
+            Text(style == .updated ? "Thanks for updating!" : "Thank you!")
                 .fontWeight(.semibold)
         }
         .font(.system(size: 15))

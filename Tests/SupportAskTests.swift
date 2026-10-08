@@ -6,8 +6,6 @@ final class SupportAskTests: XCTestCase {
     // The runner is hosted by the app: UserDefaults.standard would overwrite the real install's state.
     private static let suiteName = "com.heya.readdown.support-ask-tests"
     private var testStore: UserDefaults!
-    private let now = Date(timeIntervalSince1970: 2_000_000_000)
-    private let day: TimeInterval = 24 * 60 * 60
 
     override func setUp() {
         super.setUp()
@@ -26,30 +24,19 @@ final class SupportAskTests: XCTestCase {
         LaunchHistory.Launch(previousBuild: "20", currentBuild: "21", version: version)
     }
 
-    private func shows(_ launch: LaunchHistory.Launch, installedDaysAgo: Double = 60, consentDue: Bool = false) -> Bool {
-        SupportAsk.shouldShow(launch: launch, installDate: now.addingTimeInterval(-installedDaysAgo * day),
-                              consentPromptDue: consentDue, now: now)
+    private func shows(_ launch: LaunchHistory.Launch, consentDue: Bool = false) -> Bool {
+        SupportAsk.shouldShow(launch: launch, consentPromptDue: consentDue)
     }
 
-    func testShowsAfterUpdateForEstablishedInstall() {
+    func testShowsAfterEveryUpdateIncludingFixes() {
         XCTAssertTrue(shows(update()))
+        XCTAssertTrue(shows(update(version: "1.19.1")))
     }
 
-    func testNeverOnFreshInstallSameBuildPatchOrConsentLaunch() {
+    func testNeverOnFreshInstallSameBuildOrConsentLaunch() {
         XCTAssertFalse(shows(LaunchHistory.Launch(previousBuild: nil, currentBuild: "21", version: "1.19")))
         XCTAssertFalse(shows(LaunchHistory.Launch(previousBuild: "21", currentBuild: "21", version: "1.19")))
-        XCTAssertFalse(shows(update(version: "1.19.1")))
         XCTAssertFalse(shows(update(), consentDue: true))
-        XCTAssertFalse(shows(update(), installedDaysAgo: 10))
-    }
-
-    func testQuietPeriodsPerAnswer() {
-        SupportAsk.record(.later, at: now.addingTimeInterval(-89 * day))
-        XCTAssertFalse(shows(update()))
-        SupportAsk.record(.later, at: now.addingTimeInterval(-91 * day))
-        XCTAssertTrue(shows(update()))
-        SupportAsk.record(.alreadySupported, at: now.addingTimeInterval(-300 * day))
-        XCTAssertFalse(shows(update()))
     }
 
     func testToggleOffSilencesIt() {

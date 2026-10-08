@@ -19,11 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             self?.updaterController.startUpdater()
         }
 
-        let launch = LaunchHistory.current
         // Decided before the consent alert can mark itself prompted.
-        let showSupportAsk = SupportAsk.shouldShow(launch: launch,
-                                                   installDate: SupportAsk.installDate,
-                                                   consentPromptDue: UsageMetrics.isPromptDue)
+        let afterUpdate = SupportAsk.shouldShow(launch: LaunchHistory.current,
+                                                consentPromptDue: UsageMetrics.isPromptDue)
 
         // application(_:open:) can land after this callback; restoring synchronously would resurrect the old session over the opened file.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
@@ -34,15 +32,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 let restoredCount = DocumentSession.shared.restorePreviousSession()
                 nothingOpen = restoredCount == 0 && NSDocumentController.shared.documents.isEmpty
             }
-            if showSupportAsk {
-                let delay: TimeInterval = NSDocumentController.shared.documents.isEmpty ? 0 : 1.5
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    AfterUpdateWindow.shared.show(asksForSupport: true)
+            if nothingOpen {
+                afterUpdate ? AfterUpdateWindow.shared.show() : self.showWelcomeWindow()
+            } else if afterUpdate {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    guard let frame = NSApp.mainWindow?.frame else { return }
+                    ThanksPop.show(centeredIn: frame, style: .updated)
                 }
-            } else if nothingOpen && launch.isUpdate {
-                AfterUpdateWindow.shared.show(asksForSupport: false)
-            } else if nothingOpen {
-                self.showWelcomeWindow()
             }
         }
 
@@ -330,7 +326,6 @@ struct ReadDownApp: App {
             )
                 .onAppear {
                     appDelegate.dismissWelcomeWindow()
-                    AfterUpdateWindow.shared.dismissNote()
                     UsageMetrics.record(.documentOpened)
                     if let url = file.fileURL {
                         DocumentSession.shared.register(url)
@@ -452,7 +447,6 @@ struct ReadDownApp: App {
 
 }
 
-/// Reads the key document window's state; disabled when no document is focused.
 private struct PageNavigationCommands: View {
     @FocusedObject private var tableOfContents: TableOfContentsState?
     @FocusedObject private var back: BackState?

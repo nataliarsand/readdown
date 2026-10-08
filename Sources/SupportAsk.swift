@@ -4,7 +4,7 @@ import Foundation
 enum SupportAsk {
 
     enum Answer {
-        case support, later, alreadySupported
+        case support, alreadySupported
     }
 
     static let supportURL = URL(literal: "https://readdown.app/support?src=update")
@@ -13,41 +13,11 @@ enum SupportAsk {
     static var store: UserDefaults = .standard
 
     static let enabledKey = "supportAskEnabled"
-    private static let answerKeys: [Answer: String] = [
-        .support: "supportAskSupportAt",
-        .later: "supportAskLaterAt",
-        .alreadySupported: "supportAskAlreadyAt",
-    ]
-
-    private static let day: TimeInterval = 24 * 60 * 60
-    static let minimumInstallAge = 28 * day
-    static let quietPeriods: [Answer: TimeInterval] = [
-        .support: 180 * day,
-        .later: 90 * day,
-        .alreadySupported: 365 * day,
-    ]
 
     static var isEnabled: Bool { store.object(forKey: enabledKey) as? Bool ?? true }
 
-    static func record(_ answer: Answer, at date: Date = Date()) {
-        guard let key = answerKeys[answer] else { return }
-        store.set(date, forKey: key)
-    }
-
-    static func shouldShow(launch: LaunchHistory.Launch, installDate: Date,
-                           consentPromptDue: Bool, now: Date = Date()) -> Bool {
-        guard isEnabled, launch.isUpdate, !launch.isPatchRelease, !consentPromptDue else { return false }
-        guard now.timeIntervalSince(installDate) >= minimumInstallAge else { return false }
-        return quietPeriods.allSatisfy { answer, quiet in
-            guard let key = answerKeys[answer], let at = store.object(forKey: key) as? Date else { return true }
-            return now.timeIntervalSince(at) >= quiet
-        }
-    }
-
-    /// The sandbox container is created on first launch, so its age is the install age.
-    static var installDate: Date {
-        let attributes = try? FileManager.default.attributesOfItem(atPath: NSHomeDirectory())
-        return attributes?[.creationDate] as? Date ?? Date()
+    static func shouldShow(launch: LaunchHistory.Launch, consentPromptDue: Bool) -> Bool {
+        isEnabled && launch.isUpdate && !consentPromptDue
     }
 }
 
@@ -61,11 +31,6 @@ enum LaunchHistory {
 
         var isFreshInstall: Bool { previousBuild == nil }
         var isUpdate: Bool { previousBuild.map { $0 != currentBuild } ?? false }
-        /// 1.18.1 is a patch release; 1.18 and 1.18.0 are not.
-        var isPatchRelease: Bool {
-            let parts = version.split(separator: ".")
-            return parts.count > 2 && parts[2] != "0"
-        }
     }
 
     static let lastBuildKey = "lastLaunchedBuild"
