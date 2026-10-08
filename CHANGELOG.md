@@ -2,6 +2,42 @@
 
 Each version's **Highlights** block is what appears in the in-app update dialog. Keep it to ~5 short bullets grouped under `### New` / `### Fixed`. Everything below **Details** is full notes for GitHub / readdown.app.
 
+## 1.19
+
+### New
+- A table of contents for long documents: ⌥⌘T or View > Show Table of Contents
+- Back (⌘[) and Forward (⌘]) after following a link within a document
+- Window tabs: merge windows into tabs, and with the tab bar showing, new files open as tabs
+- Install with Homebrew: `brew install --cask nataliarsand/tap/readdown`
+
+### Fixed
+- Jumping from the table of contents or Find into a folded section opens it
+- The fold arrow is easier to click, stays visible on folded headings, and works from the keyboard
+- Reduce motion in macOS settings turns off smooth scrolling and animations
+
+### Details
+
+_Readdown 1.19 is sponsored by [Eixo](https://eixo.design). Make better product decisions and build with confidence in the age of AI._
+
+**New**
+
+- **Table of contents.** ⌥⌘T or View > Show Table of Contents opens a panel listing every heading. Click one to jump there; the heading you're reading is highlighted as you scroll, and the list updates when the file changes on disk. It stays out of printing and PDF export. (PR #25, thanks @skykeyjoker.)
+- **Back and Forward.** After following a link to another part of the same document, ⌘[ takes you back to where you were and ⌘] forward again, from the View menu too. Links in the table of contents count. (Issue #17, thanks @stormc.)
+- **Window tabs.** Window > Merge All Windows gathers your documents into tabs, and you can drag a tab between windows. While the tab bar is showing, a newly opened file joins it as a tab; with it hidden, files open in their own windows as before.
+- **Homebrew.** Readdown installs with `brew install --cask nataliarsand/tap/readdown`. It keeps itself up to date, so there's no need to run `brew upgrade` for it.
+- **After an update.** Opening Readdown with nothing open shows a short window with what's new, a thank-you and a way to support Readdown. With documents open, a brief "Update completed" note appears instead. Help > Show Thank-You After Updates turns both off.
+
+**Fixed**
+
+- Jumping to a heading from the table of contents, or to a Find match, inside a folded section now opens that section instead of doing nothing. Sections folded inside another keep their state when the outer one opens.
+- The fold arrow has a larger click target, stays visible on folded headings, and can be reached and used with the keyboard.
+- With Reduce motion on in macOS settings, scrolling jumps instead of gliding, and panels and notes appear without animating.
+- The find bar no longer covers the table of contents.
+- Enable Quick Look in the welcome window opens the Quick Look extensions list directly on macOS 26.
+- When the file changes on disk, the notice reads "File updated with latest changes".
+- The About window shares one look with the after-update window, links to the people who help, and Help opens the guide on readdown.app.
+- The download's window reminds you to quit Readdown before replacing it, since Finder can't replace an app that's running.
+
 ## 1.18.2
 
 ### Fixed
