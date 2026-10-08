@@ -111,6 +111,7 @@ struct ContentView: View {
     @StateObject private var historyState = HistoryState()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var window: NSWindow?
+    @State private var tabBarVisible = false
     @State private var toast: Toast?
     @State private var toastDismissWork: DispatchWorkItem?
     @StateObject private var tips = HeaderTipState()
@@ -139,7 +140,7 @@ struct ContentView: View {
                     actionPill
                 }
                 .padding(.top, ReaderTheme.headerTopPadding)
-                .padding(.leading, ReaderTheme.headerLeadingClearance)
+                .padding(.leading, tabBarVisible ? ReaderTheme.headerEdgePadding : ReaderTheme.headerLeadingClearance)
                 .padding(.trailing, ReaderTheme.headerEdgePadding)
                 if findState.isVisible {
                     GeometryReader { proxy in
@@ -156,7 +157,7 @@ struct ContentView: View {
                         .transition(dropIn)
                 }
             }
-                .ignoresSafeArea(.container, edges: .top)
+                .ignoresSafeArea(.container, edges: tabBarVisible ? [] : .top)
                 .focusedSceneObject(tableOfContentsState)
                 .focusedSceneObject(historyState)
                 .background(WindowAccessor { window in
@@ -302,7 +303,9 @@ struct ContentView: View {
         window.titlebarSeparatorStyle = .none
         window.titleVisibility = .hidden
         window.backgroundColor = ReaderTheme.pageBackground
-        TrafficLightAligner.attach(to: window, centerFromTop: ReaderTheme.headerCenterFromTop)
+        TrafficLightAligner.attach(to: window, centerFromTop: ReaderTheme.headerCenterFromTop) { visible in
+            tabBarVisible = visible
+        }
     }
 }
 
@@ -310,20 +313,27 @@ struct ContentView: View {
 final class TrafficLightAligner {
     private static var associatedKey: UInt8 = 0
 
-    static func attach(to window: NSWindow, centerFromTop: CGFloat) {
+    static func attach(to window: NSWindow, centerFromTop: CGFloat, onTabBarChange: @escaping (Bool) -> Void) {
         guard objc_getAssociatedObject(window, &associatedKey) == nil else { return }
-        let aligner = TrafficLightAligner(window: window, centerFromTop: centerFromTop)
+        let aligner = TrafficLightAligner(window: window, centerFromTop: centerFromTop, onTabBarChange: onTabBarChange)
         objc_setAssociatedObject(window, &associatedKey, aligner, .OBJC_ASSOCIATION_RETAIN)
     }
 
     private weak var window: NSWindow?
     private let centerFromTop: CGFloat
     private var observers: [Any] = []
+    private var layoutObservation: NSKeyValueObservation?
 
-    private init(window: NSWindow, centerFromTop: CGFloat) {
+    private init(window: NSWindow, centerFromTop: CGFloat, onTabBarChange: @escaping (Bool) -> Void) {
         self.window = window
         self.centerFromTop = centerFromTop
         realign()
+        layoutObservation = window.observe(\.contentLayoutRect, options: [.initial, .new]) { [weak self] window, _ in
+            DispatchQueue.main.async {
+                onTabBarChange(window.tabGroup?.isTabBarVisible == true)
+                self?.realign()
+            }
+        }
         let events: [Notification.Name] = [
             NSWindow.didResizeNotification,
             NSWindow.didBecomeKeyNotification,
@@ -351,7 +361,7 @@ final class TrafficLightAligner {
     }
 
     private func applyOffset() {
-        guard let window else { return }
+        guard let window, window.tabGroup?.isTabBarVisible != true else { return }
         let buttons: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
         for type in buttons {
             guard let button = window.standardWindowButton(type),
