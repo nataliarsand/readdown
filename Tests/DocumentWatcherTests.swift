@@ -78,4 +78,22 @@ final class DocumentWatcherTests: XCTestCase {
 
         XCTAssertEqual(watcher.text, "# Title   ")
     }
+
+    func testUnchangedFileDoesNotRepublish() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("doc.md")
+        try "# Same".write(to: file, atomically: true, encoding: .utf8)
+
+        let watcher = DocumentWatcher(initialText: "# Same", fileURL: file, isDark: false)
+        let republished = expectation(description: "html republished")
+        republished.isInverted = true
+        let observation = watcher.$html.dropFirst().sink { _ in republished.fulfill() }
+        defer { observation.cancel() }
+
+        watcher.presentedItemDidChange()
+        wait(for: [republished], timeout: 1)
+    }
 }

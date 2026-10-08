@@ -72,15 +72,13 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
             decoded = try? TextFileDecoder.decode(data)
         }
 
-        guard let decodedText = decoded else { return }
-        if decodedText != text { text = decodedText }
+        // Opening a file touches its metadata too; each render carries a fresh nonce, so compare the text.
+        guard let decodedText = decoded, decodedText != text else { return }
+        text = decodedText
         let result = MarkdownRenderer.render(decodedText)
         lastResult = result
-        let next = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
-        if next != html {
-            lastChangeSource = .disk
-            html = next
-        }
+        lastChangeSource = .disk
+        html = HTMLTemplate.wrap(body: result.html, hasMermaid: result.hasMermaid, hasMath: result.hasMath, isDark: isDark)
     }
 
     /// Internal so tests can drive a theme change without flipping the system.

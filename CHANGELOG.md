@@ -34,7 +34,7 @@ _Readdown 1.19 is sponsored by [Eixo](https://eixo.design). Make better product 
 - With Reduce motion on in macOS settings, scrolling jumps instead of gliding, and panels and notes appear without animating.
 - The find bar no longer covers the table of contents.
 - Enable Quick Look in the welcome window opens the Quick Look extensions list directly on macOS 26.
-- When the file changes on disk, the notice reads "File updated with latest changes".
+- The "file updated" notice appears only when an open file actually changes on disk, no longer every time you open a file, and now reads "File updated with latest changes".
 - The About window shares one look with the after-update window, links to the people who help, and Help opens the guide on readdown.app.
 - The download's window reminds you to quit Readdown before replacing it, since Finder can't replace an app that's running.
 
