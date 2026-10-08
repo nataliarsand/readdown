@@ -256,7 +256,10 @@ struct WelcomeView: View {
     }
 
     private func openExtensionsSettings() {
-        let urls = [
+        let quickLookSheet = ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0))
+            ? ["x-apple.systempreferences:com.apple.ExtensionsPreferences?extensionPointIdentifier=com.apple.quicklook.preview"]
+            : []
+        let urls = quickLookSheet + [
             "x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
             "x-apple.systempreferences:com.apple.ExtensionsPreferences?Quick%20Look",
             "x-apple.systempreferences:com.apple.Extensions-Settings.QuickLookExtensions",
