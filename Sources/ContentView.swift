@@ -293,6 +293,18 @@ struct ContentView: View {
         }
     }
 
+    private func joinVisibleTabBar(_ window: NSWindow) {
+        let candidates = [NSApp.mainWindow].compactMap { $0 } + NSApp.windows
+        guard let host = candidates.first(where: {
+            $0 !== window && $0.isVisible && $0.tabGroup?.isTabBarVisible == true
+                && $0.tabbingIdentifier == window.tabbingIdentifier
+        }) else { return }
+        DispatchQueue.main.async {
+            host.addTabbedWindow(window, ordered: .above)
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+
     /// No `NSToolbar`: on Tahoe even an empty one paints an opaque header over the pills.
     private func configureWindowChrome(_ window: NSWindow) {
         if !window.styleMask.contains(.fullSizeContentView) {
@@ -303,6 +315,7 @@ struct ContentView: View {
         window.titlebarSeparatorStyle = .none
         window.titleVisibility = .hidden
         window.backgroundColor = ReaderTheme.pageBackground
+        joinVisibleTabBar(window)
         TrafficLightAligner.attach(to: window, centerFromTop: ReaderTheme.headerCenterFromTop) { visible in
             tabBarVisible = visible
         }
