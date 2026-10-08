@@ -49,9 +49,8 @@ final class AfterUpdateWindow: NSObject, NSWindowDelegate {
     }
 
     private func openFile() {
-        guard let url = MarkdownDocument.chooseFile() else { return }
+        guard MarkdownDocument.openChosenFiles() else { return }
         window?.close()
-        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
     }
 
     func windowWillClose(_ notification: Notification) {

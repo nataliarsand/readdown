@@ -28,10 +28,14 @@ struct MarkdownDocument: FileDocument {
         throw CocoaError(.fileWriteNoPermission)
     }
 
-    static func chooseFile() -> URL? {
+    static func openChosenFiles() -> Bool {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.markdown]
-        panel.allowsMultipleSelection = false
-        return panel.runModal() == .OK ? panel.url : nil
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return false }
+        for url in panel.urls {
+            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+        }
+        return true
     }
 }

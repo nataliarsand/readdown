@@ -72,7 +72,6 @@ final class DocumentWatcher: NSObject, ObservableObject, NSFilePresenter {
             decoded = try? TextFileDecoder.decode(data)
         }
 
-        // Opening a file touches its metadata too; each render carries a fresh nonce, so compare the text.
         guard let decodedText = decoded, decodedText != text else { return }
         text = decodedText
         let result = MarkdownRenderer.render(decodedText)

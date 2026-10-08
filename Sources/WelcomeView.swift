@@ -204,9 +204,8 @@ struct WelcomeView: View {
     }
 
     private func openMarkdownFile() {
-        guard let url = MarkdownDocument.chooseFile() else { return }
+        guard MarkdownDocument.openChosenFiles() else { return }
         dismissWindow()
-        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
     }
 
     private func requestDefaultAppChange() {
