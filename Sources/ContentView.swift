@@ -150,11 +150,13 @@ struct ContentView: View {
                     }
                     .padding(.top, ReaderTheme.headerStripHeight + 4)
                     .transition(dropIn)
+                    .zIndex(1)
                 }
                 if let toast {
                     ToastView(toast: toast)
                         .padding(.top, ReaderTheme.headerTopPadding)
                         .transition(dropIn)
+                        .zIndex(2)
                 }
             }
                 .ignoresSafeArea(.container, edges: tabBarVisible ? [] : .top)
@@ -245,7 +247,7 @@ struct ContentView: View {
     }
 
     private var dropIn: AnyTransition {
-        reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity)
+        reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity)
     }
 
     private func findBarTrailingInset(width: CGFloat) -> CGFloat {
