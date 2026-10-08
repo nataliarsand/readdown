@@ -449,7 +449,7 @@ struct ReadDownApp: App {
 
 private struct PageNavigationCommands: View {
     @FocusedObject private var tableOfContents: TableOfContentsState?
-    @FocusedObject private var back: BackState?
+    @FocusedObject private var history: HistoryState?
 
     var body: some View {
         Button(tableOfContents?.menuTitle ?? "Show Table of Contents") {
@@ -462,7 +462,13 @@ private struct PageNavigationCommands: View {
             NotificationCenter.default.post(name: .navigateBack, object: nil)
         }
         .keyboardShortcut(AppShortcut.back)
-        .disabled(back?.canGoBack != true)
+        .disabled(history?.canGoBack != true)
+
+        Button("Forward") {
+            NotificationCenter.default.post(name: .navigateForward, object: nil)
+        }
+        .keyboardShortcut(AppShortcut.forward)
+        .disabled(history?.canGoForward != true)
     }
 }
 

@@ -17,6 +17,7 @@ extension Notification.Name {
     static let linkNotice = Notification.Name("linkNotice")
     static let toggleTableOfContents = Notification.Name("toggleTableOfContents")
     static let navigateBack = Notification.Name("navigateBack")
+    static let navigateForward = Notification.Name("navigateForward")
 }
 
 /// `pageZoom`, not `setMagnification`: WebKit clamps magnification at 1.0, so it can't zoom out.
@@ -42,12 +43,12 @@ struct WebView: NSViewRepresentable {
     let baseURL: URL?
     @ObservedObject var findState: FindState
     @ObservedObject var tableOfContentsState: TableOfContentsState
-    @ObservedObject var backState: BackState
+    @ObservedObject var historyState: HistoryState
     @ObservedObject var watcher: DocumentWatcher
 
     func makeCoordinator() -> Coordinator {
         Coordinator(baseURL: baseURL, findState: findState,
-                    tableOfContentsState: tableOfContentsState, backState: backState, watcher: watcher)
+                    tableOfContentsState: tableOfContentsState, historyState: historyState, watcher: watcher)
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -56,7 +57,7 @@ struct WebView: NSViewRepresentable {
         let messageHandler = WeakScriptMessageHandler(context.coordinator)
         config.userContentController.add(messageHandler, name: "rdUsage")
         config.userContentController.add(messageHandler, name: "rdTableOfContents")
-        config.userContentController.add(messageHandler, name: "rdBack")
+        config.userContentController.add(messageHandler, name: "rdHistory")
 
         let webView = ZoomableWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -98,8 +99,12 @@ struct WebView: NSViewRepresentable {
                       let visible = state["visible"] as? Bool {
                 tableOfContentsState.isAvailable = available
                 tableOfContentsState.isVisible = visible
-            } else if message.name == "rdBack", let canGoBack = message.body as? Bool {
-                backState.canGoBack = canGoBack
+            } else if message.name == "rdHistory",
+                      let state = message.body as? [String: Any],
+                      let back = state["back"] as? Bool,
+                      let forward = state["forward"] as? Bool {
+                historyState.canGoBack = back
+                historyState.canGoForward = forward
             }
         }
 
@@ -107,7 +112,7 @@ struct WebView: NSViewRepresentable {
         weak var webView: WKWebView?
         let findState: FindState
         let tableOfContentsState: TableOfContentsState
-        let backState: BackState
+        let historyState: HistoryState
         let watcher: DocumentWatcher
         private var observers: [Any] = []
         private var findStateObserver: AnyCancellable?
@@ -141,11 +146,11 @@ struct WebView: NSViewRepresentable {
         }
 
         init(baseURL: URL?, findState: FindState, tableOfContentsState: TableOfContentsState,
-             backState: BackState = BackState(), watcher: DocumentWatcher) {
+             historyState: HistoryState = HistoryState(), watcher: DocumentWatcher) {
             self.baseURL = baseURL
             self.findState = findState
             self.tableOfContentsState = tableOfContentsState
-            self.backState = backState
+            self.historyState = historyState
             self.watcher = watcher
             super.init()
             observe(.printDocument) { $0.handlePrint() }
@@ -156,7 +161,8 @@ struct WebView: NSViewRepresentable {
             observe(.findNext) { $0.findCurrent(backwards: false) }
             observe(.findPrevious) { $0.findCurrent(backwards: true) }
             observe(.toggleTableOfContents) { $0.toggleTableOfContents() }
-            observe(.navigateBack) { $0.navigateBack() }
+            observe(.navigateBack) { $0.navigate("back") }
+            observe(.navigateForward) { $0.navigate("forward") }
         }
 
         deinit {
@@ -212,9 +218,9 @@ struct WebView: NSViewRepresentable {
                 "window.__rdTableOfContents.toggle()", completionHandler: nil)
         }
 
-        private func navigateBack() {
+        private func navigate(_ direction: String) {
             guard let webView, webView.window == NSApp.keyWindow else { return }
-            webView.evaluateJavaScript("window.__rdBack && window.__rdBack.back()", completionHandler: nil)
+            webView.evaluateJavaScript("window.__rdHistory && window.__rdHistory.\(direction)()", completionHandler: nil)
         }
 
         private func findCurrent(backwards: Bool) {

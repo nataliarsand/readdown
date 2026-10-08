@@ -97,8 +97,9 @@ final class TableOfContentsState: ObservableObject {
     var menuTitle: String { isVisible ? "Hide Table of Contents" : "Show Table of Contents" }
 }
 
-final class BackState: ObservableObject {
+final class HistoryState: ObservableObject {
     @Published var canGoBack = false
+    @Published var canGoForward = false
 }
 
 struct ContentView: View {
@@ -107,7 +108,7 @@ struct ContentView: View {
     let fileURL: URL?
     @StateObject private var findState = FindState()
     @StateObject private var tableOfContentsState = TableOfContentsState()
-    @StateObject private var backState = BackState()
+    @StateObject private var historyState = HistoryState()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var window: NSWindow?
     @State private var toast: Toast?
@@ -127,7 +128,7 @@ struct ContentView: View {
             // The pills float in the title-bar row; the container extends behind it.
             ZStack(alignment: .top) {
                 WebView(baseURL: baseURL, findState: findState,
-                        tableOfContentsState: tableOfContentsState, backState: backState, watcher: watcher)
+                        tableOfContentsState: tableOfContentsState, historyState: historyState, watcher: watcher)
                     .frame(minWidth: 500, minHeight: 400)
                 WindowDragArea()
                     .frame(height: ReaderTheme.headerStripHeight)
@@ -157,7 +158,7 @@ struct ContentView: View {
             }
                 .ignoresSafeArea(.container, edges: .top)
                 .focusedSceneObject(tableOfContentsState)
-                .focusedSceneObject(backState)
+                .focusedSceneObject(historyState)
                 .background(WindowAccessor { window in
                     self.window = window
                     WindowCascader.shared.cascade(window)
@@ -596,6 +597,7 @@ enum AppShortcut {
     static let find = KeyboardShortcut("f", modifiers: .command)
     static let tableOfContents = KeyboardShortcut("t", modifiers: [.command, .option])
     static let back = KeyboardShortcut("[", modifiers: .command)
+    static let forward = KeyboardShortcut("]", modifiers: .command)
 }
 
 extension KeyboardShortcut {

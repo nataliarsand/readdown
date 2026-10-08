@@ -868,26 +868,33 @@ enum HTMLTemplate {
         \(compact ? "" : """
         <script nonce="\(nonce)">
         (function() {
-            var stack = [];
+            var backStack = [];
+            var forwardStack = [];
             function notifyHost() {
                 try {
-                    window.webkit.messageHandlers.rdBack.postMessage(stack.length > 0);
+                    window.webkit.messageHandlers.rdHistory.postMessage({
+                        back: backStack.length > 0, forward: forwardStack.length > 0
+                    });
                 } catch (e) {}
+            }
+            function step(from, to) {
+                if (from.length === 0) return false;
+                to.push(window.scrollY);
+                window.scrollTo(0, from.pop());
+                notifyHost();
+                return true;
             }
             document.addEventListener('click', function(event) {
                 var link = event.target.closest && event.target.closest('a[href^="#"]');
                 if (!link || link.getAttribute('href').length < 2) return;
-                stack.push(window.scrollY);
-                if (stack.length > 50) stack.shift();
+                backStack.push(window.scrollY);
+                if (backStack.length > 50) backStack.shift();
+                forwardStack = [];
                 notifyHost();
             }, true);
-            window.__rdBack = {
-                back: function() {
-                    if (stack.length === 0) return false;
-                    window.scrollTo(0, stack.pop());
-                    notifyHost();
-                    return true;
-                }
+            window.__rdHistory = {
+                back: function() { return step(backStack, forwardStack); },
+                forward: function() { return step(forwardStack, backStack); }
             };
             notifyHost();
         })();

@@ -32,6 +32,7 @@ private struct ShortcutsListView: View {
         ("Navigate", [
             ("⌥⌘T", "Table of contents"),
             ("⌘[", "Back"),
+            ("⌘]", "Forward"),
         ]),
         ("Zoom", [
             ("⌘=", "Zoom in"),

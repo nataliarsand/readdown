@@ -167,14 +167,28 @@ final class FindInPageTests: XCTestCase {
     func testBackReturnsToPositionBeforeAnchorJump() {
         let filler = String(repeating: "Line.\n\n", count: 200)
         let webView = loadDocument("[Jump](#end)\n\n\(filler)# End\n\n\(filler)")
-        waitUntilTrue(webView, "typeof window.__rdBack === 'object'")
+        waitUntilTrue(webView, "typeof window.__rdHistory === 'object'")
 
         _ = evaluate(webView, "document.querySelector('a[href=\"#end\"]').click()")
         waitUntilTrue(webView, "Math.abs(document.getElementById('end').getBoundingClientRect().top) < 100")
 
-        XCTAssertEqual(evaluate(webView, "window.__rdBack.back()") as? Bool, true)
+        XCTAssertEqual(evaluate(webView, "window.__rdHistory.back()") as? Bool, true)
         waitUntilTrue(webView, "window.scrollY === 0")
-        XCTAssertEqual(evaluate(webView, "window.__rdBack.back()") as? Bool, false)
+        XCTAssertEqual(evaluate(webView, "window.__rdHistory.back()") as? Bool, false)
+
+        XCTAssertEqual(evaluate(webView, "window.__rdHistory.forward()") as? Bool, true)
+        waitUntilTrue(webView, "Math.abs(document.getElementById('end').getBoundingClientRect().top) < 100")
+        XCTAssertEqual(evaluate(webView, "window.__rdHistory.forward()") as? Bool, false)
+    }
+
+    func testNewJumpClearsForward() {
+        let filler = String(repeating: "Line.\n\n", count: 200)
+        let webView = loadDocument("[Jump](#end)\n\n\(filler)# End\n\n\(filler)")
+        waitUntilTrue(webView, "typeof window.__rdHistory === 'object'")
+        _ = evaluate(webView, "document.querySelector('a[href=\"#end\"]').click()")
+        _ = evaluate(webView, "window.__rdHistory.back()")
+        _ = evaluate(webView, "document.querySelector('a[href=\"#end\"]').click()")
+        XCTAssertEqual(evaluate(webView, "window.__rdHistory.forward()") as? Bool, false)
     }
 
     func testMermaidStillRendersFromEscapedSource() {
@@ -183,25 +197,25 @@ final class FindInPageTests: XCTestCase {
         XCTAssertEqual(evaluate(webView, "document.querySelector('pre.mermaid').getAttribute('data-rd-src').includes('A-->B')") as? Bool, true)
     }
 
-    func testBackReportsHistoryToTheApp() {
-        let backState = BackState()
+    func testBackAndForwardReportTheirStateToTheApp() {
+        let historyState = HistoryState()
         let coordinator = WebView.Coordinator(
             baseURL: nil, findState: FindState(), tableOfContentsState: TableOfContentsState(),
-            backState: backState, watcher: DocumentWatcher(initialText: "", fileURL: nil, isDark: false)
+            historyState: historyState, watcher: DocumentWatcher(initialText: "", fileURL: nil, isDark: false)
         )
         let config = WKWebViewConfiguration()
-        config.userContentController.add(WebView.WeakScriptMessageHandler(coordinator), name: "rdBack")
+        config.userContentController.add(WebView.WeakScriptMessageHandler(coordinator), name: "rdHistory")
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), configuration: config)
         let filler = String(repeating: "Line.\n\n", count: 200)
         let result = MarkdownRenderer.render("[Jump](#end)\n\n\(filler)# End")
         webView.loadHTMLString(HTMLTemplate.wrap(body: result.html), baseURL: nil)
-        waitUntilTrue(webView, "typeof window.__rdBack === 'object'")
-        XCTAssertFalse(backState.canGoBack)
+        waitUntilTrue(webView, "typeof window.__rdHistory === 'object'")
+        XCTAssertFalse(historyState.canGoBack)
 
         _ = evaluate(webView, "document.querySelector('a[href=\"#end\"]').click()")
-        waitFor { backState.canGoBack }
-        _ = evaluate(webView, "window.__rdBack.back()")
-        waitFor { !backState.canGoBack }
+        waitFor { historyState.canGoBack && !historyState.canGoForward }
+        _ = evaluate(webView, "window.__rdHistory.back()")
+        waitFor { !historyState.canGoBack && historyState.canGoForward }
     }
 
     private func waitFor(_ condition: () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
