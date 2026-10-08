@@ -36,8 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 afterUpdate ? AfterUpdateWindow.shared.show() : self.showWelcomeWindow()
             } else if afterUpdate {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    guard let frame = NSApp.mainWindow?.frame else { return }
-                    ThanksPop.show(centeredIn: frame, style: .updated)
+                    self.showUpdatedPillWhenActive()
                 }
             }
         }
@@ -45,6 +44,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         UsageMetrics.sendIfDue()
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
             UsageMetrics.promptForConsentIfNeeded()
+        }
+    }
+
+    private func showUpdatedPillWhenActive() {
+        if NSApp.isActive, let frame = NSApp.mainWindow?.frame {
+            ThanksPop.show(centeredIn: frame, style: .updated)
+            return
+        }
+        var observer: NSObjectProtocol?
+        observer = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { _ in
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                guard let frame = NSApp.mainWindow?.frame else { return }
+                ThanksPop.show(centeredIn: frame, style: .updated)
+            }
         }
     }
 
