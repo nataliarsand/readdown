@@ -8,7 +8,7 @@ enum ThanksPop {
     }
 
     static func show(centeredIn rect: NSRect, style: Style = .celebrate) {
-        let size = NSSize(width: 260, height: 100)
+        let size = NSSize(width: 380, height: 100)
         let origin = NSPoint(
             x: rect.midX - size.width / 2,
             y: rect.midY - size.height / 2
@@ -56,7 +56,7 @@ private struct ThanksPopView: View {
                 Image(systemName: "heart.fill")
                     .foregroundStyle(ReaderTheme.link)
             }
-            Text(style == .updated ? "Thanks for updating!" : "Thank you!")
+            Text(style == .updated ? "Update completed! Happy reading \u{2728}" : "Thank you!")
                 .fontWeight(.semibold)
         }
         .font(.system(size: 15))
